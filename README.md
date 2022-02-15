@@ -6,6 +6,8 @@
 Dataset management service for the Pilot Platform.
 
 ## Build and Run
+Currently some build dependencies are in a private index and you will need the correct username and secret to use them. 
+
 ```bash 
 virtualenv -p python3 venv
 source venv/bin/activate
