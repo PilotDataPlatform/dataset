@@ -1,0 +1,14 @@
+.git
+.gitignore
+.gitlab-ci*
+gitlab-ci*
+Dockerfile*
+
+Jenkinsfile
+
+# Misc
+.DS_Store
+.env.local
+
+venv
+env
