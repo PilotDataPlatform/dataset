@@ -46,20 +46,16 @@ pipeline {
 
     stage('DEV Build and push image') {
       when {branch "develop"}
-      steps{
+      steps {
         script {
-          withCredentials([
-            usernamePassword(credentialsId:'readonly', usernameVariable: 'PIP_USERNAME', passwordVariable: 'PIP_PASSWORD'),
-            usernamePassword(credentialsId:'minio', usernameVariable: 'MINIO_USERNAME', passwordVariable: 'MINIO_PASSWORD')
-          ]) {
-            docker.withRegistry('https://registry-gitlab.indocresearch.org', registryCredential) {
-                customImage = docker.build("registry-gitlab.indocresearch.org/pilot/service_dataset:${commit}",  "--build-arg MINIO_USERNAME=$MINIO_USERNAME --build-arg MINIO_PASSWORD=$MINIO_PASSWORD --build-arg pip_username=${PIP_USERNAME} --build-arg pip_password=${PIP_PASSWORD} --add-host git.indocresearch.org:10.4.3.151 .")
-                customImage.push()
-            }
+          docker.withRegistry('https://ghcr.io', registryCredential) {
+              customImage = docker.build("$imagename:$commit")
+              customImage.push()
           }
         }
       }
     }
+
     stage('DEV Remove image') {
       when {branch "develop"}
       steps{
@@ -89,18 +85,13 @@ pipeline {
         }
     }
 
-    stage('STAGING Building and push image') {
+    stage('STAGING Build and push image') {
       when {branch "main"}
-      steps{
+      steps {
         script {
-          withCredentials([
-            usernamePassword(credentialsId:'readonly', usernameVariable: 'PIP_USERNAME', passwordVariable: 'PIP_PASSWORD'),
-            usernamePassword(credentialsId:'minio', usernameVariable: 'MINIO_USERNAME', passwordVariable: 'MINIO_PASSWORD')
-          ]) {
-            docker.withRegistry('https://registry-gitlab.indocresearch.org', registryCredential) {
-                customImage = docker.build("registry-gitlab.indocresearch.org/pilot/service_dataset:${commit}",  "--build-arg MINIO_USERNAME=$MINIO_USERNAME --build-arg MINIO_PASSWORD=$MINIO_PASSWORD --build-arg pip_username=${PIP_USERNAME} --build-arg pip_password=${PIP_PASSWORD} --add-host git.indocresearch.org:10.4.3.151 .")
-                customImage.push()
-            }
+          docker.withRegistry('https://ghcr.io', registryCredential) {
+              customImage = docker.build("$imagename:$commit")
+              customImage.push()
           }
         }
       }
