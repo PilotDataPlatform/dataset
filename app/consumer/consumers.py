@@ -1,34 +1,28 @@
-from .consumer_dynamic import ConsumerDynamic
-from .rabbit_operator import RabbitConnection
-from ..resources.es_helper import insert_one_by_id, get_one_by_id
-import ast
-import pika
+# Copyright (C) 2022 Indoc Research
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import json
+from uuid import uuid4
 
+from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
+from app.resources.es_helper import get_one_by_id
+from app.resources.es_helper import insert_one_by_id
 
-def publish(queue, routing_key, body,
-            exchange_name, exchange_type):
-    my_rabbit = RabbitConnection()
-    connection_instance = my_rabbit.init_connection()
-    channel = connection_instance.channel()
-    channel.queue_declare(queue=queue)
-    channel.exchange_declare(
-        exchange=exchange_name,
-        exchange_type=exchange_type)
-    channel.queue_bind(
-        exchange=exchange_name,
-        queue=queue,
-        routing_key=routing_key)
-    channel.basic_publish(
-        exchange=exchange_name,
-        routing_key=routing_key,
-        body=json.dumps(body),
-        properties=pika.BasicProperties(
-            delivery_mode=2,  # make message persistent
-        )
-    )
-    channel.confirm_delivery()
-    my_rabbit.close_connection()
+from .consumer_dynamic import ConsumerDynamic
+
+logger = SrvLoggerFactory('datasetConsumer').get_logger()
 
 
 def callback(ch, method, properties, body, ctx_context):
@@ -36,49 +30,51 @@ def callback(ch, method, properties, body, ctx_context):
     payload = msg['payload']
 
     # insert activity log to elastic search
+    global_entity_id = payload.get('act_geid', str(uuid4()))
     es_body = {
-        "global_entity_id": payload['act_geid'],
-        "create_timestamp": int(msg['create_timestamp']),
-        "operator": payload['operator'],
-        "dataset_geid": payload['dataset_geid'],
-        "event_type": msg['event_type'],
-        "action": payload['action'],
-        "resource": payload['resource'],
-        "detail": payload['detail'],
+        'global_entity_id': global_entity_id,
+        'create_timestamp': int(msg['create_timestamp']),
+        'operator': payload['operator'],
+        'dataset_geid': payload['dataset_geid'],
+        'event_type': msg['event_type'],
+        'action': payload['action'],
+        'resource': payload['resource'],
+        'detail': payload['detail'],
     }
 
-    check_es_res = get_one_by_id('activity-logs', '_doc', payload['act_geid'])
+    check_es_res = get_one_by_id('activity-logs', '_doc', global_entity_id)
     if check_es_res['found']:
+        logger.info('activity-logs already created', extra=check_es_res)
         return
 
-    create_es_res = insert_one_by_id('_doc', 'activity-logs',
-                                     es_body, payload['act_geid'])
-    print(create_es_res)
+    create_es_res = insert_one_by_id('_doc', 'activity-logs', es_body, global_entity_id)
+
+    logger.info('create data ES', extra=create_es_res)
     if create_es_res['result'] == 'created':
-        print('Publish a “DATASET_ACTLOG_SUCCEED“ event')
+        logger.info('Publish a “DATASET_ACTLOG_SUCCEED“ event')
         msg['event_type'] = 'DATASET_ACTLOG_SUCCEED'
     else:
-        print('publish a “DATASET_ACTLOG_TERMINATED“ message')
+        logger.info('publish a “DATASET_ACTLOG_TERMINATED“ message')
         msg['event_type'] = '“DATASET_ACTLOG_TERMINATED“'
-    # publish(ctx_context['queue'], ctx_context['routing_key'], msg,
-    #         ctx_context['exchange_name'], ctx_context['exchange_type'])
 
 
 def dataset_consumer():
-    print('Start background consumer')
+    logger.info('Start background consumer')
     sub_content = {
-        "sub_name": "dataset_activity_logger",
-        "queue": 'dataset_actlog',
-        "routing_key": '',
-        "exchange_name": 'DATASET_ACTS',
-        'exchange_type': 'fanout'
+        'sub_name': 'dataset_activity_logger',
+        'queue': 'dataset_actlog',
+        'routing_key': '',
+        'exchange_name': 'DATASET_ACTS',
+        'exchange_type': 'fanout',
     }
 
     # start consumer
     consumer = ConsumerDynamic(
-        'dataset_activity_logger', 'dataset_actlog',
+        'dataset_activity_logger',
+        'dataset_actlog',
         routing_key='',
         exchange_name='DATASET_ACTS',
-        exchange_type='fanout')
+        exchange_type='fanout',
+    )
     consumer.set_callback(callback, sub_content)
     consumer.start()

@@ -1,47 +1,64 @@
-from ...models.base_models import APIResponse, EAPIResponseCode
-from ...models.models_dataset import SrvDatasetMgr
-from ...models.reqres_dataset import DatasetPostForm, DatasetPostResponse, DatasetPutForm, DatasetVerifyForm
-from ...models.validator_dataset import DatasetValidator
-from fastapi import APIRouter, Header
-from fastapi_utils import cbv
-from fastapi_sqlalchemy import db
-from typing import Optional
+# Copyright (C) 2022 Indoc Research
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import json
-import subprocess
 import shutil
+import subprocess
 import time
-import requests
-from ...commons.logger_services.logger_factory_service import SrvLoggerFactory
-from ...resources.error_handler import catch_internal
-from ...resources.utils import get_files_recursive, get_related_nodes, http_query_node, get_node_relative_path, make_temp_folder
-from ...resources.dataset_validator import validator_messages
-from app.config import ConfigClass
-from app.models.bids_sql import BIDSResult
+from typing import Optional
 
+import httpx
+from fastapi import APIRouter
+from fastapi import Header
+from fastapi_sqlalchemy import db
+from fastapi_utils import cbv
+
+from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
+from app.config import ConfigClass
+from app.models.base_models import APIResponse
+from app.models.base_models import EAPIResponseCode
+from app.models.bids_sql import BIDSResult
+from app.models.models_dataset import SrvDatasetMgr
+from app.models.reqres_dataset import DatasetPostForm
+from app.models.reqres_dataset import DatasetPostResponse
+from app.models.reqres_dataset import DatasetVerifyForm
+from app.models.validator_dataset import DatasetValidator
+from app.resources.error_handler import catch_internal
+from app.resources.utils import get_files_recursive
+from app.resources.utils import get_node_relative_path
+from app.resources.utils import get_related_nodes
+from app.resources.utils import http_query_node
+from app.resources.utils import make_temp_folder
 
 router = APIRouter()
 
 _API_TAG = 'V1 Dataset Restful'
-_API_NAMESPACE = "api_dataset_restful"
+_API_NAMESPACE = 'api_dataset_restful'
 
 
 @cbv.cbv(router)
 class DatasetRestful:
-    '''
-    API Dataset Restful
-    '''
+    """API Dataset Restful."""
 
     def __init__(self):
         self.__logger = SrvLoggerFactory(_API_NAMESPACE).get_logger()
 
-    @router.post("/v1/dataset", tags=[_API_TAG], response_model=DatasetPostResponse,
-                 summary="Create a dataset.")
+    @router.post('/v1/dataset', tags=[_API_TAG], response_model=DatasetPostResponse, summary='Create a dataset.')
     @catch_internal(_API_NAMESPACE)
     async def create_dataset(self, request_payload: DatasetPostForm):
-        '''
-        dataset creation api
-        '''
+        """dataset creation api."""
         res = APIResponse()
 
         srv_dataset = SrvDatasetMgr()
@@ -56,14 +73,14 @@ class DatasetRestful:
 
         post_dict = request_payload.dict()
         for k, v in post_dict.items():
-            if v != None:
+            if v is not None:
                 # use the factory to get the validator function
                 validator = DatasetValidator.get(k)
                 validation = validator(v)
                 if not validation:
                     res.code = EAPIResponseCode.bad_request
                     res.result = None
-                    res.error_msg = "Invalid {}".format(k)
+                    res.error_msg = 'Invalid {}'.format(k)
                     return res.json_response()
 
         created = srv_dataset.create(
@@ -83,13 +100,12 @@ class DatasetRestful:
         res.result = created
         return res.json_response()
 
-    @router.get("/v1/dataset/{dataset_geid}", tags=[_API_TAG], response_model=DatasetPostResponse,
-                summary="Get a dataset.")
+    @router.get(
+        '/v1/dataset/{dataset_geid}', tags=[_API_TAG], response_model=DatasetPostResponse, summary='Get a dataset.'
+    )
     @catch_internal(_API_NAMESPACE)
     async def get_dataset(self, dataset_geid):
-        '''
-        dataset creation api
-        '''
+        """dataset creation api."""
         res = APIResponse()
 
         srv_dataset = SrvDatasetMgr()
@@ -106,20 +122,19 @@ class DatasetRestful:
             else:
                 res.code = EAPIResponseCode.not_found
                 res.result = dataset_gotten
-                res.error_msg = "Not Found, invalid geid"
+                res.error_msg = 'Not Found, invalid geid'
                 return res.json_response()
         else:
             res.code = EAPIResponseCode.internal_error
             res.error_msg = response_dataset_node.text
             return res.json_response()
 
-    @router.get("/v1/dataset-peek/{code}", tags=[_API_TAG], response_model=DatasetPostResponse,
-                summary="Get a dataset.")
+    @router.get(
+        '/v1/dataset-peek/{code}', tags=[_API_TAG], response_model=DatasetPostResponse, summary='Get a dataset.'
+    )
     @catch_internal(_API_NAMESPACE)
     async def get_dataset_bycode(self, code):
-        '''
-        dataset creation api
-        '''
+        """dataset creation api."""
         res = APIResponse()
 
         srv_dataset = SrvDatasetMgr()
@@ -136,94 +151,32 @@ class DatasetRestful:
             else:
                 res.code = EAPIResponseCode.not_found
                 res.result = dataset_gotten
-                res.error_msg = "Not Found, invalid dataset code"
+                res.error_msg = 'Not Found, invalid dataset code'
                 return res.json_response()
         else:
             res.code = EAPIResponseCode.internal_error
             res.error_msg = response_dataset_node.text
             return res.json_response()
 
-    @router.put("/v1/dataset/{dataset_geid}", tags=[_API_TAG], response_model=DatasetPostResponse,
-                summary="Update a dataset.")
-    @catch_internal(_API_NAMESPACE)
-    async def update_dataset(self, dataset_geid, request_payload: DatasetPutForm):
-        '''
-        dataset creation api
-        '''
-        res = APIResponse()
-
-        srv_dataset = SrvDatasetMgr()
-
-        dataset_gotten = None
-
-        # get dataset
-        response_dataset_node = srv_dataset.get_bygeid(dataset_geid)
-        if response_dataset_node.status_code == 200:
-            if len(response_dataset_node.json()) > 0:
-                dataset_gotten = response_dataset_node.json()[0]
-            else:
-                res.code = EAPIResponseCode.not_found
-                res.result = dataset_gotten
-                res.error_msg = "Not Found, invalid geid"
-                return res.json_response()
-        else:
-            res.code = EAPIResponseCode.internal_error
-            res.error_msg = response_dataset_node.text
-            return res.json_response()
-
-        # parse update json
-        update_json = {}
-        put_dict = request_payload.dict()
-        allowed = ['title', 'authors', 'modality',
-                   'collection_method', 'license', 'tags',
-                   'description', 'file_count', 'total_size',
-                   'activity',
-                   ]
-        for k, v in put_dict.items():
-            if k not in allowed:
-                res.code = EAPIResponseCode.bad_request
-                res.result = None
-                res.error_msg = "{} update is not allowed".format(k)
-                return res.json_response()
-            if v != None and k != 'activity':
-                validator = DatasetValidator.get(k)
-                validation = validator(v)
-                if not validation:
-                    res.code = EAPIResponseCode.bad_request
-                    res.result = None
-                    res.error_msg = "Invalid {}".format(k)
-                    return res.json_response()
-                update_json[k] = v
-
-        # do update
-        updated_node = srv_dataset.update(dataset_gotten,
-                                          update_json, request_payload.activity)
-
-        res.code = EAPIResponseCode.success
-        res.result = updated_node
-        return res.json_response()
-
-    @router.post("/v1/dataset/verify", tags=[_API_TAG], summary="verify a bids dataset.")
+    @router.post('/v1/dataset/verify', tags=[_API_TAG], summary='verify a bids dataset.')
     @catch_internal(_API_NAMESPACE)
     async def verify_dataset(self, request_payload: DatasetVerifyForm):
         res = APIResponse()
         payload = request_payload.dict()
 
         dataset_geid = payload['dataset_geid']
-        verify_type = payload['type']
 
-        dataset_res = http_query_node(
-            'Dataset', {'global_entity_id': dataset_geid})
+        dataset_res = http_query_node('Dataset', {'global_entity_id': dataset_geid})
 
         if dataset_res.status_code != 200:
             res.code = EAPIResponseCode.bad_request
-            res.result = {"result": "dataset not exist"}
+            res.result = {'result': 'dataset not exist'}
             return res.json_response()
 
         dataset_info = dataset_res.json()
         if len(dataset_info) == 0:
             res.code = EAPIResponseCode.bad_request
-            res.result = {"result": "dataset not exist"}
+            res.result = {'result': 'dataset not exist'}
             return res.json_response()
 
         dataset_info = dataset_info[0]
@@ -235,83 +188,89 @@ class DatasetRestful:
 
         for node in nodes:
             if 'File' in node['labels']:
-                file_path = get_node_relative_path(
-                    dataset_code, node['location'])
-                files_info.append(
-                    {"file_path": TEMP_FOLDER + dataset_code + file_path, "file_size": node['file_size']})
+                file_path = get_node_relative_path(dataset_code, node['location'])
+                files_info.append({'file_path': TEMP_FOLDER + dataset_code + file_path, 'file_size': node['file_size']})
 
             if 'Folder' in node['labels']:
                 files = get_files_recursive(node['global_entity_id'])
                 for file in files:
-                    file_path = get_node_relative_path(
-                        dataset_code, file['location'])
+                    file_path = get_node_relative_path(dataset_code, file['location'])
                     files_info.append(
-                        {"file_path": TEMP_FOLDER + dataset_code + file_path, "file_size": file['file_size']})
+                        {'file_path': TEMP_FOLDER + dataset_code + file_path, 'file_size': file['file_size']}
+                    )
 
         try:
             make_temp_folder(files_info)
-        except Exception as e:
+        except Exception:
             res.code = EAPIResponseCode.internal_error
-            res.result = "failed to create temp folder for bids"
+            res.result = 'failed to create temp folder for bids'
             return res.json_response()
 
         try:
-            result = subprocess.run(['bids-validator', TEMP_FOLDER + dataset_code, '--json',
-                                     '--ignoreNiftiHeaders', '--ignoreSubjectConsistency'], stdout=subprocess.PIPE)
-        except Exception as e:
+            result = subprocess.run(
+                [
+                    'bids-validator',
+                    TEMP_FOLDER + dataset_code,
+                    '--json',
+                    '--ignoreNiftiHeaders',
+                    '--ignoreSubjectConsistency',
+                ],
+                stdout=subprocess.PIPE,
+            )
+        except Exception:
             res.code = EAPIResponseCode.internal_error
-            res.result = "failed to validate bids folder"
+            res.result = 'failed to validate bids folder'
             return res.json_response()
 
         try:
             shutil.rmtree(TEMP_FOLDER + dataset_code)
-        except Exception as e:
+        except Exception:
             res.code = EAPIResponseCode.internal_error
-            res.result = "failed to remove temp bids folder"
+            res.result = 'failed to remove temp bids folder'
             return res.json_response()
 
         res.result = json.loads(result.stdout)
         return res.json_response()
 
-    @router.post("/v1/dataset/verify/pre", tags=[_API_TAG], summary="pre verify a bids dataset.")
+    @router.post('/v1/dataset/verify/pre', tags=[_API_TAG], summary='pre verify a bids dataset.')
     @catch_internal(_API_NAMESPACE)
-    async def pre_verify_dataset(self, request_payload: DatasetVerifyForm, Authorization: Optional[str] = Header(None), refresh_token: Optional[str] = Header(None)):
+    async def pre_verify_dataset(
+        self,
+        request_payload: DatasetVerifyForm,
+        Authorization: Optional[str] = Header(None),
+        refresh_token: Optional[str] = Header(None),
+    ):
         res = APIResponse()
         payload = request_payload.dict()
 
         dataset_geid = payload['dataset_geid']
-        verify_type = payload['type']
 
-        dataset_res = http_query_node(
-            'Dataset', {'global_entity_id': dataset_geid})
+        dataset_res = http_query_node('Dataset', {'global_entity_id': dataset_geid})
 
         if dataset_res.status_code != 200:
             res.code = EAPIResponseCode.bad_request
-            res.result = {"result": "dataset not exist"}
+            res.result = {'result': 'dataset not exist'}
             return res.json_response()
 
         access_token = Authorization.split(' ')[1]
 
         payload = {
-            "event_type": "bids_validate",
-            "payload": {
-                "dataset_geid": dataset_geid,
-                "access_token": access_token,
-                "refresh_token": refresh_token,
-                "project": "dataset",
+            'event_type': 'bids_validate',
+            'payload': {
+                'dataset_geid': dataset_geid,
+                'access_token': access_token,
+                'refresh_token': refresh_token,
+                'project': 'dataset',
             },
-            "create_timestamp": time.time()
+            'create_timestamp': time.time(),
         }
         url = ConfigClass.SEND_MESSAGE_URL
-        self.__logger.info("Sending Message To Queue: " + str(payload))
-        msg_res = requests.post(
-            url=url,
-            json=payload,
-            headers={"Content-type": "application/json; charset=utf-8"}
-        )
+        self.__logger.info('Sending Message To Queue: ' + str(payload))
+        with httpx.Client() as client:
+            msg_res = client.post(url=url, json=payload, headers={'Content-type': 'application/json; charset=utf-8'})
         if msg_res.status_code != 200:
             res.code = EAPIResponseCode.internal_error
-            res.result = {"result": msg_res.text}
+            res.result = {'result': msg_res.text}
             return res.json_response()
 
         res.code = EAPIResponseCode.success
@@ -319,14 +278,18 @@ class DatasetRestful:
 
         return res.json_response()
 
-    @router.get("/v1/dataset/bids-msg/{dataset_geid}", tags=[_API_TAG], summary="pre verify a bids dataset.")
+    @router.get('/v1/dataset/bids-msg/{dataset_geid}', tags=[_API_TAG], summary='pre verify a bids dataset.')
     @catch_internal(_API_NAMESPACE)
     async def get_bids_msg(self, dataset_geid):
         api_response = APIResponse()
         try:
-            bids_results = db.session.query(BIDSResult).filter_by(
-                dataset_geid=dataset_geid,
-            ).order_by(BIDSResult.created_time.desc())
+            bids_results = (
+                db.session.query(BIDSResult)
+                .filter_by(
+                    dataset_geid=dataset_geid,
+                )
+                .order_by(BIDSResult.created_time.desc())
+            )
             bids_result = bids_results.first()
 
             if not bids_result:
@@ -337,7 +300,7 @@ class DatasetRestful:
             api_response.result = bids_result
             return api_response.json_response()
         except Exception as e:
-            self.__logger.error("Psql Error: " + str(e))
+            self.__logger.error('Psql Error: ' + str(e))
             api_response.code = EAPIResponseCode.internal_error
-            api_response.result = "Psql Error: " + str(e)
+            api_response.result = 'Psql Error: ' + str(e)
             return api_response.json_response()

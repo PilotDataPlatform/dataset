@@ -55,3 +55,7 @@ gunicorn_error.log
 # test files
 /test_seeds
 /test_project
+tests/logs
+
+# OS files
+.DS_Store
