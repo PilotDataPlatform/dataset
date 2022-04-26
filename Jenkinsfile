@@ -9,13 +9,13 @@ pipeline {
 
     stages {
 
-    stage('Git clone for dev') {
+    stage('DEV Git clone') {
         when {branch "develop"}
         steps{
           script {
           git branch: "develop",
               url: 'https://github.com/PilotDataPlatform/dataset.git',
-              credentialsId: 'pilot-ghcr'
+              credentialsId: 'pilot-gh'
             }
         }
     }
@@ -80,7 +80,7 @@ pipeline {
           script {
           git branch: "main",
               url: 'https://github.com/PilotDataPlatform/dataset.git',
-              credentialsId: 'pilot-ghcr'
+              credentialsId: 'pilot-gh'
             }
         }
     }

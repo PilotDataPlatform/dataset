@@ -14,8 +14,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 FROM python:3.7-buster
-ARG MINIO_USERNAME
-ARG MINIO_PASSWORD
 
 ENV TZ=America/Toronto
 
@@ -29,8 +27,6 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
     ln -s /usr/bin/vim.tiny /usr/bin/vim && \
     rm -rf /var/lib/apt/lists/*
 
-# COPY kubernetes/mc /usr/local/bin
-# RUN chmod +x /usr/local/bin/mc
 COPY poetry.lock pyproject.toml ./
 RUN pip install --no-cache-dir poetry==1.1.12
 RUN poetry config virtualenvs.create false
