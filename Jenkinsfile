@@ -9,7 +9,7 @@ pipeline {
 
     stages {
 
-    stage('DEV Git clone') {
+    stage('DEV git clone') {
         when {branch "develop"}
         steps{
           script {
@@ -44,7 +44,7 @@ pipeline {
     //   }
     // }
 
-    stage('DEV Build and push image') {
+    stage('DEV build and push image') {
       when {branch "develop"}
       steps {
         script {
@@ -56,14 +56,14 @@ pipeline {
       }
     }
 
-    stage('DEV Remove image') {
+    stage('DEV remove image') {
       when {branch "develop"}
       steps{
         sh "docker rmi $imagename:$commit"
       }
     }
 
-    stage('DEV Deploy') {
+    stage('DEV deploy') {
       when {branch "develop"}
       steps{
       build(job: "/VRE-IaC/UpdateAppVersion", parameters: [
@@ -74,7 +74,7 @@ pipeline {
       }
     }
 
-    stage('Git clone staging') {
+    stage('STAGING git clone') {
         when {branch "main"}
         steps{
           script {
@@ -97,14 +97,14 @@ pipeline {
       }
     }
 
-    stage('STAGING Remove image') {
+    stage('STAGING remove image') {
       when {branch "main"}
       steps{
         sh "docker rmi $imagename:$commit"
       }
     }
 
-    stage('STAGING Deploy') {
+    stage('STAGING deploy') {
       when {branch "main"}
       steps{
           build(job: "/VRE-IaC/Staging-UpdateAppVersion", parameters: [
