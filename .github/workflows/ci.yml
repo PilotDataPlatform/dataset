@@ -68,6 +68,17 @@ jobs:
   tests:
     needs: create-virtualenv
     runs-on: ubuntu-20.04
+    services:
+      # Label used to access the service container
+      redis:
+        # Docker Hub image
+        image: redis
+        # Set health checks to wait until redis has started
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
     - uses: actions/checkout@v1
     - uses: actions/setup-python@v2
@@ -79,6 +90,11 @@ jobs:
         path: .venv
         key: venv-${{ hashFiles('**/poetry.lock') }}
     - name: Run tests
+      env:
+        # The hostname used to communicate with the Redis service container
+        REDIS_HOST: redis
+        # The default Redis port
+        REDIS_PORT: 6379
       run: |
         source .venv/bin/activate
         PYTHONPATH=. pytest -s --cov=app --cov-report term-missing --disable-warnings
