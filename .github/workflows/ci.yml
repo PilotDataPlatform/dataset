@@ -104,9 +104,9 @@ jobs:
         REDIS_PORT: 6379
       run: |
         source .venv/bin/activate
-        PYTHONPATH=. poetry run pytest -s --cov=app --cov-report term-missing --cov-report=xml --disable-warnings
+        PYTHONPATH=. pytest -s --cov=app --cov-report term-missing --cov-report=xml --disable-warnings
     - name: Upload coverage
       uses: codecov/codecov-action@v1
       with:
         file: ./coverage.xml
-        fail_ci_if_error: true
+        fail_ci_if_error: false
