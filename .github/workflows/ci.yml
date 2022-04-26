@@ -65,5 +65,5 @@ jobs:
         python3 -m pre_commit install
     - name: flake8
       run: |
-      source .venv/bin/activate
-      python3 -m pre_commit run flake8 --all-files
+        source .venv/bin/activate
+        python3 -m pre_commit run flake8 --all-files
