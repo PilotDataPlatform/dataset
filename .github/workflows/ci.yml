@@ -65,6 +65,14 @@ jobs:
       run: |
         source .venv/bin/activate
         python3 -m pre_commit run flake8 --all-files
+    - name: isort
+      run: |
+        source .venv/bin/activate
+        python3 -m pre_commit run isort --all-files
+    - name: black
+      run: |
+        source .venv/bin/activate
+        python3 -m pre_commit run black --all-files
   tests:
     needs: create-virtualenv
     runs-on: ubuntu-20.04
@@ -100,4 +108,9 @@ jobs:
         REDIS_PORT: 6379
       run: |
         source .venv/bin/activate
-        PYTHONPATH=. pytest -s --cov=app --cov-report term-missing --disable-warnings
+        PYTHONPATH=. pytest -s --cov=app --cov-report=xml term-missing --disable-warnings
+    - name: Upload coverage
+      uses: codecov/codecov-action@v1
+      with:
+        file: ./coverage.xml
+        fail_ci_if_error: true
