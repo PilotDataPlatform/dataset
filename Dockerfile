@@ -17,8 +17,6 @@ FROM python:3.7-buster
 ARG MINIO_USERNAME
 ARG MINIO_PASSWORD
 
-ENV MINIO_USERNAME=$MINIO_USERNAME
-ENV MINIO_PASSWORD=$MINIO_PASSWORD
 ENV TZ=America/Toronto
 
 WORKDIR /usr/src/app
@@ -31,8 +29,8 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
     ln -s /usr/bin/vim.tiny /usr/bin/vim && \
     rm -rf /var/lib/apt/lists/*
 
-COPY kubernetes/mc /usr/local/bin
-RUN chmod +x /usr/local/bin/mc
+# COPY kubernetes/mc /usr/local/bin
+# RUN chmod +x /usr/local/bin/mc
 COPY poetry.lock pyproject.toml ./
 RUN pip install --no-cache-dir poetry==1.1.12
 RUN poetry config virtualenvs.create false
