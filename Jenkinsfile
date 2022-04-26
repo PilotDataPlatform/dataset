@@ -59,7 +59,7 @@ pipeline {
     stage('DEV Remove image') {
       when {branch "develop"}
       steps{
-        sh "docker rmi $imagename_dev:$commit"
+        sh "docker rmi $imagename:$commit"
       }
     }
 
@@ -100,7 +100,7 @@ pipeline {
     stage('STAGING Remove image') {
       when {branch "main"}
       steps{
-        sh "docker rmi $imagename_staging:$commit"
+        sh "docker rmi $imagename:$commit"
       }
     }
 
