@@ -1,28 +1,27 @@
 pipeline {
     agent { label 'small' }
     environment {
-      imagename_dev = "registry-gitlab.indocresearch.org/pilot/service_dataset"
-      imagename_staging = "registry-gitlab.indocresearch.org/pilot/service_dataset"
+      imagename = "ghcr.io/pilotdataplatform/metadata"
       commit = sh(returnStdout: true, script: 'git describe --always').trim()
-      registryCredential = 'pilot-gitlab-registry'
+      registryCredential = 'pilot-ghcr'
       dockerImage = ''
     }
 
     stages {
 
     stage('Git clone for dev') {
-        when {branch "k8s-dev"}
+        when {branch "develop"}
         steps{
           script {
-          git branch: "k8s-dev",
-              url: 'https://git.indocresearch.org/pilot/service_dataset.git',
-              credentialsId: 'lzhao'
+          git branch: "develop",
+              url: 'https://github.com/PilotDataPlatform/dataset.git',
+              credentialsId: 'pilot-ghcr'
             }
         }
     }
 
     stage('DEV unit test') {
-      when {branch "k8s-dev"}
+      when {branch "develop"}
       steps{
         withCredentials([
           string(credentialsId:'VAULT_TOKEN', variable: 'VAULT_TOKEN'),
@@ -46,7 +45,7 @@ pipeline {
     }
 
     stage('DEV Build and push image') {
-      when {branch "k8s-dev"}
+      when {branch "develop"}
       steps{
         script {
           withCredentials([
@@ -62,14 +61,14 @@ pipeline {
       }
     }
     stage('DEV Remove image') {
-      when {branch "k8s-dev"}
+      when {branch "develop"}
       steps{
         sh "docker rmi $imagename_dev:$commit"
       }
     }
 
     stage('DEV Deploy') {
-      when {branch "k8s-dev"}
+      when {branch "develop"}
       steps{
       build(job: "/VRE-IaC/UpdateAppVersion", parameters: [
         [$class: 'StringParameterValue', name: 'TF_TARGET_ENV', value: 'dev' ],
@@ -80,18 +79,18 @@ pipeline {
     }
 
     stage('Git clone staging') {
-        when {branch "k8s-staging"}
+        when {branch "main"}
         steps{
           script {
-          git branch: "k8s-staging",
-              url: 'https://git.indocresearch.org/pilot/service_dataset.git',
-              credentialsId: 'lzhao'
+          git branch: "main",
+              url: 'https://github.com/PilotDataPlatform/dataset.git',
+              credentialsId: 'pilot-ghcr'
             }
         }
     }
 
     stage('STAGING Building and push image') {
-      when {branch "k8s-staging"}
+      when {branch "main"}
       steps{
         script {
           withCredentials([
@@ -108,14 +107,14 @@ pipeline {
     }
 
     stage('STAGING Remove image') {
-      when {branch "k8s-staging"}
+      when {branch "main"}
       steps{
         sh "docker rmi $imagename_staging:$commit"
       }
     }
 
     stage('STAGING Deploy') {
-      when {branch "k8s-staging"}
+      when {branch "main"}
       steps{
           build(job: "/VRE-IaC/Staging-UpdateAppVersion", parameters: [
             [$class: 'StringParameterValue', name: 'TF_TARGET_ENV', value: 'staging' ],
