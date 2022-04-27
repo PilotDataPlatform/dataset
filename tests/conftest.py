@@ -142,3 +142,28 @@ def mock_minio(monkeypatch):
 async def clean_up_redis():
     cache = StrictRedis(host=environ.get('REDIS_HOST'))
     cache.flushall()
+
+
+@pytest.fixture()
+def test_db(db_session):
+    yield
+
+
+@pytest.fixture
+def version(db_session):
+    from app.models.version_sql import DatasetVersion
+
+    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+    new_version = DatasetVersion(
+        dataset_code='dataset_code',
+        dataset_geid=dataset_geid,
+        version='2.0',
+        created_by='admin',
+        location='minio_location',
+        notes='test',
+    )
+    db_session.add(new_version)
+    db_session.commit()
+    yield new_version.to_dict()
+    db_session.delete(new_version)
+    db_session.commit()

@@ -18,6 +18,11 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
+@pytest.fixture(autouse=True)
+def test_db(db_session):
+    yield
+
+
 async def test_publish_version_should_start_background_task_and_return_200(client, httpx_mock, mock_minio):
     # mock_upload.side_effect = 'http://minio://fake_version.zip'
     dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'

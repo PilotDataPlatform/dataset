@@ -7,4 +7,4 @@ help:
 	@echo "    run tests"
 
 test:
-	PYTHONPATH=. poetry run pytest -s --cov=app --cov-report term-missing --disable-warnings
+	PYTHONPATH=. poetry run pytest -s --cov=app --cov-report term-missing --cov-report=xml --disable-warnings
