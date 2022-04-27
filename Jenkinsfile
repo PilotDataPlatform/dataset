@@ -30,11 +30,8 @@ pipeline {
         ]) {
           sh """
           export REDIS_HOST=127.0.0.1
-          export VAULT_TOKEN=${VAULT_TOKEN}
-          export VAULT_URL=${VAULT_URL}
-          export VAULT_CRT=${VAULT_CRT}
-          export ROOT_PATH=/data/vre-storage
           pip install --user poetry==1.1.12
+          ls
           ${HOME}/.local/bin/poetry config virtualenvs.in-project true
           ${HOME}/.local/bin/poetry install --no-root --no-interaction
           ${HOME}/.local/bin/poetry run pytest --verbose -c tests/pytest.ini
