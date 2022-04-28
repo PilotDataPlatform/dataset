@@ -102,6 +102,16 @@ async def test_rename_file_should_add_file_to_processing_and_return_200(client, 
         url='http://data_ops_util/v1/tasks/',
         json={},
     )
+    httpx_mock.add_response(
+        method='POST',
+        url='http://data_ops_util/v2/resource/lock/',
+        json={},
+    )
+    httpx_mock.add_response(
+        method='DELETE',
+        url='http://data_ops_util/v2/resource/lock/',
+        json={},
+    )
     payload = {'new_name': 'new_name', 'operator': 'admin'}
     res = await client.post(
         f'/v1/dataset/{dataset_geid}/files/{file_geid}',

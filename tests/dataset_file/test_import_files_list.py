@@ -91,6 +91,16 @@ async def test_import_files_from_source_list_should_return_200(client, httpx_moc
         url='http://data_ops_util/v1/tasks/',
         json={},
     )
+    httpx_mock.add_response(
+        method='POST',
+        url='http://data_ops_util/v2/resource/lock/',
+        json={},
+    )
+    httpx_mock.add_response(
+        method='DELETE',
+        url='http://data_ops_util/v2/resource/lock/',
+        json={},
+    )
 
     payload = {
         'source_list': [
@@ -99,7 +109,11 @@ async def test_import_files_from_source_list_should_return_200(client, httpx_moc
         'operator': 'admin',
         'project_geid': source_project,
     }
-    res = await client.put(f'/v1/dataset/{dataset_geid}/files', json=payload)
+    res = await client.put(
+        f'/v1/dataset/{dataset_geid}/files',
+        headers={'Authorization': 'Barear token', 'Refresh-Token': 'refresh_token'},
+        json=payload,
+    )
     result = res.json()['result']
     assert res.status_code == 200
     assert result.get('ignored') == []

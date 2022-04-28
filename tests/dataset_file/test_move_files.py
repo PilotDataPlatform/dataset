@@ -99,6 +99,16 @@ async def test_move_file_should_call_background_task_and_add_file_to_processing(
         url='http://data_ops_util/v1/tasks/',
         json={},
     )
+    httpx_mock.add_response(
+        method='POST',
+        url='http://data_ops_util/v2/resource/lock/',
+        json={},
+    )
+    httpx_mock.add_response(
+        method='DELETE',
+        url='http://data_ops_util/v2/resource/lock/',
+        json={},
+    )
 
     payload = {'source_list': [file_geid], 'operator': 'admin', 'target_geid': folder_geid}
     res = await client.post(f'/v1/dataset/{dataset_geid}/files', json=payload)

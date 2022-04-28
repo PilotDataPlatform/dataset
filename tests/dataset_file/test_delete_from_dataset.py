@@ -80,6 +80,16 @@ async def test_file_delete_from_dataset_should_start_background_task_and_return_
         url='http://data_ops_util/v1/tasks/',
         json={},
     )
+    httpx_mock.add_response(
+        method='POST',
+        url='http://data_ops_util/v2/resource/lock/',
+        json={},
+    )
+    httpx_mock.add_response(
+        method='DELETE',
+        url='http://data_ops_util/v2/resource/lock/',
+        json={},
+    )
     payload = {'source_list': [file_geid], 'operator': 'admin'}
     res = await client.delete(f'/v1/dataset/{dataset_geid}/files', json=payload)
 
