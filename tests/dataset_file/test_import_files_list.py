@@ -101,24 +101,6 @@ async def test_import_files_from_source_list_should_return_200(client, httpx_moc
     }
     res = await client.put(f'/v1/dataset/{test_dataset_geid}/files', json=payload)
     result = res.json()['result']
-    # mock_background_taks.asert_called_with(
-    #     [
-    #         {
-    #             'labels': ['Core', 'File'],
-    #             'global_entity_id': 'geid_2',
-    #             'location': 'http://anything.com/bucket/obj/path',
-    #             'display_path': 'display_path',
-    #             'uploader': 'test',
-    #             'feedback': 'exist',
-    #         }
-    #     ],
-    #     {'project_geid': '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'},
-    #     'admin',
-    #     '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058',
-    #     None,
-    #     None,
-    #     None,
-    # )
     assert res.status_code == 200
     assert result.get('ignored') == []
     assert result.get('processing') == [
