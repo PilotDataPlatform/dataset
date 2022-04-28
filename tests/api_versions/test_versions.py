@@ -24,7 +24,6 @@ def test_db(db_session):
 
 
 async def test_publish_version_should_start_background_task_and_return_200(client, httpx_mock, mock_minio):
-    # mock_upload.side_effect = 'http://minio://fake_version.zip'
     dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
     file_geid = '6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067-1648138467'
 

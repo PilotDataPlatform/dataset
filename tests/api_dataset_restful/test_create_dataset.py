@@ -37,3 +37,45 @@ async def test_create_dataset_invalid_code_should_return_400(client, httpx_mock,
     res = await client.post('/v1/dataset', json=payload)
     assert res.status_code == 400
     assert res.json()['error_msg'] == 'Invalid code'
+
+
+async def test_create_dataset_should_return_200(client, httpx_mock, test_db, schema_essential_template):
+    httpx_mock.add_response(
+        method='POST',
+        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
+        json=[],
+    )
+    httpx_mock.add_response(
+        method='POST',
+        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset',
+        json=[{'global_entity_id': 'new_global_entity_id'}],
+    )
+    httpx_mock.add_response(
+        method='POST',
+        url='http://cataloguing_service/v1/entity',
+        json=[],
+    )
+    httpx_mock.add_response(
+        method='POST',
+        url='http://queue_service/v1/broker/pub',
+        json=[],
+    )
+
+    payload = {
+        'username': 'amyguindoc14',
+        'title': '123',
+        'authors': ['123'],
+        'type': 'GENERAL',
+        'description': '123',
+        'code': 'datasetcode',
+    }
+    res = await client.post('/v1/dataset', json=payload)
+    assert res.status_code == 200
+    assert res.json() == {
+        'code': 200,
+        'error_msg': '',
+        'num_of_pages': 1,
+        'page': 0,
+        'result': {'global_entity_id': 'new_global_entity_id'},
+        'total': 1,
+    }

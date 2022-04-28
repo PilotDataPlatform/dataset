@@ -36,11 +36,11 @@ class BIDSResult(Base):
     updated_time = Column(DateTime(), default=datetime.utcnow)
     validate_output = Column(JSON())
 
-    def __init__(self, dataset_geid, created_time, updated_time, validate_output):
+    def __init__(self, dataset_geid, validate_output):
         self.dataset_geid = dataset_geid
-        self.created_time = created_time
-        self.updated_time = updated_time
         self.validate_output = validate_output
+        if self.created_time:
+            self.created_time = self.created_time
 
     def to_dict(self):
         result = {}
