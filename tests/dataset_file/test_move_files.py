@@ -14,7 +14,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import json
-from unittest import mock
 
 import pytest
 
@@ -22,17 +21,15 @@ pytestmark = pytest.mark.asyncio
 
 
 async def test_move_file_should_call_background_task_and_add_file_to_processing(client, httpx_mock):
-    from app.routers.v1.dataset_file import APIImportData
-
-    test_dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
-    test_source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+    source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
     file_geid = '6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067-1648138467'
     folder_geid = 'cfa31c8c-ba29-4cdf-b6f2-feef05ec9c12-1648138461'
 
     httpx_mock.add_response(
         method='POST',
         url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[{'project_geid': test_source_project}],
+        json=[{'project_geid': source_project}],
     )
     httpx_mock.add_response(
         method='POST',
@@ -69,7 +66,7 @@ async def test_move_file_should_call_background_task_and_add_file_to_processing(
                 'label': 'own*',
                 'start_label': 'Dataset',
                 'end_label': ['File'],
-                'start_params': {'global_entity_id': test_dataset_geid},
+                'start_params': {'global_entity_id': dataset_geid},
                 'end_params': {'global_entity_id': file_geid},
             }
         ).encode('utf-8'),
@@ -87,25 +84,37 @@ async def test_move_file_should_call_background_task_and_add_file_to_processing(
             }
         ).encode('utf-8'),
     )
+    httpx_mock.add_response(
+        method='POST',
+        url='http://queue_service/v1/broker/pub',
+        json={},
+    )
+    httpx_mock.add_response(
+        method='POST',
+        url='http://data_ops_util/v1/tasks/',
+        json={},
+    )
+    httpx_mock.add_response(
+        method='PUT',
+        url='http://data_ops_util/v1/tasks/',
+        json={},
+    )
+
     payload = {'source_list': [file_geid], 'operator': 'admin', 'target_geid': folder_geid}
-    with mock.patch.object(APIImportData, 'move_file_worker') as mock_background_taks:
-        res = await client.post(f'/v1/dataset/{test_dataset_geid}/files', json=payload)
+    res = await client.post(f'/v1/dataset/{dataset_geid}/files', json=payload)
     assert res.status_code == 200
     processing_file = [x.get('global_entity_id') for x in res.json().get('result').get('processing')]
     assert processing_file == [file_geid]
-    mock_background_taks.asert_called_with()
 
 
 async def test_move_wrong_file_ignored_when_relation_doesnt_exist(client, httpx_mock):
-    from app.routers.v1.dataset_file import APIImportData
-
-    test_source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
-    test_dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+    source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
     file_geid = 'random_geid'
     httpx_mock.add_response(
         method='POST',
         url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[{'project_geid': test_source_project}],
+        json=[{'project_geid': source_project}],
     )
     httpx_mock.add_response(
         method='GET',
@@ -129,12 +138,10 @@ async def test_move_wrong_file_ignored_when_relation_doesnt_exist(client, httpx_
     payload = {
         'source_list': [file_geid],
         'operator': 'admin',
-        'target_geid': test_dataset_geid,
+        'target_geid': dataset_geid,
     }
-    with mock.patch.object(APIImportData, 'move_file_worker') as mock_background_taks:
-        res = await client.post(f'/v1/dataset/{test_dataset_geid}/files', json=payload)
+    res = await client.post(f'/v1/dataset/{dataset_geid}/files', json=payload)
 
     assert res.status_code == 200
     ignored_file = [x.get('global_entity_id') for x in res.json().get('result').get('ignored')]
     assert ignored_file == [file_geid]
-    mock_background_taks.assert_not_called()

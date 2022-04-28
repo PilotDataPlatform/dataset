@@ -37,13 +37,13 @@ async def test_get_dataset_files_should_return_404_when_dataset_not_found(client
 
 
 async def test_get_dataset_files(client, httpx_mock):
-    test_dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
     file_geid = '6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067-1648138467'
-    test_source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+    source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
     httpx_mock.add_response(
         method='POST',
         url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[{'project_geid': test_source_project}],
+        json=[{'project_geid': source_project}],
     )
     httpx_mock.add_response(
         method='POST',
@@ -65,7 +65,7 @@ async def test_get_dataset_files(client, httpx_mock):
     )
     httpx_mock.add_response(
         method='GET',
-        url=f'http://neo4j_service/v1/neo4j/relations/connected/{test_dataset_geid}?direction=input',
+        url=f'http://neo4j_service/v1/neo4j/relations/connected/{dataset_geid}?direction=input',
         json={
             'results': [
                 {
@@ -75,7 +75,7 @@ async def test_get_dataset_files(client, httpx_mock):
         },
     )
 
-    res = await client.get(f'/v1/dataset/{test_dataset_geid}/files')
+    res = await client.get(f'/v1/dataset/{dataset_geid}/files')
     assert res.status_code == 200
     assert res.json() == {
         'code': 200,

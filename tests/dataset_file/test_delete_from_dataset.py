@@ -14,7 +14,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import json
-from unittest import mock
 
 import pytest
 
@@ -22,16 +21,14 @@ pytestmark = pytest.mark.asyncio
 
 
 async def test_file_delete_from_dataset_should_start_background_task_and_return_200(client, httpx_mock):
-    from app.routers.v1.dataset_file import APIImportData
-
-    test_dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
     file_geid = '6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067-1648138467'
-    test_source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+    source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
 
     httpx_mock.add_response(
         method='POST',
         url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[{'project_geid': test_source_project}],
+        json=[{'project_geid': source_project}],
     )
     httpx_mock.add_response(
         method='GET',
@@ -63,49 +60,42 @@ async def test_file_delete_from_dataset_should_start_background_task_and_return_
                 'label': 'own*',
                 'start_label': 'Dataset',
                 'end_label': ['File'],
-                'start_params': {'global_entity_id': test_dataset_geid},
+                'start_params': {'global_entity_id': dataset_geid},
                 'end_params': {'global_entity_id': file_geid},
             }
         ).encode('utf-8'),
     )
+    httpx_mock.add_response(
+        method='POST',
+        url='http://queue_service/v1/broker/pub',
+        json={},
+    )
+    httpx_mock.add_response(
+        method='POST',
+        url='http://data_ops_util/v1/tasks/',
+        json={},
+    )
+    httpx_mock.add_response(
+        method='PUT',
+        url='http://data_ops_util/v1/tasks/',
+        json={},
+    )
     payload = {'source_list': [file_geid], 'operator': 'admin'}
-    with mock.patch.object(APIImportData, 'delete_files_work') as mock_background_taks:
-        res = await client.delete(f'/v1/dataset/{test_dataset_geid}/files', json=payload)
+    res = await client.delete(f'/v1/dataset/{dataset_geid}/files', json=payload)
 
     assert res.status_code == 200
     processing_file = [x.get('global_entity_id') for x in res.json().get('result').get('processing')]
     assert processing_file == [file_geid]
-    assert mock_background_taks.call_count == 1
-    assert mock_background_taks.call_args[0] == (
-        [
-            {
-                'labels': ['File'],
-                'global_entity_id': file_geid,
-                'location': 'http://anything.com/bucket/obj/path',
-                'display_path': 'display_path',
-                'uploader': 'test',
-                'name': 'sample.log',
-                'feedback': 'exist',
-            }
-        ],
-        {'project_geid': test_dataset_geid},
-        'admin',
-        None,
-        None,
-        None,
-    )
 
 
 async def test_delete_from_not_in_dataset_should_not_reaise_error(client, httpx_mock):
-    from app.routers.v1.dataset_file import APIImportData
-
-    test_source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
-    test_dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+    source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
     file_geid = 'random_geid'
     httpx_mock.add_response(
         method='POST',
         url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[{'project_geid': test_source_project}],
+        json=[{'project_geid': source_project}],
     )
     httpx_mock.add_response(
         method='GET',
@@ -128,9 +118,7 @@ async def test_delete_from_not_in_dataset_should_not_reaise_error(client, httpx_
     )
 
     payload = {'source_list': [file_geid], 'operator': 'admin'}
-    with mock.patch.object(APIImportData, 'delete_files_work') as mock_background_taks:
-        res = await client.delete(f'/v1/dataset/{test_dataset_geid}/files', json=payload)
+    res = await client.delete(f'/v1/dataset/{dataset_geid}/files', json=payload)
     assert res.status_code == 200
     ignored_file = [x.get('global_entity_id') for x in res.json().get('result').get('ignored')]
     assert ignored_file == [file_geid]
-    assert mock_background_taks.call_count == 0

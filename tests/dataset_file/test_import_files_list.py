@@ -21,12 +21,12 @@ pytestmark = pytest.mark.asyncio
 
 
 async def test_import_files_from_source_list_should_return_200(client, httpx_mock):
-    test_dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
-    test_source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+    source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
     httpx_mock.add_response(
         method='POST',
         url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[{'project_geid': test_source_project}],
+        json=[{'project_geid': source_project}],
     )
     httpx_mock.add_response(
         method='GET',
@@ -57,7 +57,7 @@ async def test_import_files_from_source_list_should_return_200(client, httpx_moc
                 'label': 'own*',
                 'start_label': 'Container',
                 'end_label': ['Core', 'File'],
-                'start_params': {'global_entity_id': test_dataset_geid},
+                'start_params': {'global_entity_id': dataset_geid},
                 'end_params': {'global_entity_id': 'geid_2'},
             }
         ).encode('utf-8'),
@@ -70,7 +70,7 @@ async def test_import_files_from_source_list_should_return_200(client, httpx_moc
             {
                 'label': 'own',
                 'start_label': 'Dataset',
-                'start_params': {'global_entity_id': test_dataset_geid},
+                'start_params': {'global_entity_id': dataset_geid},
                 'end_params': {'name': None},
             }
         ).encode('utf-8'),
@@ -97,9 +97,9 @@ async def test_import_files_from_source_list_should_return_200(client, httpx_moc
             'b1064aa6-edbe-4eb6-b560-a8552f2f6162-1626719078',
         ],
         'operator': 'admin',
-        'project_geid': test_source_project,
+        'project_geid': source_project,
     }
-    res = await client.put(f'/v1/dataset/{test_dataset_geid}/files', json=payload)
+    res = await client.put(f'/v1/dataset/{dataset_geid}/files', json=payload)
     result = res.json()['result']
     assert res.status_code == 200
     assert result.get('ignored') == []
@@ -146,12 +146,12 @@ async def test_import_files_from_non_existing_project_return_404(client, httpx_m
 
 
 async def test_05_test_import_duplicate(client, httpx_mock):
-    test_dataset_geid = '882f4d3f-8466-4961-ba3c-38a1c272e548-1646759169'
-    test_source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+    dataset_geid = '882f4d3f-8466-4961-ba3c-38a1c272e548-1646759169'
+    source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
     httpx_mock.add_response(
         method='POST',
         url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[{'project_geid': test_source_project}],
+        json=[{'project_geid': source_project}],
     )
     httpx_mock.add_response(
         method='GET',
@@ -184,9 +184,9 @@ async def test_05_test_import_duplicate(client, httpx_mock):
             'b1064aa6-edbe-4eb6-b560-a8552f2f6162-1626719078',
         ],
         'operator': 'admin',
-        'project_geid': test_source_project,
+        'project_geid': source_project,
     }
-    res = await client.put(f'/v1/dataset/{test_dataset_geid}/files', json=payload)
+    res = await client.put(f'/v1/dataset/{dataset_geid}/files', json=payload)
     result = res.json()['result']
     assert res.status_code == 200
     assert result.get('processing') == []
