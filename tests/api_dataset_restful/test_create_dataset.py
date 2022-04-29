@@ -39,7 +39,7 @@ async def test_create_dataset_invalid_code_should_return_400(client, httpx_mock,
     assert res.json()['error_msg'] == 'Invalid code'
 
 
-async def test_create_dataset_should_return_200(client, httpx_mock, test_db, schema_essential_template):
+async def test_create_dataset_should_return_200(client, httpx_mock, test_db, schema_essential_template, mock_minio):
     httpx_mock.add_response(
         method='POST',
         url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
