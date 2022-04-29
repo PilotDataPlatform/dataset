@@ -16,6 +16,7 @@
 import pytest
 
 from app.resources.locks import lock_resource
+from app.resources.locks import recursive_lock
 from app.resources.locks import unlock_resource
 
 pytestmark = pytest.mark.asyncio
@@ -41,56 +42,41 @@ async def test_lock_resource_should_raise_exception_when_lock_request_not_200(
         lock_function('fake_key', 'me')
 
 
-# @pytest.fixture
-# def external_requests(httpx_mock):
-#     httpx_mock.add_response(
-#         method='POST',
-#         url='http://queue_service/v1/broker/pub',
-#         json=[],
-#     )
-#     httpx_mock.add_response(
-#         method='POST',
-#         url='http://data_ops_util/v1/tasks/',
-#         json=[],
-#     )
-#     httpx_mock.add_response(
-#         method='PUT',
-#         url='http://data_ops_util/v1/tasks/',
-#         json=[],
-#     )
+@pytest.mark.parametrize('archived', [(False), (True)])
+async def test_recursive_lock_file(archived):
+    nodes = [
+        {'archived': archived, 'name': 'node_name_1', 'uploder': 'me', 'global_entity_id': 'any_1', 'labels': ['File']}
+    ]
+    code = 'any_code'
+    root_path = './tests'
+    new_name = None
+    locked_node, err = recursive_lock(code, nodes, root_path, new_name)
+    assert not err
+    assert locked_node == []
 
 
-# async def test_copy_file(external_requests):
-#     from app.routers.v1.dataset_file import APIImportData
-
-#     api = APIImportData()
-#     import_list = [
-#         {'global_entity_id': 'source_file_1_global_entity_id', 'archived': False},
-#         {
-#             'global_entity_id': 'source_file_2_global_entity_id',
-#             'display_path': '',
-#             'uploader': '',
-#             'labels': ['File'],   # if not file has to have core- in the project_code
-#             'location': '',
-#             'name': '',
-#             'folder_relative_path': '',
-#             'uploader': '',
-#         }
-#     ]
-#     dataset_obj = {
-#         'global_entity_id': 'dataset_global_entity_id',
-#         'code': 'datasetcode'
-#     }
-#     oper = 'admin'
-#     source_project_geid = 'source_geid'
-#     session_id = '12345'
-#     access_token = 'token'
-#     refresh_token = 'refresh'
-
-#     try:
-#         api.copy_files_worker(
-#             import_list, dataset_obj, oper, source_project_geid,
-#             session_id, access_token, refresh_token
-#         )
-#     except Exception as e:
-#         pytest.fail(f"copy_files_worker raised {e} unexpectedly")
+async def test_recursive_lock_folder(httpx_mock):
+    httpx_mock.add_response(
+        method='POST',
+        url='http://neo4j_service/v1/neo4j/relations/query',
+        json=[
+            {
+                'end_node': {
+                    'archived': False,
+                    'name': 'node_name_2',
+                    'uploder': 'me',
+                    'global_entity_id': 'any_2',
+                    'labels': ['File'],
+                }
+            }
+        ],
+    )
+    nodes = [
+        {'archived': False, 'name': 'node_name_1', 'uploder': 'me', 'global_entity_id': 'any_1', 'labels': ['Folder']}
+    ]
+    code = 'any_code'
+    root_path = './tests'
+    new_name = None
+    locked_node, err = recursive_lock(code, nodes, root_path, new_name)
+    assert not err
+    assert locked_node == []
