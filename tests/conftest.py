@@ -135,6 +135,7 @@ def mock_minio(monkeypatch):
     monkeypatch.setattr(Minio, 'list_buckets', lambda x: [])
     monkeypatch.setattr(Minio, 'fget_object', lambda *x: [])
     monkeypatch.setattr(Minio, 'fput_object', lambda *x: mock.MagicMock())
+    monkeypatch.setattr(Minio, 'copy_object', lambda *x: mock.MagicMock())
     monkeypatch.setattr(Minio, 'make_bucket', lambda *x: mock.MagicMock())
     monkeypatch.setattr(Minio, 'set_bucket_encryption', lambda *x: mock.MagicMock())
 
