@@ -67,7 +67,7 @@ environ['RDS_DB_URI'] = 'postgresql://postgres:postgres@localhost:5432/INDOC_TES
 
 @pytest_asyncio.fixture(scope='session')
 def db_postgres():
-    with PostgresContainer('postgres:9.5') as postgres:
+    with PostgresContainer('postgres:14.1') as postgres:
         yield postgres.get_connection_url()
 
 

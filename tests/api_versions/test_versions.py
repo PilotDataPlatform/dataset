@@ -46,6 +46,8 @@ async def test_publish_version_should_start_background_task_and_return_200(clien
                 'end_node': {
                     'labels': ['File'],
                     'global_entity_id': file_geid,
+                    'display_path': 'http://anything.com/bucket/obj/path',
+                    'location': 'http://anything.com/bucket/obj/path',
                 }
             }
         ],
@@ -71,6 +73,16 @@ async def test_publish_version_should_start_background_task_and_return_200(clien
     httpx_mock.add_response(
         method='POST',
         url='http://queue_service/v1/broker/pub',
+        json={},
+    )
+    httpx_mock.add_response(
+        method='POST',
+        url='http://data_ops_util/v2/resource/lock/',
+        json={},
+    )
+    httpx_mock.add_response(
+        method='DELETE',
+        url='http://data_ops_util/v2/resource/lock/',
         json={},
     )
 
