@@ -18,8 +18,12 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
+@pytest.fixture(autouse=True)
+def test_db(db_session):
+    yield
+
+
 async def test_publish_version_should_start_background_task_and_return_200(client, httpx_mock, mock_minio):
-    # mock_upload.side_effect = 'http://minio://fake_version.zip'
     dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
     file_geid = '6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067-1648138467'
 
@@ -42,6 +46,8 @@ async def test_publish_version_should_start_background_task_and_return_200(clien
                 'end_node': {
                     'labels': ['File'],
                     'global_entity_id': file_geid,
+                    'display_path': 'http://anything.com/bucket/obj/path',
+                    'location': 'http://anything.com/bucket/obj/path',
                 }
             }
         ],
@@ -67,6 +73,16 @@ async def test_publish_version_should_start_background_task_and_return_200(clien
     httpx_mock.add_response(
         method='POST',
         url='http://queue_service/v1/broker/pub',
+        json={},
+    )
+    httpx_mock.add_response(
+        method='POST',
+        url='http://data_ops_util/v2/resource/lock/',
+        json={},
+    )
+    httpx_mock.add_response(
+        method='DELETE',
+        url='http://data_ops_util/v2/resource/lock/',
         json={},
     )
 

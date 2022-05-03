@@ -131,5 +131,5 @@ def search(es_index, page, page_size, data, sort_by=None, sort_type=None):
     __logger.info('elastic search url: {}'.format(url))
     __logger.info('elastic search params: {}'.format(str(search_params)))
     with httpx.Client() as client:
-        res = client.get(url, json=search_params)
+        res = client.request(method='GET', url=url, json=search_params)
     return res.json()

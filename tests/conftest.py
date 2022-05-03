@@ -67,21 +67,18 @@ environ['RDS_DB_URI'] = 'postgresql://postgres:postgres@localhost:5432/INDOC_TES
 
 @pytest_asyncio.fixture(scope='session')
 def db_postgres():
-    with PostgresContainer('postgres:9.5') as postgres:
-        db_uri = postgres.get_connection_url()
-        environ['RDS_DB_URI'] = db_uri
-        yield db_uri
+    with PostgresContainer('postgres:14.1') as postgres:
+        yield postgres.get_connection_url()
 
 
 @pytest_asyncio.fixture()
 def create_db(db_postgres):
-    from app.config import ConfigClass
     from app.models.bids_sql import Base as BidsBase
     from app.models.schema_sql import Base as SchemaBase
     from app.models.version_sql import Base as VersionBase
 
     db_schema = environ.get('RDS_SCHEMA_DEFAULT')
-    engine = create_engine(ConfigClass.OPS_DB_URI, echo=True)
+    engine = create_engine(db_postgres, echo=True)
     if not engine.dialect.has_schema(engine, db_schema):
         engine.execute(schema.CreateSchema(db_schema))
     SchemaBase.metadata.create_all(bind=engine)
@@ -112,8 +109,10 @@ def event_loop(request):
 
 @pytest.fixture
 def app(db_postgres):
+    from app.config import ConfigClass
     from app.main import create_app
 
+    ConfigClass.OPS_DB_URI = db_postgres
     app = create_app()
     yield app
 
@@ -136,9 +135,37 @@ def mock_minio(monkeypatch):
     monkeypatch.setattr(Minio, 'list_buckets', lambda x: [])
     monkeypatch.setattr(Minio, 'fget_object', lambda *x: [])
     monkeypatch.setattr(Minio, 'fput_object', lambda *x: mock.MagicMock())
+    monkeypatch.setattr(Minio, 'copy_object', lambda *x: mock.MagicMock())
+    monkeypatch.setattr(Minio, 'make_bucket', lambda *x: mock.MagicMock())
+    monkeypatch.setattr(Minio, 'set_bucket_encryption', lambda *x: mock.MagicMock())
 
 
 @pytest_asyncio.fixture(autouse=True)
 async def clean_up_redis():
     cache = StrictRedis(host=environ.get('REDIS_HOST'))
     cache.flushall()
+
+
+@pytest.fixture()
+def test_db(db_session):
+    yield
+
+
+@pytest.fixture
+def version(db_session):
+    from app.models.version_sql import DatasetVersion
+
+    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+    new_version = DatasetVersion(
+        dataset_code='dataset_code',
+        dataset_geid=dataset_geid,
+        version='2.0',
+        created_by='admin',
+        location='minio_location',
+        notes='test',
+    )
+    db_session.add(new_version)
+    db_session.commit()
+    yield new_version.to_dict()
+    db_session.delete(new_version)
+    db_session.commit()

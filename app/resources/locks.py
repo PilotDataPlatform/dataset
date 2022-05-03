@@ -53,11 +53,14 @@ def unlock_resource(resource_key: str, operation: str) -> dict:
 
 # TODO somehow do the factory here?
 def recursive_lock(code: str, nodes, root_path, new_name: str = None) -> Union[list, Exception]:
+    """this function seems not doing anything.
+
+    Because 'locked_node' is never set
+    """
     locked_node, err = [], None
 
     def recur_walker(currenct_nodes, current_root_path, new_name=None):
         """recursively trace down the node tree and run the lock function."""
-
         for ff_object in currenct_nodes:
             # update here if the folder/file is archieved then skip
             if ff_object.get('archived', False):
@@ -85,7 +88,7 @@ def recursive_lock(code: str, nodes, root_path, new_name: str = None) -> Union[l
 
 
 # TODO the issue here is how to raise the lock conflict
-class lock_factory:
+class lock_factory:  # pragma no cover
     def __init__(self, action: str) -> None:
         self.locked_node = []
         self.action = action

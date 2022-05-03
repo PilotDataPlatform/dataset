@@ -39,4 +39,4 @@ validator_messages = {
     'EMPTY_FILE': 'Empty files not allowed.',
     'DATASET_DESCRIPTION_JSON_MISSING': 'The compulsory file /dataset_description.json is missing.',
     'README_FILE_MISSING': 'The recommended file /README is missing.',
-}
+}  # pragma: no cover
