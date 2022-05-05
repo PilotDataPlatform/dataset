@@ -13,7 +13,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# from fastapi_sqlalchemy import db
 from datetime import datetime
 
 from sqlalchemy import Boolean
@@ -22,16 +21,10 @@ from sqlalchemy import DateTime
 from sqlalchemy import ForeignKey
 from sqlalchemy import String
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
 from app.config import ConfigClass
-
-# # print(ConfigClass.OPS_DB_URI)
-# engine = create_engine(ConfigClass.OPS_DB_URI)
-# SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-# session = SessionLocal()
-Base = declarative_base()
+from app.core.db import Base
 
 
 class DatasetSchemaTemplate(Base):

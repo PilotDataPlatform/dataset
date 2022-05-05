@@ -21,7 +21,6 @@ from datetime import datetime
 
 import httpx
 from common import GEIDClient
-from fastapi_sqlalchemy import db
 from redis import Redis
 
 from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
@@ -75,7 +74,7 @@ class PublishVersion(object):
 
         self.geid_client = GEIDClient()
 
-    def publish(self):
+    def publish(self, db):
         try:
             # TODO some merge needed here since get_children_nodes and
             # get_dataset_files_recursive both get the nodes under the dataset
@@ -88,7 +87,7 @@ class PublishVersion(object):
 
             self.get_dataset_files_recursive(self.dataset_geid)
             self.download_dataset_files()
-            self.add_schemas()
+            self.add_schemas(db)
             self.zip_files()
             minio_location = self.upload_version()
             try:
@@ -100,8 +99,8 @@ class PublishVersion(object):
                     location=minio_location,
                     notes=self.notes,
                 )
-                db.session.add(dataset_version)
-                db.session.commit()
+                db.add(dataset_version)
+                db.commit()
             except Exception as e:
                 logger.error('Psql Error: ' + str(e))
                 raise e
@@ -197,22 +196,20 @@ class PublishVersion(object):
         shutil.make_archive(self.zip_path, 'zip', self.tmp_folder)
         return self.zip_path
 
-    def add_schemas(self):
+    def add_schemas(self, db):
         """Saves schema json files to folder that will zipped."""
         if not os.path.isdir(self.tmp_folder):
             os.mkdir(self.tmp_folder)
             os.mkdir(self.tmp_folder + '/data')
 
         schemas = (
-            db.session.query(DatasetSchema)
-            .filter_by(dataset_geid=self.dataset_geid, standard='default', is_draft=False)
-            .all()
+            db.query(DatasetSchema).filter_by(dataset_geid=self.dataset_geid, standard='default', is_draft=False).all()
         )
         for schema in schemas:
             with open(self.tmp_folder + '/default_' + schema.name, 'w') as w:
                 w.write(json.dumps(schema.content, indent=4, ensure_ascii=False))
         schemas = (
-            db.session.query(DatasetSchema)
+            db.query(DatasetSchema)
             .filter_by(dataset_geid=self.dataset_geid, standard='open_minds', is_draft=False)
             .all()
         )

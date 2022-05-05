@@ -20,7 +20,6 @@ from uuid import uuid4
 
 import httpx
 from common import GEIDClient
-from fastapi_sqlalchemy import db
 from minio.sseconfig import Rule
 from minio.sseconfig import SSEConfig
 
@@ -45,6 +44,7 @@ class SrvDatasetMgr:
 
     def create(
         self,
+        db,
         username,
         code,
         title,
@@ -80,6 +80,7 @@ class SrvDatasetMgr:
             global_entity_id = node_created['global_entity_id']
             self.__create_atlas_node(global_entity_id, username)
             self.__create_essentials(
+                db,
                 global_entity_id,
                 code,
                 title,
@@ -155,6 +156,7 @@ class SrvDatasetMgr:
 
     def __create_essentials(
         self,
+        db,
         dataset_geid,
         code,
         title,
@@ -169,7 +171,7 @@ class SrvDatasetMgr:
     ):
         def get_essential_tpl() -> DatasetSchemaTemplate:
             etpl_result = (
-                db.session.query(DatasetSchemaTemplate).filter(DatasetSchemaTemplate.name == ESSENTIALS_TPL_NAME).all()
+                db.query(DatasetSchemaTemplate).filter(DatasetSchemaTemplate.name == ESSENTIALS_TPL_NAME).all()
             )
             if not etpl_result:
                 raise Exception('{} template not found in database.'.format(ESSENTIALS_TPL_NAME))
@@ -199,7 +201,7 @@ class SrvDatasetMgr:
             'creator': creator,
         }
         schema = DatasetSchema(**model_data)
-        schema = db_add_operation(schema)
+        schema = db_add_operation(schema, db)
         return schema.to_dict()
 
     def __on_create_event(self, geid, username):
@@ -225,13 +227,13 @@ class SrvDatasetMgr:
         return res
 
 
-def db_add_operation(schema):
+def db_add_operation(schema, db):
     try:
-        db.session.add(schema)
-        db.session.commit()
-        db.session.refresh(schema)
+        db.add(schema)
+        db.commit()
+        db.refresh(schema)
     except Exception as e:
-        db.session.rollback()
+        db.rollback()
         error_msg = f'Psql Error: {str(e)}'
         raise Exception(error_msg)
     return schema

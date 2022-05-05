@@ -71,6 +71,13 @@ def db_postgres():
         yield postgres.get_connection_url()
 
 
+@pytest.fixture(autouse=True)
+def set_settings(monkeypatch, db_postgres):
+    from app.config import ConfigClass
+
+    monkeypatch.setattr(ConfigClass, 'OPS_DB_URI', db_postgres)
+
+
 @pytest_asyncio.fixture()
 def create_db(db_postgres):
     from app.models.bids_sql import Base as BidsBase
@@ -108,11 +115,9 @@ def event_loop(request):
 
 
 @pytest.fixture
-def app(db_postgres):
-    from app.config import ConfigClass
+def app():
     from app.main import create_app
 
-    ConfigClass.OPS_DB_URI = db_postgres
     app = create_app()
     yield app
 

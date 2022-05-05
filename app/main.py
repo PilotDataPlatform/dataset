@@ -19,7 +19,6 @@ from fastapi import FastAPI
 from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi_sqlalchemy import DBSessionMiddleware
 from opentelemetry import trace
 from opentelemetry.exporter.jaeger.thrift import JaegerExporter
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
@@ -47,7 +46,6 @@ def create_app():
         title='Service Dataset', description='Service Dataset', docs_url='/v1/api-doc', version=ConfigClass.VERSION
     )
 
-    app.add_middleware(DBSessionMiddleware, db_url=ConfigClass.OPS_DB_URI)
     app.add_middleware(
         CORSMiddleware,
         allow_origins='*',

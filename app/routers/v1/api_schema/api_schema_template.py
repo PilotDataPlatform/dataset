@@ -15,11 +15,12 @@
 
 from common import GEIDClient
 from fastapi import APIRouter
-from fastapi_sqlalchemy import db
+from fastapi import Depends
 from fastapi_utils import cbv
 from sqlalchemy.orm.exc import NoResultFound
 
 from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
+from app.core.db import get_db_session
 from app.models.schema_sql import DatasetSchemaTemplate
 from app.resources.error_handler import catch_internal
 from app.schemas.base import APIResponse
@@ -38,10 +39,10 @@ HEADERS = {'accept': 'application/json', 'Content-Type': 'application/json'}
 
 
 # this function will check if the template name already exist
-def check_template_name(name, dataset_geid):
+def check_template_name(name, dataset_geid, db):
     try:
         (
-            db.session.query(DatasetSchemaTemplate)
+            db.query(DatasetSchemaTemplate)
             .filter(DatasetSchemaTemplate.name == name)
             .filter(DatasetSchemaTemplate.dataset_geid == dataset_geid)
             .one()
@@ -65,11 +66,13 @@ class APISchemaTemplate:
         '/dataset/{dataset_geid}/schemaTPL', tags=[_API_TAG], summary='API will create the new schema template'
     )
     @catch_internal(_API_NAMESPACE)
-    async def create_schema_template(self, dataset_geid, request_payload: SchemaTemplatePost):
+    async def create_schema_template(
+        self, dataset_geid, request_payload: SchemaTemplatePost, db=Depends(get_db_session)
+    ):
 
         api_response = APIResponse()
         # here we enforce the uniqueness of the name within dataset_geid
-        exist = check_template_name(request_payload.name, dataset_geid)
+        exist = check_template_name(request_payload.name, dataset_geid, db)
         if exist:
             api_response.code = EAPIResponseCode.forbidden
             api_response.error_msg = 'The template name already exists.'
@@ -87,8 +90,8 @@ class APISchemaTemplate:
                 creator=request_payload.creator,
             )
 
-            db.session.add(new_template)
-            db.session.commit()
+            db.add(new_template)
+            db.commit()
             api_response.result = new_template.to_dict()
 
             # create the log activity
@@ -98,7 +101,7 @@ class APISchemaTemplate:
         except Exception as e:
             api_response.code = EAPIResponseCode.bad_request
             api_response.error_msg = str(e)
-            db.session.rollback()
+            db.rollback()
 
         return api_response.json_response()
 
@@ -108,20 +111,16 @@ class APISchemaTemplate:
         summary='API will list the template by condition',
     )
     @catch_internal(_API_NAMESPACE)
-    async def list_schema_template(self, dataset_geid, request_payload: SchemaTemplateList):
+    async def list_schema_template(self, dataset_geid, request_payload: SchemaTemplateList, db=Depends(get_db_session)):
         api_response = APIResponse()
         result = None
 
         try:
             if dataset_geid == 'default':
-                result = (
-                    db.session.query(DatasetSchemaTemplate).filter(DatasetSchemaTemplate.system_defined.is_(True)).all()
-                )
+                result = db.query(DatasetSchemaTemplate).filter(DatasetSchemaTemplate.system_defined.is_(True)).all()
             else:
                 result = (
-                    db.session.query(DatasetSchemaTemplate)
-                    .filter(DatasetSchemaTemplate.dataset_geid == dataset_geid)
-                    .all()
+                    db.query(DatasetSchemaTemplate).filter(DatasetSchemaTemplate.dataset_geid == dataset_geid).all()
                 )
 
             ret = []
@@ -149,11 +148,11 @@ class APISchemaTemplate:
         summary='API will get the template by geid',
     )
     @catch_internal(_API_NAMESPACE)
-    async def get_schema_template(self, dataset_geid, template_geid):
+    async def get_schema_template(self, dataset_geid, template_geid, db=Depends(get_db_session)):
 
         api_response = APIResponse()
         try:
-            result = db.session.query(DatasetSchemaTemplate).filter(DatasetSchemaTemplate.geid == template_geid)
+            result = db.query(DatasetSchemaTemplate).filter(DatasetSchemaTemplate.geid == template_geid)
             if dataset_geid == 'default':
                 result = result.filter(DatasetSchemaTemplate.system_defined.is_(True)).one()
             else:
@@ -163,7 +162,7 @@ class APISchemaTemplate:
         except NoResultFound:
             api_response.code = EAPIResponseCode.not_found
             api_response.error_msg = 'template %s is not found' % template_geid
-            db.session.rollback()
+            db.rollback()
         except Exception as e:
             api_response.code = EAPIResponseCode.bad_request
             api_response.error_msg = str(e)
@@ -176,12 +175,14 @@ class APISchemaTemplate:
         summary='API will create the new schema template',
     )
     @catch_internal(_API_NAMESPACE)
-    async def update_schema_template(self, template_geid, dataset_geid, request_payload: SchemaTemplatePut):
+    async def update_schema_template(
+        self, template_geid, dataset_geid, request_payload: SchemaTemplatePut, db=Depends(get_db_session)
+    ):
 
         api_response = APIResponse()
 
         # here we enforce the uniqueness of the name with in dataset_geid
-        exist = check_template_name(request_payload.name, dataset_geid)
+        exist = check_template_name(request_payload.name, dataset_geid, db)
         if exist:
             api_response.code = EAPIResponseCode.forbidden
             api_response.error_msg = 'The template name already exists.'
@@ -189,7 +190,7 @@ class APISchemaTemplate:
 
         try:
             result = (
-                db.session.query(DatasetSchemaTemplate)
+                db.query(DatasetSchemaTemplate)
                 .filter(DatasetSchemaTemplate.geid == template_geid)
                 .filter(DatasetSchemaTemplate.dataset_geid == dataset_geid)
                 .one()
@@ -199,7 +200,7 @@ class APISchemaTemplate:
             result.name = request_payload.name
             result.content = request_payload.content
             result.is_draft = request_payload.is_draft
-            db.session.commit()
+            db.commit()
             api_response.result = result.to_dict()
 
             # based on the frontend infomation, create the log activity
@@ -211,11 +212,11 @@ class APISchemaTemplate:
         except NoResultFound:
             api_response.code = EAPIResponseCode.not_found
             api_response.error_msg = 'template %s is not found' % template_geid
-            db.session.rollback()
+            db.rollback()
         except Exception as e:
             api_response.code = EAPIResponseCode.bad_request
             api_response.error_msg = str(e)
-            db.session.rollback()
+            db.rollback()
 
         return api_response.json_response()
 
@@ -225,16 +226,16 @@ class APISchemaTemplate:
         summary='API will create the new schema template',
     )
     @catch_internal(_API_NAMESPACE)
-    async def remove_schema_template(self, dataset_geid, template_geid):
+    async def remove_schema_template(self, dataset_geid, template_geid, db=Depends(get_db_session)):
 
         api_response = APIResponse()
 
         # delete the row if we find it
         try:
-            result = db.session.query(DatasetSchemaTemplate).filter(DatasetSchemaTemplate.geid == template_geid).one()
+            result = db.query(DatasetSchemaTemplate).filter(DatasetSchemaTemplate.geid == template_geid).one()
 
-            db.session.delete(result)
-            db.session.commit()
+            db.delete(result)
+            db.commit()
             api_response.result = result.to_dict()
 
             # create the log activity
@@ -243,10 +244,10 @@ class APISchemaTemplate:
         except NoResultFound:
             api_response.code = EAPIResponseCode.not_found
             api_response.error_msg = 'template %s is not found' % template_geid
-            db.session.rollback()
+            db.rollback()
         except Exception as e:
             api_response.code = EAPIResponseCode.bad_request
             api_response.error_msg = str(e)
-            db.session.rollback()
+            db.rollback()
 
         return api_response.json_response()

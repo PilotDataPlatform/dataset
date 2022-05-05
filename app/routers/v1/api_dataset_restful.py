@@ -21,12 +21,13 @@ from typing import Optional
 
 import httpx
 from fastapi import APIRouter
+from fastapi import Depends
 from fastapi import Header
-from fastapi_sqlalchemy import db
 from fastapi_utils import cbv
 
 from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
 from app.config import ConfigClass
+from app.core.db import get_db_session
 from app.models.bids_sql import BIDSResult
 from app.models.models_dataset import SrvDatasetMgr
 from app.resources.error_handler import catch_internal
@@ -57,10 +58,9 @@ class DatasetRestful:
 
     @router.post('/v1/dataset', tags=[_API_TAG], response_model=DatasetPostResponse, summary='Create a dataset.')
     @catch_internal(_API_NAMESPACE)
-    async def create_dataset(self, request_payload: DatasetPostForm):
+    async def create_dataset(self, request_payload: DatasetPostForm, db=Depends(get_db_session)):
         """dataset creation api."""
         res = APIResponse()
-
         srv_dataset = SrvDatasetMgr()
 
         check_created = srv_dataset.get_bycode(request_payload.code)
@@ -84,6 +84,7 @@ class DatasetRestful:
                     return res.json_response()
 
         created = srv_dataset.create(
+            db,
             request_payload.username,
             request_payload.code,
             request_payload.title,
@@ -280,11 +281,11 @@ class DatasetRestful:
 
     @router.get('/v1/dataset/bids-msg/{dataset_geid}', tags=[_API_TAG], summary='pre verify a bids dataset.')
     @catch_internal(_API_NAMESPACE)
-    async def get_bids_msg(self, dataset_geid):
+    async def get_bids_msg(self, dataset_geid, db=Depends(get_db_session)):
         api_response = APIResponse()
         try:
             bids_results = (
-                db.session.query(BIDSResult)
+                db.query(BIDSResult)
                 .filter_by(
                     dataset_geid=dataset_geid,
                 )
