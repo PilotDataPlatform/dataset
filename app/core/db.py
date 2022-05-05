@@ -14,13 +14,14 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+from sqlalchemy import MetaData
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 from app.config import ConfigClass
 
-Base = declarative_base()
+DBModel = declarative_base(metadata=MetaData(schema=ConfigClass.RDS_SCHEMA_DEFAULT))
 engine = create_engine(ConfigClass.OPS_DB_URI)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

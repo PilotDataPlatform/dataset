@@ -24,10 +24,10 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
 from app.config import ConfigClass
-from app.core.db import Base
+from app.core.db import DBModel
 
 
-class DatasetSchemaTemplate(Base):
+class DatasetSchemaTemplate(DBModel):
     __tablename__ = 'dataset_schema_template'
     __table_args__ = {'schema': ConfigClass.RDS_SCHEMA_DEFAULT}
     geid = Column(String(), primary_key=True)
@@ -75,7 +75,7 @@ class DatasetSchemaTemplate(Base):
         return result
 
 
-class DatasetSchema(Base):
+class DatasetSchema(DBModel):
     __tablename__ = 'dataset_schema'
     __table_args__ = {'schema': ConfigClass.RDS_SCHEMA_DEFAULT}
     geid = Column(String(), primary_key=True)

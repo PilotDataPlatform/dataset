@@ -21,10 +21,10 @@ from sqlalchemy import Integer
 from sqlalchemy import String
 
 from app.config import ConfigClass
-from app.core.db import Base
+from app.core.db import DBModel
 
 
-class DatasetVersion(Base):
+class DatasetVersion(DBModel):
     __tablename__ = 'dataset_version'
     __table_args__ = {'schema': ConfigClass.RDS_SCHEMA_DEFAULT}
     id = Column(Integer, primary_key=True)

@@ -80,21 +80,15 @@ def set_settings(monkeypatch, db_postgres):
 
 @pytest_asyncio.fixture()
 def create_db(db_postgres):
-    from app.models.bids_sql import Base as BidsBase
-    from app.models.schema_sql import Base as SchemaBase
-    from app.models.version_sql import Base as VersionBase
+    from app.core.db import DBModel
 
     db_schema = environ.get('RDS_SCHEMA_DEFAULT')
     engine = create_engine(db_postgres, echo=True)
     if not engine.dialect.has_schema(engine, db_schema):
         engine.execute(schema.CreateSchema(db_schema))
-    SchemaBase.metadata.create_all(bind=engine)
-    VersionBase.metadata.create_all(bind=engine)
-    BidsBase.metadata.create_all(bind=engine)
+    DBModel.metadata.create_all(bind=engine)
     yield engine
-    SchemaBase.metadata.drop_all(bind=engine)
-    VersionBase.metadata.drop_all(bind=engine)
-    BidsBase.metadata.drop_all(bind=engine)
+    DBModel.metadata.drop_all(bind=engine)
 
 
 @pytest_asyncio.fixture()
