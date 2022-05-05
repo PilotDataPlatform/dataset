@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
+from fastapi import Depends
 from sqlalchemy import MetaData
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
@@ -22,11 +22,27 @@ from sqlalchemy.orm import sessionmaker
 from app.config import ConfigClass
 
 DBModel = declarative_base(metadata=MetaData(schema=ConfigClass.RDS_SCHEMA_DEFAULT))
-engine = create_engine(ConfigClass.OPS_DB_URI)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-def get_db_session():
+class GetDBEngine:
+    """Create a FastAPI callable dependency for SQLAlchemy single AsyncEngine instance."""
+
+    def __init__(self) -> None:
+        self.instance = None
+
+    async def __call__(self):
+        """Return an instance of AsyncEngine class."""
+
+        if not self.instance:
+            self.instance = create_engine(ConfigClass.OPS_DB_URI)
+        return self.instance
+
+
+get_db_engine = GetDBEngine()
+
+
+def get_db_session(engine=Depends(get_db_engine)):
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     db = SessionLocal()
     try:
         yield db
