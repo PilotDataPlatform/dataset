@@ -19,8 +19,8 @@ from functools import wraps
 from httpx import Response
 
 from app.config import ConfigClass
-from app.models.base_models import APIResponse
-from app.models.base_models import EAPIResponseCode
+from app.schemas.base import APIResponse
+from app.schemas.base import EAPIResponseCode
 
 
 def catch_internal(api_namespace):

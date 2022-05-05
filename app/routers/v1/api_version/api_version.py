@@ -27,15 +27,15 @@ from redis import Redis
 
 from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
 from app.config import ConfigClass
-from app.models.base_models import APIResponse
-from app.models.base_models import EAPIResponseCode
-from app.models.version_models import PublishRequest
-from app.models.version_models import PublishResponse
-from app.models.version_models import VersionListRequest
-from app.models.version_models import VersionResponse
 from app.models.version_sql import DatasetVersion
 from app.resources.error_handler import APIException
 from app.resources.token_manager import generate_token
+from app.schemas.base import APIResponse
+from app.schemas.base import EAPIResponseCode
+from app.schemas.version import PublishRequest
+from app.schemas.version import PublishResponse
+from app.schemas.version import VersionListRequest
+from app.schemas.version import VersionResponse
 
 from .publish_version import PublishVersion
 from .publish_version import get_dataset_by_geid

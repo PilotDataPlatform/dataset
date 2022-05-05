@@ -23,11 +23,11 @@ from fastapi_sqlalchemy import db
 from fastapi_utils import cbv
 
 from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
-from app.models.base_models import APIResponse
-from app.models.base_models import EAPIResponseCode
 from app.models.version_sql import DatasetVersion
 from app.resources.error_handler import catch_internal
 from app.resources.es_helper import search
+from app.schemas.base import APIResponse
+from app.schemas.base import EAPIResponseCode
 
 router = APIRouter()
 

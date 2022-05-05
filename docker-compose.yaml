@@ -36,6 +36,7 @@ services:
       - RDS_DBNAME
       - RDS_USER
       - RDS_SCHEMA_DEFAULT
+      - OPS_DB_URI
       - REDIS_HOST
       - REDIS_PORT
       - REDIS_DB
@@ -43,7 +44,6 @@ services:
       - MAX_PREVIEW_SIZE
       - ESSENTIALS_NAME
       - ESSENTIALS_TPL_NAME
-
   redis:
     image: redis:6.2-alpine
     restart: always
@@ -52,6 +52,16 @@ services:
     command: redis-server --save 20 1 --loglevel warning
     volumes:
       - redis:/data
+  postgres:
+    image: postgres:14.1-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${RDS_SCHEMA_DEFAULT}
+    expose:
+      - 5432
+    ports:
+      - 5432:5432
 volumes:
   redis:
     driver: local

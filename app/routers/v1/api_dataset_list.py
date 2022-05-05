@@ -21,11 +21,11 @@ from fastapi_utils import cbv
 
 from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
 from app.config import ConfigClass
-from app.models.base_models import APIResponse
-from app.models.base_models import EAPIResponseCode
-from app.models.reqres_dataset import DatasetListForm
-from app.models.reqres_dataset import DatasetListResponse
 from app.resources.error_handler import catch_internal
+from app.schemas.base import APIResponse
+from app.schemas.base import EAPIResponseCode
+from app.schemas.reqres_dataset import DatasetListForm
+from app.schemas.reqres_dataset import DatasetListResponse
 
 router = APIRouter()
 

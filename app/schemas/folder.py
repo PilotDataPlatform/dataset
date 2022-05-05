@@ -13,17 +13,17 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from pydantic import BaseModel
 from pydantic import Field
 
-from .base_models import APIResponse
+from .base import APIResponse
 
 
-class PreviewResponse(APIResponse):
-    result: dict = Field(
-        {},
-        example={
-            'content': '<csv data>',
-            'type': 'csv',
-            'is_concatinated': True,
-        },
-    )
+class FolderResponse(APIResponse):
+    result: dict = Field({}, example={})
+
+
+class FolderRequest(BaseModel):
+    folder_name: str
+    username: str
+    parent_folder_geid: str = ''

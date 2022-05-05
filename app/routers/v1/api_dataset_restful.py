@@ -27,13 +27,8 @@ from fastapi_utils import cbv
 
 from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
 from app.config import ConfigClass
-from app.models.base_models import APIResponse
-from app.models.base_models import EAPIResponseCode
 from app.models.bids_sql import BIDSResult
 from app.models.models_dataset import SrvDatasetMgr
-from app.models.reqres_dataset import DatasetPostForm
-from app.models.reqres_dataset import DatasetPostResponse
-from app.models.reqres_dataset import DatasetVerifyForm
 from app.models.validator_dataset import DatasetValidator
 from app.resources.error_handler import catch_internal
 from app.resources.utils import get_files_recursive
@@ -41,6 +36,11 @@ from app.resources.utils import get_node_relative_path
 from app.resources.utils import get_related_nodes
 from app.resources.utils import http_query_node
 from app.resources.utils import make_temp_folder
+from app.schemas.base import APIResponse
+from app.schemas.base import EAPIResponseCode
+from app.schemas.reqres_dataset import DatasetPostForm
+from app.schemas.reqres_dataset import DatasetPostResponse
+from app.schemas.reqres_dataset import DatasetVerifyForm
 
 router = APIRouter()
 

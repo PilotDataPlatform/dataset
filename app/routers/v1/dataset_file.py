@@ -26,8 +26,6 @@ from fastapi_utils import cbv
 
 from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
 from app.config import ConfigClass
-from app.models.base_models import APIResponse
-from app.models.base_models import EAPIResponseCode
 from app.models.import_data_model import DatasetFileDelete
 from app.models.import_data_model import DatasetFileMove
 from app.models.import_data_model import DatasetFileRename
@@ -46,6 +44,8 @@ from app.resources.neo4j_helper import delete_relation_bw_nodes
 from app.resources.neo4j_helper import get_children_nodes
 from app.resources.neo4j_helper import get_node_by_geid
 from app.resources.neo4j_helper import get_parent_node
+from app.schemas.base import APIResponse
+from app.schemas.base import EAPIResponseCode
 
 router = APIRouter()
 

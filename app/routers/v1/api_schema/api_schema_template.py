@@ -20,14 +20,14 @@ from fastapi_utils import cbv
 from sqlalchemy.orm.exc import NoResultFound
 
 from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
-from app.models.base_models import APIResponse
-from app.models.base_models import EAPIResponseCode
 from app.models.schema_sql import DatasetSchemaTemplate
-from app.models.schema_template_model import SchemaTemplateList
-from app.models.schema_template_model import SchemaTemplatePost
-from app.models.schema_template_model import SchemaTemplatePut
-from app.models.schema_template_model import SrvDatasetSchemaTemplateMgr
 from app.resources.error_handler import catch_internal
+from app.schemas.base import APIResponse
+from app.schemas.base import EAPIResponseCode
+from app.schemas.schema_template import SchemaTemplateList
+from app.schemas.schema_template import SchemaTemplatePost
+from app.schemas.schema_template import SchemaTemplatePut
+from app.schemas.schema_template import SrvDatasetSchemaTemplateMgr
 
 router = APIRouter()
 

@@ -21,20 +21,20 @@ from fastapi_utils import cbv
 
 from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
 from app.config import ConfigClass
-from app.models.base_models import APIResponse
-from app.models.base_models import EAPIResponseCode
-from app.models.schema_models import DELETESchema
-from app.models.schema_models import DELETESchemaResponse
-from app.models.schema_models import GETSchemaResponse
-from app.models.schema_models import POSTSchema
-from app.models.schema_models import POSTSchemaList
-from app.models.schema_models import POSTSchemaResponse
-from app.models.schema_models import PUTSchema
-from app.models.schema_models import PUTSchemaResponse
 from app.models.schema_sql import DatasetSchema
 from app.models.schema_sql import DatasetSchemaTemplate
 from app.resources.error_handler import APIException
 from app.resources.error_handler import catch_internal
+from app.schemas.base import APIResponse
+from app.schemas.base import EAPIResponseCode
+from app.schemas.schema import DELETESchema
+from app.schemas.schema import DELETESchemaResponse
+from app.schemas.schema import GETSchemaResponse
+from app.schemas.schema import POSTSchema
+from app.schemas.schema import POSTSchemaList
+from app.schemas.schema import POSTSchemaResponse
+from app.schemas.schema import PUTSchema
+from app.schemas.schema import PUTSchemaResponse
 
 logger = SrvLoggerFactory('api_schema').get_logger()
 router = APIRouter()

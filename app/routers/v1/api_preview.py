@@ -27,10 +27,10 @@ from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
 from app.commons.service_connection.minio_client import Minio_Client
 from app.commons.service_connection.minio_client import Minio_Client_
 from app.config import ConfigClass
-from app.models.base_models import APIResponse
-from app.models.base_models import EAPIResponseCode
-from app.models.preview_model import PreviewResponse
 from app.resources.error_handler import catch_internal
+from app.schemas.base import APIResponse
+from app.schemas.base import EAPIResponseCode
+from app.schemas.preview import PreviewResponse
 
 logger = SrvLoggerFactory('api_preview').get_logger()
 router = APIRouter()

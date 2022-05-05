@@ -20,14 +20,14 @@ from fastapi import APIRouter
 from fastapi_utils import cbv
 
 from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
-from app.models.base_models import EAPIResponseCode
-from app.models.folder_models import FolderRequest
-from app.models.folder_models import FolderResponse
 from app.resources.error_handler import APIException
 from app.resources.neo4j_helper import create_node
 from app.resources.neo4j_helper import create_relation
 from app.resources.neo4j_helper import get_node_by_geid
 from app.resources.neo4j_helper import query_relation
+from app.schemas.base import EAPIResponseCode
+from app.schemas.folder import FolderRequest
+from app.schemas.folder import FolderResponse
 
 logger = SrvLoggerFactory('api_preview').get_logger()
 router = APIRouter()
