@@ -37,7 +37,7 @@ Base = declarative_base()
 class DatasetSchemaTemplate(Base):
     __tablename__ = 'dataset_schema_template'
     __table_args__ = {'schema': ConfigClass.RDS_SCHEMA_DEFAULT}
-    geid = Column(String(), unique=True, primary_key=True)
+    geid = Column(String(), primary_key=True)
     name = Column(String())
     dataset_geid = Column(String())
     standard = Column(String())
@@ -85,7 +85,7 @@ class DatasetSchemaTemplate(Base):
 class DatasetSchema(Base):
     __tablename__ = 'dataset_schema'
     __table_args__ = {'schema': ConfigClass.RDS_SCHEMA_DEFAULT}
-    geid = Column(String(), unique=True, primary_key=True)
+    geid = Column(String(), primary_key=True)
     name = Column(String())
     dataset_geid = Column(String())
     tpl_geid = Column(String(), ForeignKey(DatasetSchemaTemplate.geid))

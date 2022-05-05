@@ -29,7 +29,6 @@ from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
 from app.config import ConfigClass
 from app.models.bids_sql import BIDSResult
 from app.models.models_dataset import SrvDatasetMgr
-from app.models.validator_dataset import DatasetValidator
 from app.resources.error_handler import catch_internal
 from app.resources.utils import get_files_recursive
 from app.resources.utils import get_node_relative_path
@@ -41,6 +40,7 @@ from app.schemas.base import EAPIResponseCode
 from app.schemas.reqres_dataset import DatasetPostForm
 from app.schemas.reqres_dataset import DatasetPostResponse
 from app.schemas.reqres_dataset import DatasetVerifyForm
+from app.schemas.validator_dataset import DatasetValidator
 
 router = APIRouter()
 

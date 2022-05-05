@@ -29,7 +29,7 @@ Base = declarative_base()
 class DatasetVersion(Base):
     __tablename__ = 'dataset_version'
     __table_args__ = {'schema': ConfigClass.RDS_SCHEMA_DEFAULT}
-    id = Column(Integer, unique=True, primary_key=True)
+    id = Column(Integer, primary_key=True)
     dataset_code = Column(String())
     dataset_geid = Column(String())
     version = Column(String())

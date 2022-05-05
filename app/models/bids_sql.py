@@ -30,7 +30,7 @@ Base = declarative_base()
 class BIDSResult(Base):
     __tablename__ = 'bids_results'
     __table_args__ = {'schema': ConfigClass.RDS_SCHEMA_DEFAULT}
-    id = Column(Integer, unique=True, primary_key=True)
+    id = Column(Integer, primary_key=True)
     dataset_geid = Column(String())
     created_time = Column(DateTime(), default=datetime.utcnow)
     updated_time = Column(DateTime(), default=datetime.utcnow)
