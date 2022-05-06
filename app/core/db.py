@@ -38,10 +38,10 @@ class GetDBEngine:
         return self.instance
 
 
-get_db_engine = GetDBEngine()
+db_engine = GetDBEngine()
 
 
-def get_db_session(engine=Depends(get_db_engine)):
+def get_db_session(engine=Depends(db_engine)):
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     db = SessionLocal()
     try:
