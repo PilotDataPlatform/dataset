@@ -16,9 +16,9 @@
 from datetime import datetime
 
 from sqlalchemy import Column
-from sqlalchemy import DateTime
 from sqlalchemy import Integer
 from sqlalchemy import String
+from sqlalchemy.dialects.postgresql import TIMESTAMP
 
 from app.config import ConfigClass
 from app.core.db import DBModel
@@ -32,7 +32,7 @@ class DatasetVersion(DBModel):
     dataset_geid = Column(String())
     version = Column(String())
     created_by = Column(String())
-    created_at = Column(DateTime(), default=datetime.utcnow)
+    created_at = Column(TIMESTAMP(timezone=True), default=datetime.utcnow, nullable=False)
     location = Column(String())
     notes = Column(String())
 

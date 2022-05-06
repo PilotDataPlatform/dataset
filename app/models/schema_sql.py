@@ -17,10 +17,10 @@ from datetime import datetime
 
 from sqlalchemy import Boolean
 from sqlalchemy import Column
-from sqlalchemy import DateTime
 from sqlalchemy import ForeignKey
 from sqlalchemy import String
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import TIMESTAMP
 from sqlalchemy.orm import relationship
 
 from app.config import ConfigClass
@@ -37,8 +37,10 @@ class DatasetSchemaTemplate(DBModel):
     system_defined = Column(Boolean())
     is_draft = Column(Boolean())
     content = Column(JSONB())
-    create_timestamp = Column(DateTime(), default=datetime.utcnow)
-    update_timestamp = Column(DateTime(), default=datetime.utcnow)
+    create_timestamp = Column(TIMESTAMP(timezone=True), default=datetime.utcnow, nullable=False)
+    update_timestamp = Column(
+        TIMESTAMP(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
     creator = Column(String())
     schemas = relationship('DatasetSchema', back_populates='schema_template')
 
@@ -86,8 +88,10 @@ class DatasetSchema(DBModel):
     system_defined = Column(Boolean())
     is_draft = Column(Boolean())
     content = Column(JSONB())
-    create_timestamp = Column(DateTime(), default=datetime.utcnow)
-    update_timestamp = Column(DateTime(), default=datetime.utcnow)
+    create_timestamp = Column(TIMESTAMP(timezone=True), default=datetime.utcnow, nullable=False)
+    update_timestamp = Column(
+        TIMESTAMP(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
     creator = Column(String())
     schema_template = relationship('DatasetSchemaTemplate', back_populates='schemas')
 
