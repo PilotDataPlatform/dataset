@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import json
 from unittest import mock
 
 import pytest
@@ -41,7 +42,9 @@ def external_requests(httpx_mock):
 
 @mock.patch('app.routers.v1.dataset_file.recursive_lock_import')
 async def test_copy_file_worker_should_import_file_succeed(
-    mock_recursive_lock_import, external_requests, httpx_mock, caplog
+    mock_recursive_lock_import,
+    external_requests,
+    httpx_mock,
 ):
     from app.routers.v1.dataset_file import APIImportData
 
@@ -58,7 +61,6 @@ async def test_copy_file_worker_should_import_file_succeed(
         json=[{'code': 'source_project_code'}],
     )
     mock_recursive_lock_import.return_value = [], False
-
     import_list = [
         {
             'global_entity_id': 'source_file_2_global_entity_id',
@@ -77,12 +79,16 @@ async def test_copy_file_worker_should_import_file_succeed(
             )
         except Exception as e:
             pytest.fail(f'copy_files_worker raised {e} unexpectedly')
-    assert 'DATASET_FILE_IMPORT_SUCCEED' in caplog.records[0].getMessage()
+    event_status_request = httpx_mock.get_requests()[-1]
+    req_res = json.loads(event_status_request.content)
+    assert req_res['event_type'] == 'DATASET_FILE_IMPORT_SUCCEED'
 
 
 @mock.patch('app.routers.v1.dataset_file.recursive_lock_move_rename')
 async def test_move_file_worker_should_move_file_succeed(
-    mock_recursive_lock_move_rename, external_requests, httpx_mock, caplog
+    mock_recursive_lock_move_rename,
+    external_requests,
+    httpx_mock,
 ):
     from app.routers.v1.dataset_file import APIImportData
 
@@ -119,12 +125,16 @@ async def test_move_file_worker_should_move_file_succeed(
                 )
             except Exception as e:
                 pytest.fail(f'copy_files_worker raised {e} unexpectedly')
-    assert 'DATASET_FILE_MOVE_SUCCEED' in caplog.records[0].getMessage()
+    event_status_request = httpx_mock.get_requests()[-1]
+    req_res = json.loads(event_status_request.content)
+    assert req_res['event_type'] == 'DATASET_FILE_MOVE_SUCCEED'
 
 
 @mock.patch('app.routers.v1.dataset_file.recursive_lock_delete')
 async def test_delete_files_work_should_delete_file_succeed(
-    mock_recursive_lock_delete, external_requests, httpx_mock, caplog
+    mock_recursive_lock_delete,
+    external_requests,
+    httpx_mock,
 ):
     from app.routers.v1.dataset_file import APIImportData
 
@@ -154,12 +164,16 @@ async def test_delete_files_work_should_delete_file_succeed(
             api.delete_files_work(delete_list, dataset_obj, OPER, SESSION_ID, ACCESS_TOKEN, REFRESH_TOKEN)
         except Exception as e:
             pytest.fail(f'copy_delete_work raised {e} unexpectedly')
-    assert 'DATASET_FILE_DELETE_SUCCEED' in caplog.records[0].getMessage()
+    event_status_request = httpx_mock.get_requests()[-1]
+    req_res = json.loads(event_status_request.content)
+    assert req_res['event_type'] == 'DATASET_FILE_DELETE_SUCCEED'
 
 
 @mock.patch('app.routers.v1.dataset_file.recursive_lock_move_rename')
 async def test_rename_file_worker_should_move_file_succeed(
-    mock_recursive_lock_move_rename, external_requests, httpx_mock, caplog
+    mock_recursive_lock_move_rename,
+    external_requests,
+    httpx_mock,
 ):
     from app.routers.v1.dataset_file import APIImportData
 
@@ -203,4 +217,6 @@ async def test_rename_file_worker_should_move_file_succeed(
                 api.rename_file_worker(old_file, new_name, dataset_obj, OPER, SESSION_ID, ACCESS_TOKEN, REFRESH_TOKEN)
             except Exception as e:
                 pytest.fail(f'rename_file_worker raised {e} unexpectedly')
-    assert 'DATASET_FILE_RENAME_SUCCEED' in caplog.records[0].getMessage()
+    event_status_request = httpx_mock.get_requests()[-1]
+    req_res = json.loads(event_status_request.content)
+    assert req_res['event_type'] == 'DATASET_FILE_RENAME_SUCCEED'

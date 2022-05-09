@@ -57,7 +57,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: ${RDS_SCHEMA_DEFAULT}
+      POSTGRES_DB: datasets
     expose:
       - 5432
     ports:

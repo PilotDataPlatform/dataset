@@ -1,72 +1,73 @@
+# Copyright (C) 2022 Indoc Research
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+import logging
 from logging.config import fileConfig
+from urllib.parse import urlparse
 
 from alembic import context
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import create_engine
+from sqlalchemy.pool import NullPool
 
-# this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
+from app.config import ConfigClass
+from app.core.db import DBModel
+from app.models.bids_sql import BIDSResult  # noqa
+from app.models.schema_sql import DatasetSchema  # noqa
+from app.models.schema_sql import DatasetSchemaTemplate  # noqa
+from app.models.version_sql import DatasetVersion  # noqa
+
+logger = logging.getLogger('alembic')
 config = context.config
+fileConfig(config.config_file_name)
 
-# Interpret the config file for Python logging.
-# This line sets up loggers basically.
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
-
-# add your model's MetaData object here
-# for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
-target_metadata = None
-
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
+target_metadata = DBModel.metadata
+database_schema = config.get_main_option('database_schema', ConfigClass.RDS_SCHEMA_DEFAULT)
+database_uri = config.get_main_option('database_uri', ConfigClass.RDS_DB_URI)
 
 
-def run_migrations_offline():
-    """Run migrations in 'offline' mode.
+def include_name(type_, parent_names, name=None) -> bool:
+    """Consider only tables from desired schema."""
 
-    This configures the context with just a URL
-    and not an Engine, though an Engine is acceptable
-    here as well.  By skipping the Engine creation
-    we don't even need a DBAPI to be available.
+    if type_ == 'schema':
+        return name == database_schema
 
-    Calls to context.execute() here emit the given string to the
-    script output.
-    """
-    url = config.get_main_option('sqlalchemy.url')
-    context.configure(
-        url=url,
-        target_metadata=target_metadata,
-        literal_binds=True,
-        dialect_opts={'paramstyle': 'named'},
-    )
-
-    with context.begin_transaction():
-        context.run_migrations()
+    return True
 
 
-def run_migrations_online():
-    """Run migrations in 'online' mode.
-
-    In this scenario we need to create an Engine and associate a connection with the context.
-    """
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section),
-        prefix='sqlalchemy.',
-        poolclass=pool.NullPool,
-    )
-
+def run_migrations_online() -> None:
+    """Run migrations in 'online' mode."""
+    url = database_uri.replace(f'{urlparse(database_uri).scheme}://', 'postgresql://', 1)
+    connectable = create_engine(url, poolclass=NullPool, echo=ConfigClass.RDS_ECHO_SQL_QUERIES)
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            version_table_schema=database_schema,
+            include_schemas=True,
+            include_name=include_name,
+            compare_type=True,
+            compare_server_default=True,
+        )
 
         with context.begin_transaction():
+            context.execute(f'CREATE SCHEMA IF NOT EXISTS {database_schema}')
             context.run_migrations()
 
 
 if context.is_offline_mode():
-    run_migrations_offline()
-else:
-    run_migrations_online()
+    logger.error('Offline migrations environment is not supported.')
+    exit(1)
+
+run_migrations_online()

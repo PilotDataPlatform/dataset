@@ -19,6 +19,9 @@ from unittest import mock
 
 import pytest
 import pytest_asyncio
+from alembic.command import downgrade
+from alembic.command import upgrade
+from alembic.config import Config
 from async_asgi_testclient import TestClient
 from httpx import Response
 from redis import StrictRedis
@@ -61,14 +64,16 @@ environ['REDIS_PASSWORD'] = ''
 
 environ['ROOT_PATH'] = './tests/'
 
-environ['RDS_SCHEMA_DEFAULT'] = 'INDOC_TEST'
-environ['RDS_DB_URI'] = 'postgresql://postgres:postgres@localhost:5432/INDOC_TEST'
+environ['RDS_SCHEMA_DEFAULT'] = 'datasets'
+environ['POSTGRES_DB'] = 'datasets'
+environ['RDS_DB_URI'] = 'postgresql://postgres:postgres@localhost:5432/datasets'
 
 
 @pytest_asyncio.fixture(scope='session')
 def db_postgres():
-    with PostgresContainer('postgres:14.1') as postgres:
-        yield postgres.get_connection_url()
+    with PostgresContainer('postgres:14.1', dbname=environ['POSTGRES_DB']) as postgres:
+        environ['RDS_DB_URI'] = postgres.get_connection_url()
+        yield environ['RDS_DB_URI']
 
 
 @pytest.fixture(autouse=True)
@@ -76,19 +81,23 @@ def set_settings(monkeypatch, db_postgres):
     from app.config import ConfigClass
 
     monkeypatch.setattr(ConfigClass, 'OPS_DB_URI', db_postgres)
+    monkeypatch.setattr(ConfigClass, 'RDS_DB_URI', db_postgres)
+    monkeypatch.setattr(ConfigClass, 'RDS_SCHEMA_DEFAULT', 'datasets')
 
 
 @pytest_asyncio.fixture()
 def create_db(db_postgres):
-    from app.core.db import DBModel
-
+    # from app.core.db import DBModel
     db_schema = environ.get('RDS_SCHEMA_DEFAULT')
     engine = create_engine(db_postgres, echo=True)
     if not engine.dialect.has_schema(engine, db_schema):
         engine.execute(schema.CreateSchema(db_schema))
-    DBModel.metadata.create_all(bind=engine)
+    config = Config('./alembic.ini')
+    upgrade(config, 'head')
+    # DBModel.metadata.create_all(bind=engine)
     yield engine
-    DBModel.metadata.drop_all(bind=engine)
+    # DBModel.metadata.drop_all(bind=engine)
+    downgrade(config, 'base')
 
 
 @pytest_asyncio.fixture()
