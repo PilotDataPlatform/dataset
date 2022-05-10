@@ -13,18 +13,16 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from uuid import uuid4
+
 import pytest
 
 pytestmark = pytest.mark.asyncio
 
 
-async def test_get_dataset_files_should_return_404_when_dataset_not_found(client, httpx_mock):
-    httpx_mock.add_response(
-        method='POST',
-        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[],
-    )
-    res = await client.get('/v1/dataset/any_geid/files')
+async def test_get_dataset_files_should_return_404_when_dataset_not_found(client, test_db):
+    dataset_id = str(uuid4())
+    res = await client.get(f'/v1/dataset/{dataset_id}/files')
     assert res.status_code == 404
     assert res.json() == {
         'code': 404,
@@ -36,15 +34,10 @@ async def test_get_dataset_files_should_return_404_when_dataset_not_found(client
     }
 
 
-async def test_get_dataset_files(client, httpx_mock):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+async def test_get_dataset_files(client, httpx_mock, dataset):
+    dataset_geid = str(dataset.id)
     file_geid = '6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067-1648138467'
-    source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
-    httpx_mock.add_response(
-        method='POST',
-        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[{'project_geid': source_project}],
-    )
+
     httpx_mock.add_response(
         method='POST',
         url='http://neo4j_service/v2/neo4j/relations/query',

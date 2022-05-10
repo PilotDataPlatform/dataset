@@ -16,12 +16,14 @@
 import json
 import os
 import time
+from uuid import UUID
 from uuid import uuid4
 
 import httpx
 from common import GEIDClient
 from minio.sseconfig import Rule
 from minio.sseconfig import SSEConfig
+from sqlalchemy.orm.exc import NoResultFound
 
 from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
 from app.commons.service_connection.dataset_policy_template import (
@@ -29,6 +31,7 @@ from app.commons.service_connection.dataset_policy_template import (
 )
 from app.commons.service_connection.minio_client import Minio_Client
 from app.config import ConfigClass
+from app.models.dataset import Dataset
 from app.models.schema_sql import DatasetSchema
 from app.models.schema_sql import DatasetSchemaTemplate
 
@@ -70,83 +73,83 @@ class SrvDatasetMgr:
             'description': description,
             'size': 0,
             'total_files': 0,
-            'name': code,
             'creator': username,
         }
         self.logger.debug('SrvDatasetMgr post_json_form' + str(post_json_form))
-        result_create_node = http_post_node(post_json_form)
-        if result_create_node.status_code == 200:
-            node_created = result_create_node.json()[0]
-            global_entity_id = node_created['global_entity_id']
-            self.__create_atlas_node(global_entity_id, username)
-            self.__create_essentials(
-                db,
-                global_entity_id,
-                code,
-                title,
-                authors,
-                dataset_type,
-                modality,
-                collection_method,
-                dataset_license,
-                description,
-                tags,
-                username,
-            )
-            self.__on_create_event(global_entity_id, username)
-            # and also create minio bucket with the dataset code
+        dataset_schema = Dataset(**post_json_form)
+        dataset = db_add_operation(dataset_schema, db)
+        global_entity_id = str(dataset.id)
+        self.__create_atlas_node(global_entity_id, username)
+        self.__create_essentials(
+            db,
+            global_entity_id,
+            code,
+            title,
+            authors,
+            dataset_type,
+            modality,
+            collection_method,
+            dataset_license,
+            description,
+            tags,
+            username,
+        )
+        self.__on_create_event(global_entity_id, username)
+        # and also create minio bucket with the dataset code
+        try:
+            mc = Minio_Client()
+            mc.client.make_bucket(code)
+            mc.client.set_bucket_encryption(code, SSEConfig(Rule.new_sse_s3_rule()))
+
+            self.logger.info('createing the policy')
+            # also use the lazy loading to create the policy in minio
+            stream = os.popen('mc admin policy info minio %s' % (username))
+            output = stream.read()
+            policy_file_name = None
             try:
-                mc = Minio_Client()
-                mc.client.make_bucket(code)
-                mc.client.set_bucket_encryption(code, SSEConfig(Rule.new_sse_s3_rule()))
+                policy = json.loads(output)
+                # if there is a policy then we append the new to the resource
+                policy['Statement'][0]['Resource'].append('arn:aws:s3:::%s/*' % (code))
+                policy_file_name = create_dataset_policy_template(code, json.dumps(policy))
+            except json.decoder.JSONDecodeError:
+                # if not found then we just create a new one for user
+                policy_file_name = create_dataset_policy_template(code)
 
-                self.logger.info('createing the policy')
-                # also use the lazy loading to create the policy in minio
-                stream = os.popen('mc admin policy info minio %s' % (username))
-                output = stream.read()
-                policy_file_name = None
-                try:
-                    policy = json.loads(output)
-                    # if there is a policy then we append the new to the resource
-                    policy['Statement'][0]['Resource'].append('arn:aws:s3:::%s/*' % (code))
-                    policy_file_name = create_dataset_policy_template(code, json.dumps(policy))
-                except json.decoder.JSONDecodeError:
-                    # if not found then we just create a new one for user
-                    policy_file_name = create_dataset_policy_template(code)
+            stream = os.popen('mc admin policy add minio %s %s' % (username, policy_file_name))
+            output = stream.read()
+            # then remove the policy file until the os is finish
+            # otherwise there will be the racing issue
+            os.remove(policy_file_name)
 
-                stream = os.popen('mc admin policy add minio %s %s' % (username, policy_file_name))
-                output = stream.read()
-                # then remove the policy file until the os is finish
-                # otherwise there will be the racing issue
-                os.remove(policy_file_name)
+        except Exception as e:
+            self.logger.error('error when creating minio: ' + str(e))
+        return dataset.to_dict()
 
-            except Exception as e:
-                self.logger.error('error when creating minio: ' + str(e))
-            return node_created
-        else:
-            raise Exception(str(result_create_node.text))
+    def update(self, db, current_node, update_json):
+        try:
+            db.query(Dataset).filter(Dataset.id == current_node.id).update({**update_json})
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            error_msg = f'Psql Error: {str(e)}'
+            raise Exception(error_msg)
+        return current_node.to_dict()
+        # res_update_node = http_update_node('Dataset', current_node['id'], update_json)
+        # if res_update_node.status_code == 200:
+        #     pass
+        # else:
+        #     raise Exception(str(res_update_node.text))
+        # return res_update_node.json()[0]
 
-    def update(self, current_node, update_json):
-        res_update_node = http_update_node('Dataset', current_node['id'], update_json)
-        if res_update_node.status_code == 200:
-            pass
-        else:
-            raise Exception(str(res_update_node.text))
-        return res_update_node.json()[0]
+    def get_bygeid(self, db, geid):
+        return db.query(Dataset).get(UUID(geid))
 
-    def get_bygeid(self, geid):
-        payload = {'global_entity_id': geid}
-        node_query_url = ConfigClass.NEO4J_SERVICE + 'nodes/Dataset/query'
-        with httpx.Client() as client:
-            response = client.post(node_query_url, json=payload)
-        return response
-
-    def get_bycode(self, code):
-        payload = {'code': code}
-        node_query_url = ConfigClass.NEO4J_SERVICE + 'nodes/Dataset/query'
-        with httpx.Client() as client:
-            response = client.post(node_query_url, json=payload)
-        return response
+    def get_bycode(self, db, code):
+        try:
+            result = db.query(Dataset).filter(Dataset.code == code).one()
+            return result
+        except NoResultFound:
+            return
 
     def __create_atlas_node(self, geid, username):
         res = create_atlas_dataset(geid, username)
@@ -237,24 +240,6 @@ def db_add_operation(schema, db):
         error_msg = f'Psql Error: {str(e)}'
         raise Exception(error_msg)
     return schema
-
-
-def http_post_node(node_dict: dict, geid=None):
-    """will assign the geid automaticly."""
-    if not geid:
-        node_dict.update({'global_entity_id': GEIDClient().get_GEID()})
-    node_creation_url = ConfigClass.NEO4J_SERVICE + 'nodes/Dataset'
-    with httpx.Client() as client:
-        response = client.post(node_creation_url, json=node_dict)
-    return response
-
-
-def http_update_node(primary_label, neo4j_id, update_json):
-    # update neo4j node
-    update_url = ConfigClass.NEO4J_SERVICE + 'nodes/{}/node/{}'.format(primary_label, neo4j_id)
-    with httpx.Client() as client:
-        res = client.put(url=update_url, json=update_json)
-    return res
 
 
 def create_atlas_dataset(geid, operator):

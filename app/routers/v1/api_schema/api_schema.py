@@ -77,14 +77,6 @@ class Schema:
             logger.error(response.json())
             raise APIException(error_msg=response.json(), status_code=response.status_code)
 
-    def get_dataset_by_geid(self, dataset_geid):
-        payload = {'global_entity_id': dataset_geid}
-        with httpx.Client() as client:
-            response = client.post(ConfigClass.NEO4J_SERVICE + 'nodes/Dataset/query', json=payload)
-        if not response.json():
-            raise APIException(status_code=404, error_msg='Dataset not found')
-        return response.json()[0]
-
     def update_activity_log(self, activity_data):
         url = ConfigClass.QUEUE_SERVICE + 'broker/pub'
         post_json = {

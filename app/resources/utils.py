@@ -50,7 +50,7 @@ def get_related_nodes(dataset_geid):
         'end_labels': ['File', 'Folder'],
         'query': {
             'start_params': {
-                'global_entity_id': dataset_geid,
+                'global_entity_id': str(dataset_geid),
             },
             'end_params': {},
         },
@@ -59,17 +59,6 @@ def get_related_nodes(dataset_geid):
         resp = client.post(ConfigClass.NEO4J_SERVICE_V2 + 'relations/query', json=query)
 
     return resp.json()['results']
-
-
-def http_query_node(primary_label, query_params=None):
-    if not query_params:
-        query_params = {}
-    """primary_label i.e. Folder, File, Container."""
-    payload = {**query_params}
-    node_query_url = ConfigClass.NEO4J_SERVICE + 'nodes/{}/query'.format(primary_label)
-    with httpx.Client() as client:
-        response = client.post(node_query_url, json=payload)
-    return response
 
 
 def get_node_relative_path(dataset_code, location):

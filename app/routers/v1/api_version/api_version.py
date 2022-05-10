@@ -27,6 +27,7 @@ from redis import Redis
 from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
 from app.config import ConfigClass
 from app.core.db import get_db_session
+from app.models.models_dataset import SrvDatasetMgr
 from app.models.version_sql import DatasetVersion
 from app.resources.error_handler import APIException
 from app.resources.token_manager import generate_token
@@ -38,7 +39,6 @@ from app.schemas.version import VersionListRequest
 from app.schemas.version import VersionResponse
 
 from .publish_version import PublishVersion
-from .publish_version import get_dataset_by_geid
 
 logger = SrvLoggerFactory('api_version').get_logger()
 router = APIRouter()
@@ -101,9 +101,12 @@ class VersionAPI:
             api_response.result = 'Duplicate version found for dataset'
             return api_response.json_response()
 
-        dataset_node = get_dataset_by_geid(dataset_geid)
+        srv_dataset = SrvDatasetMgr()
+        dataset = srv_dataset.get_bygeid(db, dataset_geid)
+        if not dataset:
+            raise APIException(status_code=404, error_msg='Dataset not found')
         client = PublishVersion(
-            dataset_node=dataset_node,
+            dataset_node=dataset.to_dict(),
             operator=data.operator,
             notes=data.notes,
             status_id=dataset_geid,
@@ -120,10 +123,12 @@ class VersionAPI:
         response_model=PublishResponse,
         summary='Publish status',
     )
-    async def publish_status(self, dataset_geid: str, status_id: str):
+    async def publish_status(self, dataset_geid: str, status_id: str, db=Depends(get_db_session)):
         api_response = APIResponse()
-
-        get_dataset_by_geid(dataset_geid)
+        srv_dataset = SrvDatasetMgr()
+        dataset = srv_dataset.get_bygeid(db, dataset_geid)
+        if not dataset:
+            raise APIException(status_code=404, error_msg='Dataset not found')
         self.redis_client = Redis(
             host=ConfigClass.REDIS_HOST,
             port=ConfigClass.REDIS_PORT,
@@ -192,7 +197,10 @@ class VersionAPI:
     async def download_url(self, dataset_geid: str, version: str = '', db=Depends(get_db_session)):
         """Get download url for dataset version."""
         api_response = APIResponse()
-        get_dataset_by_geid(dataset_geid)
+        srv_dataset = SrvDatasetMgr()
+        dataset = srv_dataset.get_bygeid(db, dataset_geid)
+        if not dataset:
+            raise APIException(status_code=404, error_msg='Dataset not found')
         try:
             if version:
                 query = {

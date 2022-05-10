@@ -28,7 +28,6 @@ from app.commons.service_connection.minio_client import Minio_Client
 from app.config import ConfigClass
 from app.models.schema_sql import DatasetSchema
 from app.models.version_sql import DatasetVersion
-from app.resources.error_handler import APIException
 from app.resources.locks import recursive_lock_publish
 from app.resources.locks import unlock_resource
 from app.resources.neo4j_helper import get_children_nodes
@@ -42,21 +41,12 @@ def parse_minio_location(location):
     return {'bucket': bucket, 'path': obj_path}
 
 
-def get_dataset_by_geid(dataset_geid):
-    payload = {'global_entity_id': dataset_geid}
-    with httpx.Client() as client:
-        response = client.post(ConfigClass.NEO4J_SERVICE + 'nodes/Dataset/query', json=payload)
-    if not response.json():
-        raise APIException(status_code=404, error_msg='Dataset not found')
-    return response.json()[0]
-
-
 class PublishVersion(object):
     def __init__(self, dataset_node, operator, notes, status_id, version):
         self.operator = operator
         self.notes = notes
         self.dataset_node = dataset_node
-        self.dataset_geid = dataset_node['global_entity_id']
+        self.dataset_geid = dataset_node['id']
         self.dataset_files = []
         tmp_base = '/tmp/'
         self.tmp_folder = tmp_base + str(time.time()) + '/'

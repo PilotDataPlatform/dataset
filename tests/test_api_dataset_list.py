@@ -33,7 +33,7 @@ async def test_get_dataset_list_when_error_should_return_500(client, httpx_mock)
     }
 
 
-async def test_meu_pau(client, httpx_mock):
+async def test_get_dataset_list_should_return_200(client, httpx_mock):
     username = 'admin'
     httpx_mock.add_response(
         method='POST',

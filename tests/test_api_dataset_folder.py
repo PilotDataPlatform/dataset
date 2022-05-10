@@ -19,8 +19,8 @@ pytestmark = pytest.mark.asyncio
 
 
 async def test_create_root_folder_should_return_200_and_folder_data(client, httpx_mock):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
-    source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3'
+    source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3'
     folder_geid = 'cfa31c8c-ba29-4cdf-b6f2-feef05ec9c12-1648138461'
     httpx_mock.add_response(
         method='POST',
@@ -71,8 +71,8 @@ async def test_create_root_folder_should_return_200_and_folder_data(client, http
 
 
 async def test_create_duplicate_root_folder_should_return_409(client, httpx_mock):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
-    source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3'
+    source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3'
     folder_geid = 'cfa31c8c-ba29-4cdf-b6f2-feef05ec9c12-1648138461'
     httpx_mock.add_response(
         method='POST',
@@ -107,8 +107,8 @@ async def test_create_duplicate_root_folder_should_return_409(client, httpx_mock
 
 
 async def test_create_sub_folder_should_return_200(client, httpx_mock):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
-    source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3'
+    source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3'
     folder_geid = 'cfa31c8c-ba29-4cdf-b6f2-feef05ec9c12-1648138461'
     httpx_mock.add_response(
         method='POST',
@@ -174,8 +174,8 @@ async def test_create_sub_folder_should_return_200(client, httpx_mock):
 
 
 async def test_create_folder_with_invalid_name_should_return_400(client, httpx_mock):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
-    source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3'
+    source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3'
     httpx_mock.add_response(
         method='POST',
         url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
@@ -199,7 +199,7 @@ async def test_create_folder_with_invalid_name_should_return_400(client, httpx_m
 
 
 async def test_create_folder_when_dataset_not_found_should_return_404(client, httpx_mock):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3'
     httpx_mock.add_response(
         method='POST',
         url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
@@ -215,8 +215,8 @@ async def test_create_folder_when_dataset_not_found_should_return_404(client, ht
 
 
 async def test_create_sub_folder_when_parent_folder_not_found_should_return_404(client, httpx_mock):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
-    source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3'
+    source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3'
     folder_geid = 'cfa31c8c-ba29-4cdf-b6f2-feef05ec9c12-1648138461'
     httpx_mock.add_response(
         method='POST',

@@ -16,6 +16,7 @@
 import asyncio
 from io import BytesIO
 from unittest import mock
+from uuid import uuid4
 
 import pytest
 import pytest_asyncio
@@ -156,19 +157,18 @@ async def clean_up_redis():
 
 @pytest.fixture()
 def test_db(db_session):
-    yield
+    yield db_session
 
 
 @pytest.fixture
-def version(db_session):
+def version(db_session, dataset):
     from app.models.version_sql import DatasetVersion
 
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
     new_version = DatasetVersion(
-        dataset_code='dataset_code',
-        dataset_geid=dataset_geid,
+        dataset_code=dataset.code,
+        dataset_geid=dataset.id,
         version='2.0',
-        created_by='admin',
+        created_by=dataset.creator,
         location='minio_location',
         notes='test',
     )
@@ -176,4 +176,33 @@ def version(db_session):
     db_session.commit()
     yield new_version.to_dict()
     db_session.delete(new_version)
+    db_session.commit()
+
+
+@pytest.fixture
+def dataset(db_session):
+    from app.models.dataset import Dataset
+
+    new_dataset = Dataset(
+        **{
+            'source': '',
+            'title': 'fake_dataset',
+            'authors': 'test',
+            'code': 'fakedataset',
+            'type': 'general',
+            'modality': ['any', 'many'],
+            'collection_method': ['some'],
+            'license': 'mit',
+            'tags': ['dataset', 'test'],
+            'description': 'fake dataset created by test',
+            'size': 0,
+            'total_files': 0,
+            'creator': 'pytest',
+            'project_id': str(uuid4()),
+        }
+    )
+    db_session.add(new_dataset)
+    db_session.commit()
+    yield new_dataset
+    db_session.delete(new_dataset)
     db_session.commit()

@@ -20,16 +20,10 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
-async def test_file_delete_from_dataset_should_start_background_task_and_return_200(client, httpx_mock):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+async def test_file_delete_from_dataset_should_start_background_task_and_return_200(client, httpx_mock, dataset):
+    dataset_geid = str(dataset.id)
     file_geid = '6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067-1648138467'
-    source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
 
-    httpx_mock.add_response(
-        method='POST',
-        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[{'project_geid': source_project}],
-    )
     httpx_mock.add_response(
         method='GET',
         url=f'http://neo4j_service/v1/neo4j/nodes/geid/{file_geid}',
@@ -37,6 +31,7 @@ async def test_file_delete_from_dataset_should_start_background_task_and_return_
             {
                 'labels': ['File'],
                 'global_entity_id': file_geid,
+                'id': 'file_id',
                 'location': 'http://anything.com/bucket/obj/path',
                 'display_path': 'display_path',
                 'uploader': 'test',
@@ -98,15 +93,10 @@ async def test_file_delete_from_dataset_should_start_background_task_and_return_
     assert processing_file == [file_geid]
 
 
-async def test_delete_from_not_in_dataset_should_not_reaise_error(client, httpx_mock):
-    source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+async def test_delete_from_not_in_dataset_should_not_reaise_error(client, httpx_mock, dataset):
+    dataset_geid = str(dataset.id)
     file_geid = 'random_geid'
-    httpx_mock.add_response(
-        method='POST',
-        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[{'project_geid': source_project}],
-    )
+
     httpx_mock.add_response(
         method='GET',
         url=f'http://neo4j_service/v1/neo4j/nodes/geid/{file_geid}',
