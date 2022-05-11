@@ -18,6 +18,7 @@ import math
 import re
 import time
 
+from common import LoggerFactory
 from fastapi import APIRouter
 from fastapi import BackgroundTasks
 from fastapi import Depends
@@ -25,7 +26,6 @@ from fastapi_sqlalchemy import db
 from fastapi_utils import cbv
 from redis import Redis
 
-from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
 from app.config import ConfigClass
 from app.models.base_models import APIResponse
 from app.models.base_models import EAPIResponseCode
@@ -40,7 +40,7 @@ from app.resources.token_manager import generate_token
 from .publish_version import PublishVersion
 from .publish_version import get_dataset_by_geid
 
-logger = SrvLoggerFactory('api_version').get_logger()
+logger = LoggerFactory('api_version').get_logger()
 router = APIRouter()
 
 

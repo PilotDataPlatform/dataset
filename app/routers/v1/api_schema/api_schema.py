@@ -15,11 +15,11 @@
 
 import httpx
 from common import GEIDClient
+from common import LoggerFactory
 from fastapi import APIRouter
 from fastapi_sqlalchemy import db
 from fastapi_utils import cbv
 
-from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
 from app.config import ConfigClass
 from app.models.base_models import APIResponse
 from app.models.base_models import EAPIResponseCode
@@ -36,7 +36,7 @@ from app.models.schema_sql import DatasetSchemaTemplate
 from app.resources.error_handler import APIException
 from app.resources.error_handler import catch_internal
 
-logger = SrvLoggerFactory('api_schema').get_logger()
+logger = LoggerFactory('api_schema').get_logger()
 router = APIRouter()
 ESSENTIALS_NAME = ConfigClass.ESSENTIALS_NAME
 

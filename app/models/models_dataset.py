@@ -20,11 +20,11 @@ from uuid import uuid4
 
 import httpx
 from common import GEIDClient
+from common import LoggerFactory
 from fastapi_sqlalchemy import db
 from minio.sseconfig import Rule
 from minio.sseconfig import SSEConfig
 
-from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
 from app.commons.service_connection.dataset_policy_template import (
     create_dataset_policy_template,
 )
@@ -40,7 +40,7 @@ ESSENTIALS_NAME = ConfigClass.ESSENTIALS_NAME
 class SrvDatasetMgr:
     """Service for Dataset Entity INFO Manager."""
 
-    logger = SrvLoggerFactory('SrvDatasetMgr').get_logger()
+    logger = LoggerFactory('SrvDatasetMgr').get_logger()
     geid_client = GEIDClient()
 
     def create(

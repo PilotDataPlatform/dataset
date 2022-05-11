@@ -14,11 +14,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import httpx
+from common import LoggerFactory
 
-from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
 from app.config import ConfigClass
 
-__logger = SrvLoggerFactory('es_helper').get_logger()
+__logger = LoggerFactory('es_helper').get_logger()
 
 
 def insert_one(es_type, es_index, data):

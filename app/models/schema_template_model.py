@@ -15,9 +15,9 @@
 
 import httpx
 from common import GEIDClient
+from common import LoggerFactory
 from pydantic import BaseModel
 
-from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
 from app.config import ConfigClass
 
 
@@ -46,7 +46,7 @@ class SchemaTemplateList(BaseModel):
 
 class SrvDatasetSchemaTemplateMgr:
 
-    logger = SrvLoggerFactory('SrvDatasetSchemaTemplateMgr').get_logger()
+    logger = LoggerFactory('SrvDatasetSchemaTemplateMgr').get_logger()
     geid_client = GEIDClient()
 
     def on_create_event(self, dataset_geid, template_geid, username, template_name):
