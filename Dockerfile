@@ -30,8 +30,11 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
 COPY poetry.lock pyproject.toml ./
 RUN pip install --no-cache-dir poetry==1.1.12
 RUN poetry config virtualenvs.create false
-RUN poetry install --no-dev --no-root --no-interaction
+RUN poetry install --no-root --no-interaction
 COPY . ./
-RUN chmod +x gunicorn_starter.sh
 
+ENV ALEMBIC_CONFIG=alembic.ini
+RUN poetry run alembic upgrade head
+
+RUN chmod +x gunicorn_starter.sh
 CMD ["./gunicorn_starter.sh"]
