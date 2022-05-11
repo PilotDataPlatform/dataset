@@ -14,12 +14,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from common import GEIDClient
+from common import LoggerFactory
 from fastapi import APIRouter
 from fastapi_sqlalchemy import db
 from fastapi_utils import cbv
 from sqlalchemy.orm.exc import NoResultFound
 
-from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
 from app.models.base_models import APIResponse
 from app.models.base_models import EAPIResponseCode
 from app.models.schema_sql import DatasetSchemaTemplate
@@ -57,7 +57,7 @@ class APISchemaTemplate:
     """API for dataset schema template."""
 
     def __init__(self):
-        self.__logger = SrvLoggerFactory('api_dataset_schema_template').get_logger()
+        self.__logger = LoggerFactory('api_dataset_schema_template').get_logger()
         self.__activity_manager = SrvDatasetSchemaTemplateMgr()
         self.geid_client = GEIDClient()
 

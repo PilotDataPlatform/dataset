@@ -18,12 +18,11 @@ import threading
 import time
 
 import httpx
-
-from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
+from common import LoggerFactory
 
 from .rabbit_operator import RabbitConnection
 
-logger = SrvLoggerFactory('datasetConsumer').get_logger()
+logger = LoggerFactory('datasetConsumer').get_logger()
 
 
 class ConsumerDynamic(threading.Thread):

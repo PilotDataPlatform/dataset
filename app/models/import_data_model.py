@@ -15,9 +15,9 @@
 
 import httpx
 from common import GEIDClient
+from common import LoggerFactory
 from pydantic import BaseModel
 
-from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
 from app.config import ConfigClass
 
 
@@ -54,7 +54,7 @@ class DatasetFileRename(BaseModel):
 ######################################################################
 class SrvDatasetFileMgr:
 
-    logger = SrvLoggerFactory('SrvDatasetFileMgr').get_logger()
+    logger = LoggerFactory('SrvDatasetFileMgr').get_logger()
     queue_url = ConfigClass.QUEUE_SERVICE + 'broker/pub'
     geid_client = GEIDClient()
 
