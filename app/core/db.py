@@ -14,14 +14,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from fastapi import Depends
-from sqlalchemy import MetaData
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 from app.config import ConfigClass
-
-DBModel = declarative_base(metadata=MetaData(schema=ConfigClass.RDS_SCHEMA_DEFAULT))
 
 
 class GetDBEngine:

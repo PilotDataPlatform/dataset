@@ -14,9 +14,34 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from sqlalchemy import MetaData
-from sqlalchemy.ext.declarative import declarative_base
+from pydantic import BaseModel
 
-from app.config import ConfigClass
 
-DBModel = declarative_base(metadata=MetaData(schema=ConfigClass.RDS_SCHEMA_DEFAULT))
+class ImportDataPost(BaseModel):
+    """the post request payload for import data from project."""
+
+    source_list: list
+    operator: str
+    project_geid: str
+
+
+class DatasetFileDelete(BaseModel):
+    """the delete request payload for dataset to delete files."""
+
+    source_list: list
+    operator: str
+
+
+class DatasetFileMove(BaseModel):
+    """the post request payload for dataset to move files under the dataset."""
+
+    source_list: list
+    operator: str
+    target_geid: str
+
+
+class DatasetFileRename(BaseModel):
+    """the post request payload for dataset to move files under the dataset."""
+
+    new_name: str
+    operator: str

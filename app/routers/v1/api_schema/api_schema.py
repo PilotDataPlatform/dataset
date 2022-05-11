@@ -22,8 +22,8 @@ from fastapi_utils import cbv
 from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
 from app.config import ConfigClass
 from app.core.db import get_db_session
-from app.models.schema_sql import DatasetSchema
-from app.models.schema_sql import DatasetSchemaTemplate
+from app.models.schema import DatasetSchema
+from app.models.schema import DatasetSchemaTemplate
 from app.resources.error_handler import APIException
 from app.resources.error_handler import catch_internal
 from app.schemas.base import APIResponse

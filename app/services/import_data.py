@@ -15,43 +15,11 @@
 
 import httpx
 from common import GEIDClient
-from pydantic import BaseModel
 
 from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
 from app.config import ConfigClass
 
 
-class ImportDataPost(BaseModel):
-    """the post request payload for import data from project."""
-
-    source_list: list
-    operator: str
-    project_geid: str
-
-
-class DatasetFileDelete(BaseModel):
-    """the delete request payload for dataset to delete files."""
-
-    source_list: list
-    operator: str
-
-
-class DatasetFileMove(BaseModel):
-    """the post request payload for dataset to move files under the dataset."""
-
-    source_list: list
-    operator: str
-    target_geid: str
-
-
-class DatasetFileRename(BaseModel):
-    """the post request payload for dataset to move files under the dataset."""
-
-    new_name: str
-    operator: str
-
-
-######################################################################
 class SrvDatasetFileMgr:
 
     logger = SrvLoggerFactory('SrvDatasetFileMgr').get_logger()

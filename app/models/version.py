@@ -15,38 +15,40 @@
 
 from datetime import datetime
 
-from sqlalchemy import JSON
 from sqlalchemy import Column
 from sqlalchemy import Integer
 from sqlalchemy import String
 from sqlalchemy.dialects.postgresql import TIMESTAMP
 
 from app.config import ConfigClass
-from app.core.db import DBModel
+from app.models import DBModel
 
 
-class BIDSResult(DBModel):
-    __tablename__ = 'bids_results'
+class DatasetVersion(DBModel):
+    __tablename__ = 'dataset_version'
     __table_args__ = {'schema': ConfigClass.RDS_SCHEMA_DEFAULT}
     id = Column(Integer, primary_key=True)
+    dataset_code = Column(String())
     dataset_geid = Column(String())
-    created_time = Column(TIMESTAMP(timezone=True), default=datetime.utcnow, nullable=False)
-    updated_time = Column(TIMESTAMP(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-    validate_output = Column(JSON())
+    version = Column(String())
+    created_by = Column(String())
+    created_at = Column(TIMESTAMP(timezone=True), default=datetime.utcnow, nullable=False)
+    location = Column(String())
+    notes = Column(String())
 
-    def __init__(self, dataset_geid, validate_output):
+    def __init__(self, dataset_code, dataset_geid, version, created_by, location, notes):
+        self.dataset_code = dataset_code
         self.dataset_geid = dataset_geid
-        self.validate_output = validate_output
-        if self.created_time:
-            self.created_time = self.created_time
+        self.version = version
+        self.created_by = created_by
+        self.location = location
+        self.notes = notes
 
     def to_dict(self):
         result = {}
-        for field in ['id', 'dataset_geid', 'created_time', 'updated_time', 'validate_output']:
-            if field == 'created_time' or field == 'updated_time':
+        for field in ['id', 'dataset_code', 'dataset_geid', 'version', 'created_by', 'created_at', 'location', 'notes']:
+            if field == 'created_at':
                 result[field] = str(getattr(self, field).isoformat()[:-3] + 'Z')
-            elif field == 'validate_output':
-                result[field] = getattr(self, field)
             else:
                 result[field] = str(getattr(self, field))
         return result

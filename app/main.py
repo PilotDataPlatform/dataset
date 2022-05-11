@@ -37,8 +37,6 @@ from .config import SRV_NAMESPACE
 from .config import ConfigClass
 from .consumer.consumers import dataset_consumer
 
-# from app.models.schema_sql import engine
-
 
 def create_app():
     """create app function."""

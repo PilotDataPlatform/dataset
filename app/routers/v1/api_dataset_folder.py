@@ -23,7 +23,6 @@ from fastapi_utils import cbv
 from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
 from app.core.db import get_db_session
 from app.models.dataset import Dataset
-from app.models.models_dataset import SrvDatasetMgr
 from app.resources.error_handler import APIException
 from app.resources.neo4j_helper import create_node
 from app.resources.neo4j_helper import create_relation
@@ -32,6 +31,7 @@ from app.resources.neo4j_helper import query_relation
 from app.schemas.base import EAPIResponseCode
 from app.schemas.folder import FolderRequest
 from app.schemas.folder import FolderResponse
+from app.services.dataset import SrvDatasetMgr
 
 logger = SrvLoggerFactory('api_preview').get_logger()
 router = APIRouter()

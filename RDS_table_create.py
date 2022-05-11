@@ -18,9 +18,9 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import CreateTable
 
 from app.config import ConfigClass
-from app.models.schema_sql import Base
-from app.models.schema_sql import DatasetSchema
-from app.models.schema_sql import DatasetSchemaTemplate
+from app.models.schema import Base
+from app.models.schema import DatasetSchema
+from app.models.schema import DatasetSchemaTemplate
 
 engine = create_engine(ConfigClass.OPS_DB_URI, echo=True)
 

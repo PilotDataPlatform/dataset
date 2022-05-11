@@ -88,7 +88,7 @@ def set_settings(monkeypatch, db_postgres):
 
 @pytest_asyncio.fixture()
 def create_db(db_postgres):
-    # from app.core.db import DBModel
+    # from app.models import DBModel
     db_schema = environ.get('RDS_SCHEMA_DEFAULT')
     engine = create_engine(db_postgres, echo=True)
     if not engine.dialect.has_schema(engine, db_schema):
@@ -162,7 +162,7 @@ def test_db(db_session):
 
 @pytest.fixture
 def version(db_session, dataset):
-    from app.models.version_sql import DatasetVersion
+    from app.models.version import DatasetVersion
 
     new_version = DatasetVersion(
         dataset_code=dataset.code,

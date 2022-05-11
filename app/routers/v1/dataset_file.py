@@ -29,12 +29,6 @@ from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
 from app.config import ConfigClass
 from app.core.db import get_db_session
 from app.models.dataset import Dataset
-from app.models.import_data_model import DatasetFileDelete
-from app.models.import_data_model import DatasetFileMove
-from app.models.import_data_model import DatasetFileRename
-from app.models.import_data_model import ImportDataPost
-from app.models.import_data_model import SrvDatasetFileMgr
-from app.models.models_dataset import SrvDatasetMgr
 from app.resources.error_handler import catch_internal
 from app.resources.locks import recursive_lock_delete
 from app.resources.locks import recursive_lock_import
@@ -49,6 +43,12 @@ from app.resources.neo4j_helper import get_node_by_geid
 from app.resources.neo4j_helper import get_parent_node
 from app.schemas.base import APIResponse
 from app.schemas.base import EAPIResponseCode
+from app.schemas.import_data import DatasetFileDelete
+from app.schemas.import_data import DatasetFileMove
+from app.schemas.import_data import DatasetFileRename
+from app.schemas.import_data import ImportDataPost
+from app.services.dataset import SrvDatasetMgr
+from app.services.import_data import SrvDatasetFileMgr
 
 router = APIRouter()
 

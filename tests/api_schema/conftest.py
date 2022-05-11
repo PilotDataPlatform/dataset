@@ -18,8 +18,8 @@ from uuid import uuid4
 import pytest
 
 from app.config import ConfigClass
-from app.models.schema_sql import DatasetSchema
-from app.models.schema_sql import DatasetSchemaTemplate
+from app.models.schema import DatasetSchema
+from app.models.schema import DatasetSchemaTemplate
 
 
 @pytest.fixture(autouse=True)

@@ -22,12 +22,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.pool import NullPool
 
 from app.config import ConfigClass
-from app.core.db import DBModel
-from app.models.bids_sql import BIDSResult  # noqa
-from app.models.dataset import Dataset  # noqa
-from app.models.schema_sql import DatasetSchema  # noqa
-from app.models.schema_sql import DatasetSchemaTemplate  # noqa
-from app.models.version_sql import DatasetVersion  # noqa
+from app.models import DBModel
 
 logger = logging.getLogger('alembic')
 config = context.config

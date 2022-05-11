@@ -23,7 +23,7 @@ from sqlalchemy.dialects.postgresql import INTEGER
 from sqlalchemy.dialects.postgresql import TIMESTAMP
 from sqlalchemy.dialects.postgresql import UUID
 
-from app.core.db import DBModel
+from app.models import DBModel
 
 
 class Dataset(DBModel):

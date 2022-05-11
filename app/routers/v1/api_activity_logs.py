@@ -24,7 +24,7 @@ from fastapi_utils import cbv
 
 from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
 from app.core.db import get_db_session
-from app.models.version_sql import DatasetVersion
+from app.models.version import DatasetVersion
 from app.resources.error_handler import catch_internal
 from app.resources.es_helper import search
 from app.schemas.base import APIResponse

@@ -24,7 +24,7 @@ from sqlalchemy.dialects.postgresql import TIMESTAMP
 from sqlalchemy.orm import relationship
 
 from app.config import ConfigClass
-from app.core.db import DBModel
+from app.models import DBModel
 
 
 class DatasetSchemaTemplate(DBModel):

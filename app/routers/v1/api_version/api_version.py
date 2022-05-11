@@ -27,8 +27,7 @@ from redis import Redis
 from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
 from app.config import ConfigClass
 from app.core.db import get_db_session
-from app.models.models_dataset import SrvDatasetMgr
-from app.models.version_sql import DatasetVersion
+from app.models.version import DatasetVersion
 from app.resources.error_handler import APIException
 from app.resources.token_manager import generate_token
 from app.schemas.base import APIResponse
@@ -37,6 +36,7 @@ from app.schemas.version import PublishRequest
 from app.schemas.version import PublishResponse
 from app.schemas.version import VersionListRequest
 from app.schemas.version import VersionResponse
+from app.services.dataset import SrvDatasetMgr
 
 from .publish_version import PublishVersion
 

@@ -32,8 +32,8 @@ from app.commons.service_connection.dataset_policy_template import (
 from app.commons.service_connection.minio_client import Minio_Client
 from app.config import ConfigClass
 from app.models.dataset import Dataset
-from app.models.schema_sql import DatasetSchema
-from app.models.schema_sql import DatasetSchemaTemplate
+from app.models.schema import DatasetSchema
+from app.models.schema import DatasetSchemaTemplate
 
 ESSENTIALS_TPL_NAME = ConfigClass.ESSENTIALS_TPL_NAME
 ESSENTIALS_NAME = ConfigClass.ESSENTIALS_NAME
