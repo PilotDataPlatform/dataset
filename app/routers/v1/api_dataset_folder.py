@@ -17,9 +17,13 @@ import re
 
 from common import GEIDClient
 from fastapi import APIRouter
+from fastapi import Depends
 from fastapi_utils import cbv
 
 from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
+from app.core.db import get_db_session
+from app.models.dataset import Dataset
+from app.models.models_dataset import SrvDatasetMgr
 from app.resources.error_handler import APIException
 from app.resources.neo4j_helper import create_node
 from app.resources.neo4j_helper import create_relation
@@ -48,9 +52,12 @@ class DatasetFolder:
         response_model=FolderResponse,
         summary='Create an empty folder',
     )
-    async def create_folder(self, dataset_geid: str, data: FolderRequest):
+    async def create_folder(self, dataset_geid: str, data: FolderRequest, db=Depends(get_db_session)):
         api_response = FolderResponse()
-        dataset_node = get_node_by_geid(dataset_geid, label='Dataset')
+        srv_dataset = SrvDatasetMgr()
+
+        dataset = srv_dataset.get_bygeid(db, dataset_geid)
+        # dataset_node = get_node_by_geid(dataset_geid, label='Dataset')
 
         # length 1-20, exclude invalid character, ensure start & end aren't a space
         folder_pattern = re.compile(r'^(?=.{1,20}$)([^\s\/:?*<>|”]{1})+([^\/:?*<>|”])+([^\s\/:?*<>|”]{1})$')
@@ -61,7 +68,7 @@ class DatasetFolder:
             logger.info(api_response.error_msg)
             return api_response.json_response()
 
-        if not dataset_node:
+        if not dataset:
             logger.error(f'Dataset not found: {dataset_geid}')
             raise APIException(error_msg='Dataset not found', status_code=EAPIResponseCode.not_found.value)
 
@@ -78,14 +85,21 @@ class DatasetFolder:
             # Folder is being added to the root of the dataset
             folder_relative_path = 'data'
             start_label = 'Dataset'
-            parent_node = dataset_node
+            parent_node = dataset
 
         # Duplicate name check
+        if isinstance(parent_node, Dataset):
+            parent_node_id = str(parent_node.id)
+            folder_level = 0
+        else:
+            parent_node_id = parent_node.get('global_entity_id')
+            folder_level = parent_node.get('folder_level', -1) + 1
+
         result = query_relation(
             'own',
             start_label,
             'Folder',
-            start_params={'global_entity_id': parent_node['global_entity_id']},
+            start_params={'global_entity_id': parent_node_id},
             end_params={'name': data.folder_name},
         )
         if result:
@@ -99,9 +113,9 @@ class DatasetFolder:
             'name': data.folder_name,
             'create_by': data.username,
             'global_entity_id': self.geid_client.get_GEID(),
-            'dataset_code': dataset_node['code'],
+            'dataset_code': dataset.code,
             'folder_relative_path': folder_relative_path,
-            'folder_level': parent_node.get('folder_level', -1) + 1,
+            'folder_level': folder_level,
             'display_path': folder_relative_path + '/' + data.folder_name,
             'archived': False,
         }
@@ -109,7 +123,7 @@ class DatasetFolder:
 
         # Create relation between folder and parent
         relation_payload = {
-            'start_id': parent_node['id'],
+            'start_id': parent_node_id,
             'end_id': folder_node['id'],
         }
         result = create_relation('own', relation_payload)

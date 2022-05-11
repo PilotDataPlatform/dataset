@@ -18,22 +18,10 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
-async def test_create_root_folder_should_return_200_and_folder_data(client, httpx_mock):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3'
-    source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3'
+async def test_create_root_folder_should_return_200_and_folder_data(client, httpx_mock, dataset):
+    dataset_geid = str(dataset.id)
     folder_geid = 'cfa31c8c-ba29-4cdf-b6f2-feef05ec9c12-1648138461'
-    httpx_mock.add_response(
-        method='POST',
-        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[
-            {
-                'project_geid': source_project,
-                'global_entity_id': dataset_geid,
-                'code': 'dataset_code',
-                'id': 'dataset_id',
-            }
-        ],
-    )
+
     httpx_mock.add_response(
         method='POST',
         url='http://neo4j_service/v1/neo4j/relations/query',
@@ -50,7 +38,7 @@ async def test_create_root_folder_should_return_200_and_folder_data(client, http
                 'name': 'test_folder',
                 'id': 'folder_id',
                 'folder_level': 0,
-                'dataset_code': 'dataset_code',
+                'dataset_code': dataset.code,
             }
         ],
     )
@@ -67,25 +55,13 @@ async def test_create_root_folder_should_return_200_and_folder_data(client, http
     assert res.status_code == 200
     assert res.json()['result']['name'] == 'test_folder'
     assert res.json()['result']['folder_level'] == 0
-    assert res.json()['result']['dataset_code'] == 'dataset_code'
+    assert res.json()['result']['dataset_code'] == dataset.code
 
 
-async def test_create_duplicate_root_folder_should_return_409(client, httpx_mock):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3'
-    source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3'
+async def test_create_duplicate_root_folder_should_return_409(client, httpx_mock, dataset):
+    dataset_geid = str(dataset.id)
     folder_geid = 'cfa31c8c-ba29-4cdf-b6f2-feef05ec9c12-1648138461'
-    httpx_mock.add_response(
-        method='POST',
-        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[
-            {
-                'project_geid': source_project,
-                'global_entity_id': dataset_geid,
-                'code': 'dataset_code',
-                'id': 'dataset_id',
-            }
-        ],
-    )
+
     httpx_mock.add_response(
         method='POST',
         url='http://neo4j_service/v1/neo4j/relations/query',
@@ -106,22 +82,10 @@ async def test_create_duplicate_root_folder_should_return_409(client, httpx_mock
     assert res.json()['error_msg'] == 'folder with that name already exists'
 
 
-async def test_create_sub_folder_should_return_200(client, httpx_mock):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3'
-    source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3'
+async def test_create_sub_folder_should_return_200(client, httpx_mock, dataset):
+    dataset_geid = str(dataset.id)
     folder_geid = 'cfa31c8c-ba29-4cdf-b6f2-feef05ec9c12-1648138461'
-    httpx_mock.add_response(
-        method='POST',
-        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[
-            {
-                'project_geid': source_project,
-                'global_entity_id': dataset_geid,
-                'code': 'dataset_code',
-                'id': 'dataset_id',
-            }
-        ],
-    )
+
     httpx_mock.add_response(
         method='POST',
         url='http://neo4j_service/v1/neo4j/relations/query',
@@ -152,7 +116,7 @@ async def test_create_sub_folder_should_return_200(client, httpx_mock):
                 'name': 'unitest_folder2',
                 'id': 'folder_id',
                 'folder_level': 1,
-                'dataset_code': 'dataset_code',
+                'dataset_code': dataset.code,
             }
         ],
     )
@@ -170,24 +134,11 @@ async def test_create_sub_folder_should_return_200(client, httpx_mock):
     assert res.status_code == 200
     assert res.json()['result']['name'] == 'unitest_folder2'
     assert res.json()['result']['folder_level'] == 1
-    assert res.json()['result']['dataset_code'] == 'dataset_code'
+    assert res.json()['result']['dataset_code'] == dataset.code
 
 
-async def test_create_folder_with_invalid_name_should_return_400(client, httpx_mock):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3'
-    source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3'
-    httpx_mock.add_response(
-        method='POST',
-        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[
-            {
-                'project_geid': source_project,
-                'global_entity_id': dataset_geid,
-                'code': 'dataset_code',
-                'id': 'dataset_id',
-            }
-        ],
-    )
+async def test_create_folder_with_invalid_name_should_return_400(client, dataset):
+    dataset_geid = str(dataset.id)
 
     payload = {
         'folder_name': ' unittest_/dataset_folder',
@@ -198,13 +149,8 @@ async def test_create_folder_with_invalid_name_should_return_400(client, httpx_m
     assert res.json()['error_msg'], 'Invalid folder name'
 
 
-async def test_create_folder_when_dataset_not_found_should_return_404(client, httpx_mock):
+async def test_create_folder_when_dataset_not_found_should_return_404(client, test_db):
     dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3'
-    httpx_mock.add_response(
-        method='POST',
-        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[],
-    )
     payload = {
         'folder_name': 'unitest_folder',
         'username': 'admin',
@@ -214,22 +160,10 @@ async def test_create_folder_when_dataset_not_found_should_return_404(client, ht
     assert res.json()['error_msg'] == 'Dataset not found'
 
 
-async def test_create_sub_folder_when_parent_folder_not_found_should_return_404(client, httpx_mock):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3'
-    source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3'
+async def test_create_sub_folder_when_parent_folder_not_found_should_return_404(client, httpx_mock, dataset):
+    dataset_geid = str(dataset.id)
     folder_geid = 'cfa31c8c-ba29-4cdf-b6f2-feef05ec9c12-1648138461'
-    httpx_mock.add_response(
-        method='POST',
-        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[
-            {
-                'project_geid': source_project,
-                'global_entity_id': dataset_geid,
-                'code': 'dataset_code',
-                'id': 'dataset_id',
-            }
-        ],
-    )
+
     httpx_mock.add_response(
         method='POST',
         url='http://neo4j_service/v1/neo4j/nodes/Folder/query',
