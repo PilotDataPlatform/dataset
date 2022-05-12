@@ -99,7 +99,7 @@ class ActivityLogs:
     @catch_internal(_API_NAMESPACE)
     async def query_activity_logs_by_version(
         self,
-        dataset_geid,
+        dataset_geid: str,
         version: str,
         page: Optional[int] = 0,
         page_size: Optional[int] = 10,
