@@ -30,7 +30,7 @@ fileConfig(config.config_file_name)
 
 target_metadata = DBModel.metadata
 database_schema = config.get_main_option('database_schema', ConfigClass.RDS_SCHEMA_DEFAULT)
-database_uri = config.get_main_option('database_uri', ConfigClass.RDS_DB_URI)
+database_uri = config.get_main_option('database_uri', ConfigClass.OPS_DB_URI)
 
 
 def include_name(type_, parent_names, name=None) -> bool:

@@ -14,5 +14,15 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+#!/bin/sh
 
-gunicorn -c gunicorn_config.py "run:app" --preload -k uvicorn.workers.UvicornWorker
+set -e
+
+if [ $RUN_MIGRATIONS == "true" ]
+then
+    export ALEMBIC_CONFIG=alembic.ini
+    pip install alembic
+    alembic upgrade head
+fi
+
+uvicorn run:app --host 0.0.0.0

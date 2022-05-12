@@ -75,8 +75,11 @@ class Settings(BaseSettings):
     SEND_MESSAGE_URL: str
 
     RDS_ECHO_SQL_QUERIES: bool = False
-    RDS_SCHEMA_DEFAULT: str
-    RDS_DB_URI: str
+
+    OPSDB_UTILITY_HOST: str
+    OPSDB_UTILITY_PORT: str
+    OPSDB_UTILITY_USERNAME: str
+    OPSDB_UTILITY_PASSWORD: str
 
     # Redis Service
     REDIS_HOST: str
@@ -137,8 +140,12 @@ class Settings(BaseSettings):
         self.DATA_UTILITY_SERVICE_v2 = self.DATA_OPS_UTIL + '/v2/'
         self.SEND_MESSAGE_URL += '/v1/send_message'
 
-        self.OPS_DB_URI = self.RDS_DB_URI
-
+        self.RDS_SCHEMA_DEFAULT = 'dataset'
+        self.OPS_DB_URI = (
+            f'postgresql://{self.OPSDB_UTILITY_USERNAME}:{self.OPSDB_UTILITY_PASSWORD}'
+            f'@{self.OPSDB_UTILITY_HOST}:{self.OPSDB_UTILITY_PORT}'
+            f'/{self.RDS_SCHEMA_DEFAULT}'
+        )
         # Redis Service
         self.REDIS_PORT = int(self.REDIS_PORT)
         self.REDIS_DB = int(self.REDIS_DB)

@@ -57,7 +57,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: datasets
+      POSTGRES_DB: dataset
     expose:
       - 5432
     ports:

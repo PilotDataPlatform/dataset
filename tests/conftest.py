@@ -65,9 +65,12 @@ environ['REDIS_PASSWORD'] = ''
 
 environ['ROOT_PATH'] = './tests/'
 
-environ['RDS_SCHEMA_DEFAULT'] = 'datasets'
-environ['POSTGRES_DB'] = 'datasets'
-environ['RDS_DB_URI'] = 'postgresql://postgres:postgres@localhost:5432/datasets'
+environ['POSTGRES_DB'] = 'dataset'
+
+environ['OPSDB_UTILITY_HOST'] = 'localhost'
+environ['OPSDB_UTILITY_PORT'] = '5432'
+environ['OPSDB_UTILITY_USERNAME'] = 'postgres'
+environ['OPSDB_UTILITY_PASSWORD'] = 'postgres'
 
 
 @pytest_asyncio.fixture(scope='session')
@@ -82,17 +85,14 @@ def set_settings(monkeypatch, db_postgres):
     from app.config import ConfigClass
 
     monkeypatch.setattr(ConfigClass, 'OPS_DB_URI', db_postgres)
-    monkeypatch.setattr(ConfigClass, 'RDS_DB_URI', db_postgres)
-    monkeypatch.setattr(ConfigClass, 'RDS_SCHEMA_DEFAULT', 'datasets')
 
 
 @pytest_asyncio.fixture()
 def create_db(db_postgres):
     # from app.models import DBModel
-    db_schema = environ.get('RDS_SCHEMA_DEFAULT')
     engine = create_engine(db_postgres, echo=True)
-    if not engine.dialect.has_schema(engine, db_schema):
-        engine.execute(schema.CreateSchema(db_schema))
+    if not engine.dialect.has_schema(engine, environ['POSTGRES_DB']):
+        engine.execute(schema.CreateSchema(environ['POSTGRES_DB']))
     config = Config('./alembic.ini')
     upgrade(config, 'head')
     # DBModel.metadata.create_all(bind=engine)
