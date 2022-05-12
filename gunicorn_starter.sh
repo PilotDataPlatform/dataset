@@ -18,7 +18,7 @@
 
 set -e
 
-if [ $RUN_MIGRATIONS == "true" ]
+if [ $RUN_MIGRATIONS_ON_BUILD == "true" ]
 then
     export ALEMBIC_CONFIG=alembic.ini
     pip install alembic
