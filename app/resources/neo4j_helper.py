@@ -15,14 +15,14 @@
 
 import httpx
 from common import GEIDClient
+from common import LoggerFactory
 
-from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
 from app.commons.service_connection.minio_client import Minio_Client_
 from app.config import ConfigClass
 from app.resources.error_handler import APIException
 from app.schemas.base import EAPIResponseCode
 
-logger = SrvLoggerFactory('api_dataset_import').get_logger()
+logger = LoggerFactory('api_dataset_import').get_logger()
 
 
 def create_relation(label, payload):

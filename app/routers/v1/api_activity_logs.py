@@ -18,11 +18,11 @@ from datetime import datetime
 from datetime import timezone
 from typing import Optional
 
+from common import LoggerFactory
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi_utils import cbv
 
-from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
 from app.core.db import get_db_session
 from app.models.version import DatasetVersion
 from app.resources.error_handler import catch_internal
@@ -41,7 +41,7 @@ class ActivityLogs:
     """API Activity Logs."""
 
     def __init__(self):
-        self.__logger = SrvLoggerFactory(_API_NAMESPACE).get_logger()
+        self.__logger = LoggerFactory(_API_NAMESPACE).get_logger()
 
     @router.get('/activity-logs', tags=[_API_TAG], summary='list activity logs.')
     @catch_internal(_API_NAMESPACE)

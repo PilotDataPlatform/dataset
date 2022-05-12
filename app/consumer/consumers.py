@@ -16,13 +16,14 @@
 import json
 from uuid import uuid4
 
-from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
+from common import LoggerFactory
+
 from app.resources.es_helper import get_one_by_id
 from app.resources.es_helper import insert_one_by_id
 
 from .consumer_dynamic import ConsumerDynamic
 
-logger = SrvLoggerFactory('datasetConsumer').get_logger()
+logger = LoggerFactory('datasetConsumer').get_logger()
 
 
 def callback(ch, method, properties, body, ctx_context):

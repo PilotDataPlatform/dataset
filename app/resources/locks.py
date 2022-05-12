@@ -16,12 +16,12 @@
 from typing import Union
 
 import httpx
+from common import LoggerFactory
 
-from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
 from app.config import ConfigClass
 from app.resources.neo4j_helper import get_children_nodes
 
-logger = SrvLoggerFactory(__name__).get_logger()
+logger = LoggerFactory(__name__).get_logger()
 
 
 def lock_resource(resource_key: str, operation: str) -> dict:

@@ -20,12 +20,12 @@ import time
 from typing import Optional
 
 import httpx
+from common import LoggerFactory
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import Header
 from fastapi_utils import cbv
 
-from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
 from app.config import ConfigClass
 from app.core.db import get_db_session
 from app.models.bids import BIDSResult
@@ -53,7 +53,7 @@ class DatasetRestful:
     """API Dataset Restful."""
 
     def __init__(self):
-        self.__logger = SrvLoggerFactory(_API_NAMESPACE).get_logger()
+        self.__logger = LoggerFactory(_API_NAMESPACE).get_logger()
 
     @router.post('/v1/dataset', tags=[_API_TAG], response_model=DatasetPostResponse, summary='Create a dataset.')
     @catch_internal(_API_NAMESPACE)

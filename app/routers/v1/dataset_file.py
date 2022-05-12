@@ -18,6 +18,7 @@ import time
 from typing import Optional
 
 import httpx
+from common import LoggerFactory
 from fastapi import APIRouter
 from fastapi import BackgroundTasks
 from fastapi import Cookie
@@ -25,7 +26,6 @@ from fastapi import Depends
 from fastapi import Header
 from fastapi_utils import cbv
 
-from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
 from app.config import ConfigClass
 from app.core.db import get_db_session
 from app.models.dataset import Dataset
@@ -63,7 +63,7 @@ class APIImportData:
     """API to import data from project to dataset."""
 
     def __init__(self):
-        self.__logger = SrvLoggerFactory('api_dataset_import').get_logger()
+        self.__logger = LoggerFactory('api_dataset_import').get_logger()
         self.file_act_notifier = SrvDatasetFileMgr()
 
     @router.put(

@@ -21,9 +21,9 @@ from datetime import datetime
 
 import httpx
 from common import GEIDClient
+from common import LoggerFactory
 from redis import Redis
 
-from app.commons.logger_services.logger_factory_service import SrvLoggerFactory
 from app.commons.service_connection.minio_client import Minio_Client
 from app.config import ConfigClass
 from app.models.schema import DatasetSchema
@@ -32,7 +32,7 @@ from app.resources.locks import recursive_lock_publish
 from app.resources.locks import unlock_resource
 from app.resources.neo4j_helper import get_children_nodes
 
-logger = SrvLoggerFactory('api_version').get_logger()
+logger = LoggerFactory('api_version').get_logger()
 
 
 def parse_minio_location(location):
