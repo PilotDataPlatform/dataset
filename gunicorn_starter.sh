@@ -25,4 +25,4 @@ then
     alembic upgrade head
 fi
 
-uvicorn run:app --host 0.0.0.0
+uvicorn run:app --host 0.0.0.0 --port 5081 --log-level debug --workers 4
