@@ -16,6 +16,7 @@
 import json
 import os
 import time
+from typing import Optional
 from uuid import UUID
 from uuid import uuid4
 
@@ -24,6 +25,7 @@ from common import GEIDClient
 from common import LoggerFactory
 from minio.sseconfig import Rule
 from minio.sseconfig import SSEConfig
+from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
 
 from app.commons.service_connection.dataset_policy_template import (
@@ -135,10 +137,10 @@ class SrvDatasetMgr:
             raise Exception(error_msg)
         return current_node.to_dict()
 
-    def get_bygeid(self, db, geid):
+    def get_bygeid(self, db: Session, geid: str) -> Dataset:
         return db.query(Dataset).get(UUID(geid))
 
-    def get_bycode(self, db, code):
+    def get_bycode(self, db: Session, code: str) -> Optional[Dataset]:
         try:
             result = db.query(Dataset).filter(Dataset.code == code).one()
             return result

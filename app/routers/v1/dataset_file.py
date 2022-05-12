@@ -310,7 +310,6 @@ class APIImportData:
                 target_minio_path = target_folder.get('name') + '/'
             else:
                 target_minio_path = target_folder.get('folder_relative_path') + '/' + target_folder.get('name') + '/'
-        # print(dataset_obj.code'), target_minio_path)
 
         # validate the file if it is under the dataset
         move_list = request_payload.source_list
