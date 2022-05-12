@@ -134,12 +134,6 @@ class SrvDatasetMgr:
             error_msg = f'Psql Error: {str(e)}'
             raise Exception(error_msg)
         return current_node.to_dict()
-        # res_update_node = http_update_node('Dataset', current_node['id'], update_json)
-        # if res_update_node.status_code == 200:
-        #     pass
-        # else:
-        #     raise Exception(str(res_update_node.text))
-        # return res_update_node.json()[0]
 
     def get_bygeid(self, db, geid):
         return db.query(Dataset).get(UUID(geid))

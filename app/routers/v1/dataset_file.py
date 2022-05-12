@@ -158,7 +158,7 @@ class APIImportData:
         # validate the dataset if exists
         srv_dataset = SrvDatasetMgr()
         dataset_obj = srv_dataset.get_bygeid(db, dataset_geid)
-        # dataset_obj = get_node_by_geid(dataset_geid, 'Dataset')
+
         if dataset_obj is None:
             api_response.code = EAPIResponseCode.not_found
             api_response.error_msg = 'Invalid geid for dataset'
@@ -211,7 +211,7 @@ class APIImportData:
         # validate the dataset if exists
         srv_dataset = SrvDatasetMgr()
         dataset_obj = srv_dataset.get_bygeid(db, dataset_geid)
-        # dataset_obj = get_node_by_geid(dataset_geid, 'Dataset')
+
         if dataset_obj is None:
             api_response.code = EAPIResponseCode.not_found
             api_response.error_msg = 'Invalid geid for dataset'
@@ -280,7 +280,7 @@ class APIImportData:
         # validate the dataset if exists
         srv_dataset = SrvDatasetMgr()
         dataset_obj = srv_dataset.get_bygeid(db, dataset_geid)
-        # dataset_obj = get_node_by_geid(dataset_geid, 'Dataset')
+
         if dataset_obj is None:
             api_response.code = EAPIResponseCode.not_found
             api_response.error_msg = 'Invalid geid for dataset'
@@ -362,7 +362,7 @@ class APIImportData:
         # validate the dataset if exists
         srv_dataset = SrvDatasetMgr()
         dataset_obj = srv_dataset.get_bygeid(db, dataset_geid)
-        # dataset_obj = get_node_by_geid(dataset_geid, 'Dataset')
+
         if dataset_obj is None:
             api_response.code = EAPIResponseCode.not_found
             api_response.error_msg = 'Invalid geid for dataset'
