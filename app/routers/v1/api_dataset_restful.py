@@ -22,25 +22,25 @@ from typing import Optional
 import httpx
 from common import LoggerFactory
 from fastapi import APIRouter
+from fastapi import Depends
 from fastapi import Header
-from fastapi_sqlalchemy import db
 from fastapi_utils import cbv
 
 from app.config import ConfigClass
-from app.models.base_models import APIResponse
-from app.models.base_models import EAPIResponseCode
-from app.models.bids_sql import BIDSResult
-from app.models.models_dataset import SrvDatasetMgr
-from app.models.reqres_dataset import DatasetPostForm
-from app.models.reqres_dataset import DatasetPostResponse
-from app.models.reqres_dataset import DatasetVerifyForm
-from app.models.validator_dataset import DatasetValidator
+from app.core.db import get_db_session
+from app.models.bids import BIDSResult
 from app.resources.error_handler import catch_internal
 from app.resources.utils import get_files_recursive
 from app.resources.utils import get_node_relative_path
 from app.resources.utils import get_related_nodes
-from app.resources.utils import http_query_node
 from app.resources.utils import make_temp_folder
+from app.schemas.base import APIResponse
+from app.schemas.base import EAPIResponseCode
+from app.schemas.reqres_dataset import DatasetPostForm
+from app.schemas.reqres_dataset import DatasetPostResponse
+from app.schemas.reqres_dataset import DatasetVerifyForm
+from app.schemas.validator_dataset import DatasetValidator
+from app.services.dataset import SrvDatasetMgr
 
 router = APIRouter()
 
@@ -57,14 +57,13 @@ class DatasetRestful:
 
     @router.post('/v1/dataset', tags=[_API_TAG], response_model=DatasetPostResponse, summary='Create a dataset.')
     @catch_internal(_API_NAMESPACE)
-    async def create_dataset(self, request_payload: DatasetPostForm):
+    async def create_dataset(self, request_payload: DatasetPostForm, db=Depends(get_db_session)):
         """dataset creation api."""
         res = APIResponse()
-
         srv_dataset = SrvDatasetMgr()
 
-        check_created = srv_dataset.get_bycode(request_payload.code)
-        if check_created.status_code == 200:
+        check_created = srv_dataset.get_bycode(db, request_payload.code)
+        if check_created:
             if len(check_created.json()) > 0:
                 res.result = None
                 res.error_msg = "[Invalid 'code']: already taken by other dataset."
@@ -84,6 +83,7 @@ class DatasetRestful:
                     return res.json_response()
 
         created = srv_dataset.create(
+            db,
             request_payload.username,
             request_payload.code,
             request_payload.title,
@@ -104,99 +104,80 @@ class DatasetRestful:
         '/v1/dataset/{dataset_geid}', tags=[_API_TAG], response_model=DatasetPostResponse, summary='Get a dataset.'
     )
     @catch_internal(_API_NAMESPACE)
-    async def get_dataset(self, dataset_geid):
+    async def get_dataset(self, dataset_geid, db=Depends(get_db_session)):
         """dataset creation api."""
         res = APIResponse()
-
         srv_dataset = SrvDatasetMgr()
-
-        dataset_gotten = None
-
-        response_dataset_node = srv_dataset.get_bygeid(dataset_geid)
-        if response_dataset_node.status_code == 200:
-            if len(response_dataset_node.json()) > 0:
-                dataset_gotten = response_dataset_node.json()[0]
+        try:
+            dataset = srv_dataset.get_bygeid(db, dataset_geid)
+            if dataset:
                 res.code = EAPIResponseCode.success
-                res.result = dataset_gotten
+                res.result = dataset.to_dict()
                 return res.json_response()
             else:
                 res.code = EAPIResponseCode.not_found
-                res.result = dataset_gotten
+                res.result = {}
                 res.error_msg = 'Not Found, invalid geid'
                 return res.json_response()
-        else:
+        except Exception as e:
             res.code = EAPIResponseCode.internal_error
-            res.error_msg = response_dataset_node.text
+            res.error_msg = str(e)
+            res.result = {}
             return res.json_response()
 
     @router.get(
         '/v1/dataset-peek/{code}', tags=[_API_TAG], response_model=DatasetPostResponse, summary='Get a dataset.'
     )
     @catch_internal(_API_NAMESPACE)
-    async def get_dataset_bycode(self, code):
+    async def get_dataset_bycode(self, code, db=Depends(get_db_session)):
         """dataset creation api."""
         res = APIResponse()
 
         srv_dataset = SrvDatasetMgr()
-
-        dataset_gotten = None
-
-        response_dataset_node = srv_dataset.get_bycode(code)
-        if response_dataset_node.status_code == 200:
-            if len(response_dataset_node.json()) > 0:
-                dataset_gotten = response_dataset_node.json()[0]
+        try:
+            dataset = srv_dataset.get_bycode(db, code)
+            if dataset:
                 res.code = EAPIResponseCode.success
-                res.result = dataset_gotten
+                res.result = dataset.to_dict()
                 return res.json_response()
             else:
                 res.code = EAPIResponseCode.not_found
-                res.result = dataset_gotten
+                res.result = {}
                 res.error_msg = 'Not Found, invalid dataset code'
                 return res.json_response()
-        else:
+        except Exception as e:
             res.code = EAPIResponseCode.internal_error
-            res.error_msg = response_dataset_node.text
+            res.error_msg = str(e)
+            res.result = {}
             return res.json_response()
 
     @router.post('/v1/dataset/verify', tags=[_API_TAG], summary='verify a bids dataset.')
     @catch_internal(_API_NAMESPACE)
-    async def verify_dataset(self, request_payload: DatasetVerifyForm):
+    async def verify_dataset(self, request_payload: DatasetVerifyForm, db=Depends(get_db_session)):
         res = APIResponse()
+        srv_dataset = SrvDatasetMgr()
         payload = request_payload.dict()
 
-        dataset_geid = payload['dataset_geid']
-
-        dataset_res = http_query_node('Dataset', {'global_entity_id': dataset_geid})
-
-        if dataset_res.status_code != 200:
+        dataset = srv_dataset.get_bygeid(db, payload['dataset_geid'])
+        if not dataset:
             res.code = EAPIResponseCode.bad_request
             res.result = {'result': 'dataset not exist'}
             return res.json_response()
-
-        dataset_info = dataset_res.json()
-        if len(dataset_info) == 0:
-            res.code = EAPIResponseCode.bad_request
-            res.result = {'result': 'dataset not exist'}
-            return res.json_response()
-
-        dataset_info = dataset_info[0]
-        dataset_code = dataset_info['code']
-        nodes = get_related_nodes(dataset_geid)
+        nodes = get_related_nodes(dataset.id)
 
         files_info = []
         TEMP_FOLDER = 'temp/'
-
         for node in nodes:
             if 'File' in node['labels']:
-                file_path = get_node_relative_path(dataset_code, node['location'])
-                files_info.append({'file_path': TEMP_FOLDER + dataset_code + file_path, 'file_size': node['file_size']})
+                file_path = get_node_relative_path(dataset.code, node['location'])
+                files_info.append({'file_path': TEMP_FOLDER + dataset.code + file_path, 'file_size': node['file_size']})
 
             if 'Folder' in node['labels']:
                 files = get_files_recursive(node['global_entity_id'])
                 for file in files:
-                    file_path = get_node_relative_path(dataset_code, file['location'])
+                    file_path = get_node_relative_path(dataset.code, file['location'])
                     files_info.append(
-                        {'file_path': TEMP_FOLDER + dataset_code + file_path, 'file_size': file['file_size']}
+                        {'file_path': TEMP_FOLDER + dataset.code + file_path, 'file_size': file['file_size']}
                     )
 
         try:
@@ -210,7 +191,7 @@ class DatasetRestful:
             result = subprocess.run(
                 [
                     'bids-validator',
-                    TEMP_FOLDER + dataset_code,
+                    TEMP_FOLDER + dataset.code,
                     '--json',
                     '--ignoreNiftiHeaders',
                     '--ignoreSubjectConsistency',
@@ -223,7 +204,7 @@ class DatasetRestful:
             return res.json_response()
 
         try:
-            shutil.rmtree(TEMP_FOLDER + dataset_code)
+            shutil.rmtree(TEMP_FOLDER + dataset.code)
         except Exception:
             res.code = EAPIResponseCode.internal_error
             res.result = 'failed to remove temp bids folder'
@@ -239,15 +220,14 @@ class DatasetRestful:
         request_payload: DatasetVerifyForm,
         Authorization: Optional[str] = Header(None),
         refresh_token: Optional[str] = Header(None),
+        db=Depends(get_db_session),
     ):
         res = APIResponse()
+        srv_dataset = SrvDatasetMgr()
         payload = request_payload.dict()
 
-        dataset_geid = payload['dataset_geid']
-
-        dataset_res = http_query_node('Dataset', {'global_entity_id': dataset_geid})
-
-        if dataset_res.status_code != 200:
+        dataset = srv_dataset.get_bygeid(db, payload['dataset_geid'])
+        if not dataset:
             res.code = EAPIResponseCode.bad_request
             res.result = {'result': 'dataset not exist'}
             return res.json_response()
@@ -257,7 +237,7 @@ class DatasetRestful:
         payload = {
             'event_type': 'bids_validate',
             'payload': {
-                'dataset_geid': dataset_geid,
+                'dataset_geid': str(dataset.id),
                 'access_token': access_token,
                 'refresh_token': refresh_token,
                 'project': 'dataset',
@@ -280,11 +260,11 @@ class DatasetRestful:
 
     @router.get('/v1/dataset/bids-msg/{dataset_geid}', tags=[_API_TAG], summary='pre verify a bids dataset.')
     @catch_internal(_API_NAMESPACE)
-    async def get_bids_msg(self, dataset_geid):
+    async def get_bids_msg(self, dataset_geid, db=Depends(get_db_session)):
         api_response = APIResponse()
         try:
             bids_results = (
-                db.session.query(BIDSResult)
+                db.query(BIDSResult)
                 .filter_by(
                     dataset_geid=dataset_geid,
                 )

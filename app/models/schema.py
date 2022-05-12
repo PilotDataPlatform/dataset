@@ -13,39 +13,34 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# from fastapi_sqlalchemy import db
 from datetime import datetime
 
 from sqlalchemy import Boolean
 from sqlalchemy import Column
-from sqlalchemy import DateTime
 from sqlalchemy import ForeignKey
 from sqlalchemy import String
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.dialects.postgresql import TIMESTAMP
 from sqlalchemy.orm import relationship
 
 from app.config import ConfigClass
-
-# # print(ConfigClass.OPS_DB_URI)
-# engine = create_engine(ConfigClass.OPS_DB_URI)
-# SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-# session = SessionLocal()
-Base = declarative_base()
+from app.models import DBModel
 
 
-class DatasetSchemaTemplate(Base):
+class DatasetSchemaTemplate(DBModel):
     __tablename__ = 'dataset_schema_template'
     __table_args__ = {'schema': ConfigClass.RDS_SCHEMA_DEFAULT}
-    geid = Column(String(), unique=True, primary_key=True)
+    geid = Column(String(), primary_key=True)
     name = Column(String())
     dataset_geid = Column(String())
     standard = Column(String())
     system_defined = Column(Boolean())
     is_draft = Column(Boolean())
     content = Column(JSONB())
-    create_timestamp = Column(DateTime(), default=datetime.utcnow)
-    update_timestamp = Column(DateTime(), default=datetime.utcnow)
+    create_timestamp = Column(TIMESTAMP(timezone=True), default=datetime.utcnow, nullable=False)
+    update_timestamp = Column(
+        TIMESTAMP(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
     creator = Column(String())
     schemas = relationship('DatasetSchema', back_populates='schema_template')
 
@@ -82,10 +77,10 @@ class DatasetSchemaTemplate(Base):
         return result
 
 
-class DatasetSchema(Base):
+class DatasetSchema(DBModel):
     __tablename__ = 'dataset_schema'
     __table_args__ = {'schema': ConfigClass.RDS_SCHEMA_DEFAULT}
-    geid = Column(String(), unique=True, primary_key=True)
+    geid = Column(String(), primary_key=True)
     name = Column(String())
     dataset_geid = Column(String())
     tpl_geid = Column(String(), ForeignKey(DatasetSchemaTemplate.geid))
@@ -93,8 +88,10 @@ class DatasetSchema(Base):
     system_defined = Column(Boolean())
     is_draft = Column(Boolean())
     content = Column(JSONB())
-    create_timestamp = Column(DateTime(), default=datetime.utcnow)
-    update_timestamp = Column(DateTime(), default=datetime.utcnow)
+    create_timestamp = Column(TIMESTAMP(timezone=True), default=datetime.utcnow, nullable=False)
+    update_timestamp = Column(
+        TIMESTAMP(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
     creator = Column(String())
     schema_template = relationship('DatasetSchemaTemplate', back_populates='schemas')
 

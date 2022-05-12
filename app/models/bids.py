@@ -17,23 +17,21 @@ from datetime import datetime
 
 from sqlalchemy import JSON
 from sqlalchemy import Column
-from sqlalchemy import DateTime
 from sqlalchemy import Integer
 from sqlalchemy import String
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.dialects.postgresql import TIMESTAMP
 
 from app.config import ConfigClass
+from app.models import DBModel
 
-Base = declarative_base()
 
-
-class BIDSResult(Base):
+class BIDSResult(DBModel):
     __tablename__ = 'bids_results'
     __table_args__ = {'schema': ConfigClass.RDS_SCHEMA_DEFAULT}
-    id = Column(Integer, unique=True, primary_key=True)
+    id = Column(Integer, primary_key=True)
     dataset_geid = Column(String())
-    created_time = Column(DateTime(), default=datetime.utcnow)
-    updated_time = Column(DateTime(), default=datetime.utcnow)
+    created_time = Column(TIMESTAMP(timezone=True), default=datetime.utcnow, nullable=False)
+    updated_time = Column(TIMESTAMP(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     validate_output = Column(JSON())
 
     def __init__(self, dataset_geid, validate_output):

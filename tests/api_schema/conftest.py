@@ -17,6 +17,10 @@ from uuid import uuid4
 
 import pytest
 
+from app.config import ConfigClass
+from app.models.schema import DatasetSchema
+from app.models.schema import DatasetSchemaTemplate
+
 
 @pytest.fixture(autouse=True)
 def test_db(db_session):
@@ -24,15 +28,10 @@ def test_db(db_session):
 
 
 @pytest.fixture
-def schema_template(db_session):
-    from app.models.schema_sql import DatasetSchemaTemplate
-
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
-    schema_template_geid = 'ef4eb37d-6d81-46a7-a9d9-db71bf44edc7'
-
+def schema_template(db_session, dataset):
     new_template = DatasetSchemaTemplate(
-        geid=schema_template_geid,
-        dataset_geid=dataset_geid,
+        geid=str(uuid4()),
+        dataset_geid=dataset.id,
         name='test_schema_template',
         standard='default',
         system_defined=True,
@@ -48,18 +47,12 @@ def schema_template(db_session):
 
 
 @pytest.fixture
-def schema(schema_template, db_session):
-    from app.models.schema_sql import DatasetSchema
-
-    db_session = db_session
-
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
-    schema_template_geid = 'ef4eb37d-6d81-46a7-a9d9-db71bf44edc7'
+def schema(schema_template, db_session, dataset):
     schema = DatasetSchema(
-        geid='ef4eb37d-6d81-46a7-a9d9-db71bf44edc7',
+        geid=str(uuid4()),
         name='unittestdataset',
-        dataset_geid=dataset_geid,
-        tpl_geid=schema_template_geid,
+        dataset_geid=dataset.id,
+        tpl_geid=schema_template['geid'],
         standard='default',
         system_defined=True,
         is_draft=False,
@@ -74,19 +67,12 @@ def schema(schema_template, db_session):
 
 
 @pytest.fixture
-def essential_schema(schema_template, db_session):
-    from app.config import ConfigClass
-    from app.models.schema_sql import DatasetSchema
-
-    db_session = db_session
-
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
-    schema_template_geid = 'ef4eb37d-6d81-46a7-a9d9-db71bf44edc7'
+def essential_schema(schema_template, db_session, dataset):
     schema = DatasetSchema(
         geid=str(uuid4()),
         name=ConfigClass.ESSENTIALS_NAME,
-        dataset_geid=dataset_geid,
-        tpl_geid=schema_template_geid,
+        dataset_geid=dataset.id,
+        tpl_geid=schema_template['geid'],
         standard='default',
         system_defined=True,
         is_draft=False,

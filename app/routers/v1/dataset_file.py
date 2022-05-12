@@ -22,18 +22,13 @@ from common import LoggerFactory
 from fastapi import APIRouter
 from fastapi import BackgroundTasks
 from fastapi import Cookie
+from fastapi import Depends
 from fastapi import Header
 from fastapi_utils import cbv
 
 from app.config import ConfigClass
-from app.models.base_models import APIResponse
-from app.models.base_models import EAPIResponseCode
-from app.models.import_data_model import DatasetFileDelete
-from app.models.import_data_model import DatasetFileMove
-from app.models.import_data_model import DatasetFileRename
-from app.models.import_data_model import ImportDataPost
-from app.models.import_data_model import SrvDatasetFileMgr
-from app.models.models_dataset import SrvDatasetMgr
+from app.core.db import get_db_session
+from app.models.dataset import Dataset
 from app.resources.error_handler import catch_internal
 from app.resources.locks import recursive_lock_delete
 from app.resources.locks import recursive_lock_import
@@ -46,6 +41,14 @@ from app.resources.neo4j_helper import delete_relation_bw_nodes
 from app.resources.neo4j_helper import get_children_nodes
 from app.resources.neo4j_helper import get_node_by_geid
 from app.resources.neo4j_helper import get_parent_node
+from app.schemas.base import APIResponse
+from app.schemas.base import EAPIResponseCode
+from app.schemas.import_data import DatasetFileDelete
+from app.schemas.import_data import DatasetFileMove
+from app.schemas.import_data import DatasetFileRename
+from app.schemas.import_data import ImportDataPost
+from app.services.dataset import SrvDatasetMgr
+from app.services.import_data import SrvDatasetFileMgr
 
 router = APIRouter()
 
@@ -78,6 +81,7 @@ class APIImportData:
         sessionId: Optional[str] = Cookie(None),
         Authorization: Optional[str] = Header(None),
         refresh_token: Optional[str] = Header(None),
+        db=Depends(get_db_session),
     ):
         import_list = request_payload.source_list
         oper = request_payload.operator
@@ -88,7 +92,8 @@ class APIImportData:
         api_response = APIResponse()
 
         # if dataset not found return 404
-        dataset_obj = get_node_by_geid(dataset_geid, 'Dataset')
+        srv_dataset = SrvDatasetMgr()
+        dataset_obj = srv_dataset.get_bygeid(db, dataset_geid)
         if dataset_obj is None:
             api_response.code = EAPIResponseCode.not_found
             api_response.error_msg = 'Invalid geid for dataset'
@@ -96,7 +101,7 @@ class APIImportData:
 
         # here we only allow user to import from one project
         # if user try to import from another project block the action
-        imported_project = dataset_obj.get('project_geid', None)
+        imported_project = str(dataset_obj.project_id)
         if imported_project and imported_project != source_project:
             api_response.code = EAPIResponseCode.forbidden
             api_response.error_msg = 'Cannot import from another project'
@@ -116,6 +121,7 @@ class APIImportData:
         if len(import_list) > 0:
             background_tasks.add_task(
                 self.copy_files_worker,
+                db,
                 import_list,
                 dataset_obj,
                 oper,
@@ -141,6 +147,7 @@ class APIImportData:
         sessionId: Optional[str] = Cookie(None),
         Authorization: Optional[str] = Header(None),
         refresh_token: Optional[str] = Header(None),
+        db=Depends(get_db_session),
     ):
 
         api_response = APIResponse()
@@ -149,7 +156,9 @@ class APIImportData:
         minio_refresh_token = refresh_token
 
         # validate the dataset if exists
-        dataset_obj = get_node_by_geid(dataset_geid, 'Dataset')
+        srv_dataset = SrvDatasetMgr()
+        dataset_obj = srv_dataset.get_bygeid(db, dataset_geid)
+
         if dataset_obj is None:
             api_response.code = EAPIResponseCode.not_found
             api_response.error_msg = 'Invalid geid for dataset'
@@ -165,6 +174,7 @@ class APIImportData:
         if len(delete_list) > 0:
             background_tasks.add_task(
                 self.delete_files_work,
+                db,
                 delete_list,
                 dataset_obj,
                 request_payload.operator,
@@ -190,6 +200,7 @@ class APIImportData:
         order_type: str = 'desc',
         query: str = '{}',
         folder_geid: str = None,
+        db=Depends(get_db_session),
     ):
         """the api will list the file/folder at level 1 by default.
 
@@ -198,7 +209,9 @@ class APIImportData:
         api_response = APIResponse()
 
         # validate the dataset if exists
-        dataset_obj = get_node_by_geid(dataset_geid, 'Dataset')
+        srv_dataset = SrvDatasetMgr()
+        dataset_obj = srv_dataset.get_bygeid(db, dataset_geid)
+
         if dataset_obj is None:
             api_response.code = EAPIResponseCode.not_found
             api_response.error_msg = 'Invalid geid for dataset'
@@ -257,15 +270,17 @@ class APIImportData:
         sessionId: Optional[str] = Cookie(None),
         Authorization: Optional[str] = Header(None),
         refresh_token: Optional[str] = Header(None),
+        db=Depends(get_db_session),
     ):
-
         api_response = APIResponse()
         session_id = sessionId
         minio_access_token = Authorization
         minio_refresh_token = refresh_token
 
         # validate the dataset if exists
-        dataset_obj = get_node_by_geid(dataset_geid, 'Dataset')
+        srv_dataset = SrvDatasetMgr()
+        dataset_obj = srv_dataset.get_bygeid(db, dataset_geid)
+
         if dataset_obj is None:
             api_response.code = EAPIResponseCode.not_found
             api_response.error_msg = 'Invalid geid for dataset'
@@ -285,7 +300,7 @@ class APIImportData:
                 api_response.error_msg = 'The target folder does not exist'
                 return api_response.json_response()
             # also the folder MUST under the same dataset
-            if target_folder.get('dataset_code') != dataset_obj.get('code'):
+            if target_folder.get('dataset_code') != dataset_obj.code:
                 api_response.code = EAPIResponseCode.not_found
                 api_response.error_msg = 'The target folder does not exist'
                 return api_response.json_response()
@@ -295,7 +310,6 @@ class APIImportData:
                 target_minio_path = target_folder.get('name') + '/'
             else:
                 target_minio_path = target_folder.get('folder_relative_path') + '/' + target_folder.get('name') + '/'
-        # print(dataset_obj.get('code'), target_minio_path)
 
         # validate the file if it is under the dataset
         move_list = request_payload.source_list
@@ -308,6 +322,7 @@ class APIImportData:
         if len(move_list) > 0:
             background_tasks.add_task(
                 self.move_file_worker,
+                db,
                 move_list,
                 dataset_obj,
                 request_payload.operator,
@@ -335,6 +350,7 @@ class APIImportData:
         sessionId: Optional[str] = Cookie(None),
         Authorization: Optional[str] = Header(None),
         refresh_token: Optional[str] = Header(None),
+        db=Depends(get_db_session),
     ):
 
         api_response = APIResponse()
@@ -343,7 +359,9 @@ class APIImportData:
         minio_access_token = Authorization
 
         # validate the dataset if exists
-        dataset_obj = get_node_by_geid(dataset_geid, 'Dataset')
+        srv_dataset = SrvDatasetMgr()
+        dataset_obj = srv_dataset.get_bygeid(db, dataset_geid)
+
         if dataset_obj is None:
             api_response.code = EAPIResponseCode.not_found
             api_response.error_msg = 'Invalid geid for dataset'
@@ -550,8 +568,8 @@ class APIImportData:
         if not payload:
             payload = {}
         # first send the notification
-        dataset_geid = dataset.get('global_entity_id')
-        dataset_code = dataset.get('code')
+        dataset_geid = str(dataset.id)
+        dataset_code = dataset.code
         self.send_notification(session_id, source_file, action, status, dataset_geid, operator, task_id)
 
         # also save to redis for display
@@ -583,7 +601,7 @@ class APIImportData:
         if not payload:
             payload = {}
         # first send the notification
-        dataset_geid = dataset.get('global_entity_id')
+        dataset_geid = str(dataset.id)
         self.send_notification(session_id, source_file, action, status, dataset_geid, operator, task_id, payload)
 
         # also save to redis for display
@@ -673,12 +691,17 @@ class APIImportData:
                 minio_path = ff_object.get('location').split('//')[-1]
                 _, bucket, old_path = tuple(minio_path.split('/', 2))
 
+                if isinstance(parent_node, Dataset):
+                    parent_node_id = str(parent_node.id)
+                else:
+                    parent_node_id = parent_node.get('global_entity_id')
+
                 # create the copied node
                 new_node, _ = create_file_node(
-                    dataset.get('code'),
+                    dataset.code,
                     ff_object,
                     oper,
-                    parent_node.get('id'),
+                    parent_node_id,
                     current_root_path,
                     access_token,
                     refresh_token,
@@ -694,7 +717,7 @@ class APIImportData:
 
                 # first create the folder
                 new_node, _ = create_folder_node(
-                    dataset.get('code'), ff_object, oper, parent_node, current_root_path, new_name
+                    dataset.code, ff_object, oper, parent_node, current_root_path, new_name
                 )
                 new_lv1_nodes.append(new_node)
 
@@ -735,7 +758,6 @@ class APIImportData:
 
         num_of_files = 0
         total_file_size = 0
-
         # copy the files under the project neo4j node to dataset node
         for ff_object in currenct_nodes:
             ff_geid = ff_object.get('global_entity_id')
@@ -760,6 +782,11 @@ class APIImportData:
 
             ################################################################################################
             # recursive logic below
+            if isinstance(parent_node, Dataset):
+                parent_node_id = str(parent_node.id)
+            else:
+                parent_node_id = parent_node.get('global_entity_id')
+
             if 'File' in ff_object.get('labels'):
 
                 # lock the resource
@@ -769,7 +796,7 @@ class APIImportData:
 
                 # for file we can just disconnect and delete
                 # TODO MOVE OUTSIDE <=============================================================
-                delete_relation_bw_nodes(parent_node.get('id'), ff_object.get('id'))
+                delete_relation_bw_nodes(parent_node_id, ff_object.get('id'))
                 delete_node(ff_object, access_token, refresh_token)
 
                 # update for number and size
@@ -787,7 +814,7 @@ class APIImportData:
                 )
 
                 # after the child has been deleted then we disconnect current node
-                delete_relation_bw_nodes(parent_node.get('id'), ff_object.get('id'))
+                delete_relation_bw_nodes(parent_node_id, ff_object.get('id'))
                 delete_node(ff_object, access_token, refresh_token)
 
                 # append the log together
@@ -815,16 +842,15 @@ class APIImportData:
     ######################################################################################################
 
     def copy_files_worker(
-        self, import_list, dataset_obj, oper, source_project_geid, session_id, access_token, refresh_token
+        self, db, import_list, dataset_obj, oper, source_project_geid, session_id, access_token, refresh_token
     ):
-
         action = 'dataset_file_import'
         job_tracker = self.initialize_file_jobs(session_id, action, import_list, dataset_obj, oper)
         root_path = ConfigClass.DATASET_FILE_FOLDER
 
         try:
             # mark the source tree as read, destination as write
-            locked_node, err = recursive_lock_import(dataset_obj.get('code'), import_list, root_path)
+            locked_node, err = recursive_lock_import(dataset_obj.code, import_list, root_path)
             if err:
                 raise err
 
@@ -836,14 +862,14 @@ class APIImportData:
             # after all update the file number/total size/project geid
             srv_dataset = SrvDatasetMgr()
             update_attribute = {
-                'total_files': dataset_obj.get('total_files', 0) + num_of_files,
-                'size': dataset_obj.get('size', 0) + total_file_size,
-                'project_geid': source_project_geid,
+                'total_files': dataset_obj.total_files + num_of_files,
+                'size': dataset_obj.size + total_file_size,
+                'project_id': source_project_geid,
             }
-            srv_dataset.update(dataset_obj, update_attribute)
+            srv_dataset.update(db, dataset_obj, update_attribute)
 
             # also update the log
-            dataset_geid = dataset_obj.get('global_entity_id')
+            dataset_geid = str(dataset_obj.id)
             source_project = get_node_by_geid(source_project_geid)
             import_logs = [source_project.get('code') + '/' + x.get('display_path') for x in import_list]
             project = source_project.get('name', '')
@@ -875,10 +901,19 @@ class APIImportData:
         return
 
     def move_file_worker(
-        self, move_list, dataset_obj, oper, target_folder, target_minio_path, session_id, access_token, refresh_token
+        self,
+        db,
+        move_list,
+        dataset_obj,
+        oper,
+        target_folder,
+        target_minio_path,
+        session_id,
+        access_token,
+        refresh_token,
     ):
 
-        dataset_geid = dataset_obj.get('global_entity_id')
+        dataset_geid = str(dataset_obj.id)
         action = 'dataset_file_move'
         job_tracker = self.initialize_file_jobs(session_id, action, move_list, dataset_obj, oper)
 
@@ -953,14 +988,14 @@ class APIImportData:
 
         return
 
-    def delete_files_work(self, delete_list, dataset_obj, oper, session_id, access_token, refresh_token):
+    def delete_files_work(self, db, delete_list, dataset_obj, oper, session_id, access_token, refresh_token):
 
         deleted_files = []  # for logging action
         action = 'dataset_file_delete'
         job_tracker = self.initialize_file_jobs(session_id, action, delete_list, dataset_obj, oper)
-
         try:
             # mark both source&destination as write lock
+
             locked_node, err = recursive_lock_delete(delete_list)
             if err:
                 raise err
@@ -998,13 +1033,13 @@ class APIImportData:
             # after all update the file number/total size/project geid
             srv_dataset = SrvDatasetMgr()
             update_attribute = {
-                'total_files': dataset_obj.get('total_files', 0) - num_of_files,
-                'size': dataset_obj.get('size', 0) - total_file_size,
+                'total_files': dataset_obj.total_files - num_of_files,
+                'size': dataset_obj.size - total_file_size,
             }
-            srv_dataset.update(dataset_obj, update_attribute)
+            srv_dataset.update(db, dataset_obj, update_attribute)
 
             # also update the message to service queue
-            dataset_geid = dataset_obj.get('global_entity_id')
+            dataset_geid = str(dataset_obj.id)
             self.file_act_notifier.on_delete_event(dataset_geid, oper, deleted_files)
 
         except Exception as e:
@@ -1086,7 +1121,7 @@ class APIImportData:
             )
 
             # update es & log
-            dataset_geid = dataset_obj.get('global_entity_id')
+            dataset_geid = str(dataset_obj.id)
             old_file_name = old_file[0].get('name')
             # remove the /data in begining ONLY once
             frp = ''

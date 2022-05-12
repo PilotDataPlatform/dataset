@@ -18,7 +18,7 @@ from typing import List
 from pydantic import BaseModel
 from pydantic import Field
 
-from .base_models import APIResponse
+from .base import APIResponse
 
 
 class Activity(BaseModel):

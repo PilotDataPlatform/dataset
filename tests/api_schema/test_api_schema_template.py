@@ -19,7 +19,7 @@ pytestmark = pytest.mark.asyncio
 
 
 async def test_schema_template_should_return_200(client, httpx_mock):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3'
     httpx_mock.add_response(
         method='POST',
         url='http://queue_service/v1/broker/pub',
@@ -38,8 +38,8 @@ async def test_schema_template_should_return_200(client, httpx_mock):
     assert res.json()['result']['name'] == 'unittestdataset'
 
 
-async def test_schema_template_duplicate_should_return_code_403(client, httpx_mock, schema_template):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+async def test_schema_template_duplicate_should_return_code_403(client, schema_template):
+    dataset_geid = schema_template['dataset_geid']
     payload = {
         'name': schema_template['name'],
         'standard': 'default',
@@ -54,10 +54,10 @@ async def test_schema_template_duplicate_should_return_code_403(client, httpx_mo
     assert res.json()['code'] == 403
 
 
-@pytest.mark.parametrize('dataset_geid', [('5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'), ('default')])
-async def test_list_schema_template_by_dataset_geid_should_return_200(
-    dataset_geid, client, httpx_mock, schema_template
-):
+@pytest.mark.parametrize('dataset_geid', [('mock'), ('default')])
+async def test_list_schema_template_by_dataset_geid_should_return_200(dataset_geid, client, schema_template):
+    if dataset_geid == 'mock':
+        dataset_geid = schema_template['dataset_geid']
     payload = {}
     res = await client.post(f'/v1/dataset/{dataset_geid}/schemaTPL/list', json=payload)
     assert res.status_code == 200
@@ -69,8 +69,10 @@ async def test_list_schema_template_by_dataset_geid_should_return_200(
     }
 
 
-@pytest.mark.parametrize('dataset_geid', [('5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'), ('default')])
-async def test_get_schema_template_by_geid_should_return_200(dataset_geid, client, httpx_mock, schema_template):
+@pytest.mark.parametrize('dataset_geid', [('mock'), ('default')])
+async def test_get_schema_template_by_geid_should_return_200(dataset_geid, client, schema_template):
+    if dataset_geid == 'mock':
+        dataset_geid = schema_template['dataset_geid']
     geid = schema_template['geid']
     res = await client.get(f'/v1/dataset/{dataset_geid}/schemaTPL/{geid}')
     assert res.status_code == 200
@@ -78,7 +80,7 @@ async def test_get_schema_template_by_geid_should_return_200(dataset_geid, clien
 
 
 async def test_update_schema_template_should_return_200(client, httpx_mock, schema_template):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+    dataset_geid = schema_template['dataset_geid']
     geid = schema_template['geid']
     httpx_mock.add_response(
         method='POST',
@@ -99,10 +101,8 @@ async def test_update_schema_template_should_return_200(client, httpx_mock, sche
     assert res.json()['result']['content'] == {'any': 'any'}
 
 
-async def test_update_schema_template_with_name_that_already_exist_should_return_code_403(
-    client, httpx_mock, schema_template
-):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+async def test_update_schema_template_with_name_that_already_exist_should_return_code_403(client, schema_template):
+    dataset_geid = schema_template['dataset_geid']
     geid = schema_template['geid']
     payload = {
         'name': schema_template['name'],
@@ -117,7 +117,7 @@ async def test_update_schema_template_with_name_that_already_exist_should_return
 
 
 async def test_delete_schema_template_by_geid_should_return_200(client, httpx_mock, schema_template):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+    dataset_geid = schema_template['dataset_geid']
     geid = schema_template['geid']
     httpx_mock.add_response(
         method='POST',
@@ -129,8 +129,8 @@ async def test_delete_schema_template_by_geid_should_return_200(client, httpx_mo
     assert res.json()['result'] == schema_template
 
 
-async def test_delete_schema_template_by_geid_should_return_404(client, httpx_mock):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+async def test_delete_schema_template_by_geid_should_return_404(client):
+    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3'
     res = await client.delete(f'/v1/dataset/{dataset_geid}/schemaTPL/any')
     assert res.status_code == 404
     assert res.json()['error_msg'] == 'template any is not found'

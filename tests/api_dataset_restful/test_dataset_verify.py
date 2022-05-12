@@ -20,22 +20,11 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
-async def test_dataset_verify_when_bids_verification_fails_should_return_500(client, httpx_mock):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+async def test_dataset_verify_when_bids_verification_fails_should_return_500(client, httpx_mock, dataset):
     file_geid = '6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067-1648138467'
-    dataset_code = 'datasetcode'
+    dataset_geid = str(dataset.id)
+    dataset_code = dataset.code
     payload = {'dataset_geid': dataset_geid, 'type': 'any'}
-    httpx_mock.add_response(
-        method='POST',
-        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[
-            {
-                'global_entity_id': dataset_geid,
-                'code': dataset_code,
-                'id': 'dataset_id',
-            }
-        ],
-    )
     httpx_mock.add_response(
         method='POST',
         url='http://neo4j_service/v2/neo4j/relations/query',
@@ -68,27 +57,15 @@ async def test_dataset_verify_when_bids_verification_fails_should_return_500(cli
 
 
 @mock.patch('app.routers.v1.api_dataset_restful.subprocess.run')
-async def test_dataset_verify_when_bids_valid_should_return_200(mock_subproc_run, client, httpx_mock):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+async def test_dataset_verify_when_bids_valid_should_return_200(mock_subproc_run, client, httpx_mock, dataset):
     file_geid = '6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067-1648138467'
-    dataset_code = 'datasetcode'
+    dataset_geid = str(dataset.id)
+    dataset_code = dataset.code
 
     # this part has to be better tested
     obj = mock.MagicMock()
     obj.stdout = '{"bids": "verified"}'
     mock_subproc_run.return_value = obj
-
-    httpx_mock.add_response(
-        method='POST',
-        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[
-            {
-                'global_entity_id': dataset_geid,
-                'code': dataset_code,
-                'id': 'dataset_id',
-            }
-        ],
-    )
     httpx_mock.add_response(
         method='POST',
         url='http://neo4j_service/v2/neo4j/relations/query',
@@ -121,21 +98,8 @@ async def test_dataset_verify_when_bids_valid_should_return_200(mock_subproc_run
     }
 
 
-async def test_dataset_verify_pre_should_return_200(client, httpx_mock):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
-    dataset_code = 'datasetcode'
-
-    httpx_mock.add_response(
-        method='POST',
-        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[
-            {
-                'global_entity_id': dataset_geid,
-                'code': dataset_code,
-                'id': 'dataset_id',
-            }
-        ],
-    )
+async def test_dataset_verify_pre_should_return_200(client, httpx_mock, dataset):
+    dataset_geid = str(dataset.id)
     httpx_mock.add_response(method='POST', url='http://send_message_url/v1/send_message', json={})
 
     payload = {'dataset_geid': dataset_geid, 'type': 'any'}
@@ -149,14 +113,14 @@ async def test_dataset_verify_pre_should_return_200(client, httpx_mock):
 
 
 async def test_get_bids_msg_should_return_error_when_exception_happens(client, httpx_mock):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3'
     res = await client.get(f'/v1/dataset/bids-msg/{dataset_geid}')
     assert res.status_code == 500
     assert 'Psql Error' in res.json()['result']
 
 
 async def test_get_bids_msg_should_return_200(client, httpx_mock, test_db, bids_results):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3'
     res = await client.get(f'/v1/dataset/bids-msg/{dataset_geid}')
     assert res.status_code == 200
     assert res.json()['result'] == bids_results

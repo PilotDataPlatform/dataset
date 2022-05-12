@@ -16,8 +16,8 @@
 from pydantic import BaseModel
 from pydantic import Field
 
-from .base_models import APIResponse
-from .base_models import PaginationRequest
+from .base import APIResponse
+from .base import PaginationRequest
 
 
 class PublishRequest(BaseModel):

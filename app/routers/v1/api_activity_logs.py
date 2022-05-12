@@ -20,14 +20,15 @@ from typing import Optional
 
 from common import LoggerFactory
 from fastapi import APIRouter
-from fastapi_sqlalchemy import db
+from fastapi import Depends
 from fastapi_utils import cbv
 
-from app.models.base_models import APIResponse
-from app.models.base_models import EAPIResponseCode
-from app.models.version_sql import DatasetVersion
+from app.core.db import get_db_session
+from app.models.version import DatasetVersion
 from app.resources.error_handler import catch_internal
 from app.resources.es_helper import search
+from app.schemas.base import APIResponse
+from app.schemas.base import EAPIResponseCode
 
 router = APIRouter()
 
@@ -97,13 +98,18 @@ class ActivityLogs:
     @router.get('/activity-logs/{dataset_geid}', tags=[_API_TAG], summary='list activity logs.')
     @catch_internal(_API_NAMESPACE)
     async def query_activity_logs_by_version(
-        self, dataset_geid, version: str, page: Optional[int] = 0, page_size: Optional[int] = 10
+        self,
+        dataset_geid: str,
+        version: str,
+        page: Optional[int] = 0,
+        page_size: Optional[int] = 10,
+        db=Depends(get_db_session),
     ):
         response = APIResponse()
 
         try:
             versions = (
-                db.session.query(DatasetVersion)
+                db.query(DatasetVersion)
                 .filter_by(dataset_geid=dataset_geid, version=version)
                 .order_by(DatasetVersion.created_at.desc())
             )

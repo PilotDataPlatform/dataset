@@ -13,19 +13,17 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from sqlalchemy import create_engine
-from sqlalchemy.dialects import postgresql
-from sqlalchemy.schema import CreateTable
+from pydantic import BaseModel
+from pydantic import Field
 
-from app.config import ConfigClass
-from app.models.schema_sql import Base
-from app.models.schema_sql import DatasetSchema
-from app.models.schema_sql import DatasetSchemaTemplate
+from .base import APIResponse
 
-engine = create_engine(ConfigClass.OPS_DB_URI, echo=True)
 
-if __name__ == '__main__':
-    CreateTable(DatasetSchemaTemplate.__table__).compile(dialect=postgresql.dialect())
-    CreateTable(DatasetSchema.__table__).compile(dialect=postgresql.dialect())
+class FolderResponse(APIResponse):
+    result: dict = Field({}, example={})
 
-    Base.metadata.create_all(bind=engine)
+
+class FolderRequest(BaseModel):
+    folder_name: str
+    username: str
+    parent_folder_geid: str = ''

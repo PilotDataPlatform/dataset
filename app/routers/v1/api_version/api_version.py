@@ -22,23 +22,23 @@ from common import LoggerFactory
 from fastapi import APIRouter
 from fastapi import BackgroundTasks
 from fastapi import Depends
-from fastapi_sqlalchemy import db
 from fastapi_utils import cbv
 from redis import Redis
 
 from app.config import ConfigClass
-from app.models.base_models import APIResponse
-from app.models.base_models import EAPIResponseCode
-from app.models.version_models import PublishRequest
-from app.models.version_models import PublishResponse
-from app.models.version_models import VersionListRequest
-from app.models.version_models import VersionResponse
-from app.models.version_sql import DatasetVersion
+from app.core.db import get_db_session
+from app.models.version import DatasetVersion
 from app.resources.error_handler import APIException
 from app.resources.token_manager import generate_token
+from app.schemas.base import APIResponse
+from app.schemas.base import EAPIResponseCode
+from app.schemas.version import PublishRequest
+from app.schemas.version import PublishResponse
+from app.schemas.version import VersionListRequest
+from app.schemas.version import VersionResponse
+from app.services.dataset import SrvDatasetMgr
 
 from .publish_version import PublishVersion
-from .publish_version import get_dataset_by_geid
 
 logger = LoggerFactory('api_version').get_logger()
 router = APIRouter()
@@ -52,7 +52,9 @@ class VersionAPI:
         response_model=PublishResponse,
         summary='Publish a dataset version',
     )
-    async def publish(self, dataset_geid: str, data: PublishRequest, background_tasks: BackgroundTasks):
+    async def publish(
+        self, dataset_geid: str, data: PublishRequest, background_tasks: BackgroundTasks, db=Depends(get_db_session)
+    ):
         api_response = PublishResponse()
         if len(data.notes) > 250:
             api_response.result = 'Notes is to large, limit 250 bytes'
@@ -84,7 +86,7 @@ class VersionAPI:
         # Duplicate check
         try:
             versions = (
-                db.session.query(DatasetVersion)
+                db.query(DatasetVersion)
                 .filter_by(dataset_geid=dataset_geid, version=data.version)
                 .order_by(DatasetVersion.created_at.desc())
             )
@@ -99,15 +101,18 @@ class VersionAPI:
             api_response.result = 'Duplicate version found for dataset'
             return api_response.json_response()
 
-        dataset_node = get_dataset_by_geid(dataset_geid)
+        srv_dataset = SrvDatasetMgr()
+        dataset = srv_dataset.get_bygeid(db, dataset_geid)
+        if not dataset:
+            raise APIException(status_code=404, error_msg='Dataset not found')
         client = PublishVersion(
-            dataset_node=dataset_node,
+            dataset_node=dataset.to_dict(),
             operator=data.operator,
             notes=data.notes,
             status_id=dataset_geid,
             version=data.version,
         )
-        background_tasks.add_task(client.publish)
+        background_tasks.add_task(client.publish, db)
 
         api_response.result = {'status_id': dataset_geid}
         return api_response.json_response()
@@ -118,10 +123,12 @@ class VersionAPI:
         response_model=PublishResponse,
         summary='Publish status',
     )
-    async def publish_status(self, dataset_geid: str, status_id: str):
+    async def publish_status(self, dataset_geid: str, status_id: str, db=Depends(get_db_session)):
         api_response = APIResponse()
-
-        get_dataset_by_geid(dataset_geid)
+        srv_dataset = SrvDatasetMgr()
+        dataset = srv_dataset.get_bygeid(db, dataset_geid)
+        if not dataset:
+            raise APIException(status_code=404, error_msg='Dataset not found')
         self.redis_client = Redis(
             host=ConfigClass.REDIS_HOST,
             port=ConfigClass.REDIS_PORT,
@@ -140,13 +147,13 @@ class VersionAPI:
         response_model=VersionResponse,
         summary='Get dataset versions',
     )
-    async def version(self, dataset_geid: str, data: VersionListRequest = Depends(VersionListRequest)):
+    async def version(
+        self, dataset_geid: str, data: VersionListRequest = Depends(VersionListRequest), db=Depends(get_db_session)
+    ):
         api_response = VersionResponse()
         try:
             versions = (
-                db.session.query(DatasetVersion)
-                .filter_by(dataset_geid=dataset_geid)
-                .order_by(DatasetVersion.created_at.desc())
+                db.query(DatasetVersion).filter_by(dataset_geid=dataset_geid).order_by(DatasetVersion.created_at.desc())
             )
             total = versions.count()
             versions = versions.offset(data.page * data.page_size).limit(data.page_size)
@@ -167,12 +174,12 @@ class VersionAPI:
         tags=['version'],
         summary='Only used for unit tests, delete a version from psql',
     )
-    async def delete_version(self, dataset_geid: str, version_id: str):
+    async def delete_version(self, dataset_geid: str, version_id: str, db=Depends(get_db_session)):
         api_response = APIResponse()
         try:
-            version = db.session.query(DatasetVersion).get(version_id)
-            db.session.delete(version)
-            db.session.commit()
+            version = db.query(DatasetVersion).get(version_id)
+            db.delete(version)
+            db.commit()
         except Exception as e:
             logger.error('Psql Error: ' + str(e))
             api_response.code = EAPIResponseCode.internal_error
@@ -187,10 +194,13 @@ class VersionAPI:
         response_model=VersionResponse,
         summary='Download dataset version',
     )
-    async def download_url(self, dataset_geid: str, version: str = ''):
+    async def download_url(self, dataset_geid: str, version: str = '', db=Depends(get_db_session)):
         """Get download url for dataset version."""
         api_response = APIResponse()
-        get_dataset_by_geid(dataset_geid)
+        srv_dataset = SrvDatasetMgr()
+        dataset = srv_dataset.get_bygeid(db, dataset_geid)
+        if not dataset:
+            raise APIException(status_code=404, error_msg='Dataset not found')
         try:
             if version:
                 query = {
@@ -201,7 +211,7 @@ class VersionAPI:
                 query = {
                     'dataset_geid': dataset_geid,
                 }
-            versions = db.session.query(DatasetVersion).filter_by(**query).order_by(DatasetVersion.created_at.desc())
+            versions = db.query(DatasetVersion).filter_by(**query).order_by(DatasetVersion.created_at.desc())
         except Exception as e:
             logger.error('Psql Error: ' + str(e))
             api_response.code = EAPIResponseCode.internal_error

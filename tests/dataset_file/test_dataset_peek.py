@@ -18,37 +18,19 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
-async def test_get_dataset_peek_should_return_200(client, httpx_mock):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
-    source_project = '69a0c740-50d2-4b37-b6bb-d1aaa88380ed'
-    dataset_code = 'dataset_code'
-    httpx_mock.add_response(
-        method='POST',
-        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[{'project_geid': source_project, 'code': dataset_code, 'global_entity_id': dataset_geid}],
-    )
-    res = await client.get('/v1/dataset-peek/{dataset_code}')
+async def test_get_dataset_peek_should_return_200(client, dataset):
+    dataset_code = dataset.code
+    res = await client.get(f'/v1/dataset-peek/{dataset_code}')
     assert res.status_code == 200
 
 
-async def test_get_dataset_peek_not_found_should_return_404(client, httpx_mock):
-    httpx_mock.add_response(
-        method='POST',
-        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[],
-    )
+async def test_get_dataset_peek_not_found_should_return_404(client, test_db):
     res = await client.get('/v1/dataset-peek/dataset_code')
     assert res.status_code == 404
     assert res.json()['error_msg'] == 'Not Found, invalid dataset code'
 
 
-async def test_get_dataset_peek_error_should_return_500(client, httpx_mock):
-    httpx_mock.add_response(
-        method='POST',
-        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        text='error',
-        status_code=500,
-    )
+async def test_get_dataset_peek_error_should_return_500(client):
     res = await client.get('/v1/dataset-peek/dataset_code')
     assert res.status_code == 500
-    assert res.json()['error_msg'] == 'error'
+    assert 'psycopg2.errors.UndefinedTable' in res.json()['error_msg']

@@ -19,8 +19,8 @@ from common import LoggerFactory
 
 from app.commons.service_connection.minio_client import Minio_Client_
 from app.config import ConfigClass
-from app.models.base_models import EAPIResponseCode
 from app.resources.error_handler import APIException
+from app.schemas.base import EAPIResponseCode
 
 logger = LoggerFactory('api_dataset_import').get_logger()
 

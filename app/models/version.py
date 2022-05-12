@@ -16,25 +16,23 @@
 from datetime import datetime
 
 from sqlalchemy import Column
-from sqlalchemy import DateTime
 from sqlalchemy import Integer
 from sqlalchemy import String
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.dialects.postgresql import TIMESTAMP
 
 from app.config import ConfigClass
+from app.models import DBModel
 
-Base = declarative_base()
 
-
-class DatasetVersion(Base):
+class DatasetVersion(DBModel):
     __tablename__ = 'dataset_version'
     __table_args__ = {'schema': ConfigClass.RDS_SCHEMA_DEFAULT}
-    id = Column(Integer, unique=True, primary_key=True)
+    id = Column(Integer, primary_key=True)
     dataset_code = Column(String())
     dataset_geid = Column(String())
     version = Column(String())
     created_by = Column(String())
-    created_at = Column(DateTime(), default=datetime.utcnow)
+    created_at = Column(TIMESTAMP(timezone=True), default=datetime.utcnow, nullable=False)
     location = Column(String())
     notes = Column(String())
 

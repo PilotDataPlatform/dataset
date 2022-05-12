@@ -20,17 +20,13 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
-async def test_move_file_should_call_background_task_and_add_file_to_processing(client, httpx_mock, mock_minio):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
-    source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+async def test_move_file_should_call_background_task_and_add_file_to_processing(
+    client, httpx_mock, mock_minio, dataset
+):
+    dataset_geid = str(dataset.id)
     file_geid = '6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067-1648138467'
     folder_geid = 'cfa31c8c-ba29-4cdf-b6f2-feef05ec9c12-1648138461'
 
-    httpx_mock.add_response(
-        method='POST',
-        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[{'project_geid': source_project, 'code': 'datasetcode'}],
-    )
     httpx_mock.add_response(
         method='POST',
         url='http://neo4j_service/v1/neo4j/nodes/Folder/query',
@@ -40,7 +36,7 @@ async def test_move_file_should_call_background_task_and_add_file_to_processing(
                 'project_geid': folder_geid,
                 'folder_relative_path': '',
                 'name': 'test_folder',
-                'dataset_code': 'datasetcode',
+                'dataset_code': dataset.code,
             }
         ],
     )
@@ -135,15 +131,10 @@ async def test_move_file_should_call_background_task_and_add_file_to_processing(
     assert processing_file == [file_geid]
 
 
-async def test_move_wrong_file_ignored_when_relation_doesnt_exist(client, httpx_mock):
-    source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+async def test_move_wrong_file_ignored_when_relation_doesnt_exist(client, httpx_mock, dataset):
+    dataset_geid = str(dataset.id)
     file_geid = 'random_geid'
-    httpx_mock.add_response(
-        method='POST',
-        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[{'project_geid': source_project}],
-    )
+
     httpx_mock.add_response(
         method='GET',
         url=f'http://neo4j_service/v1/neo4j/nodes/geid/{file_geid}',

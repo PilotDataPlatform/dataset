@@ -14,20 +14,16 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import json
+from uuid import uuid4
 
 import pytest
 
 pytestmark = pytest.mark.asyncio
 
 
-async def test_import_files_from_source_list_should_return_200(client, httpx_mock):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
-    source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
-    httpx_mock.add_response(
-        method='POST',
-        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[{'project_geid': source_project}],
-    )
+async def test_import_files_from_source_list_should_return_200(client, httpx_mock, dataset):
+    dataset_geid = str(dataset.id)
+    source_project = str(dataset.project_id)
     httpx_mock.add_response(
         method='GET',
         url='http://neo4j_service/v1/neo4j/nodes/geid/b1064aa6-edbe-4eb6-b560-a8552f2f6162-1626719078',
@@ -57,7 +53,7 @@ async def test_import_files_from_source_list_should_return_200(client, httpx_moc
                 'label': 'own*',
                 'start_label': 'Container',
                 'end_label': ['Core', 'File'],
-                'start_params': {'global_entity_id': dataset_geid},
+                'start_params': {'global_entity_id': source_project},
                 'end_params': {'global_entity_id': 'geid_2'},
             }
         ).encode('utf-8'),
@@ -129,44 +125,31 @@ async def test_import_files_from_source_list_should_return_200(client, httpx_moc
     ]
 
 
-async def test_import_files_from_different_project_return_403(client, httpx_mock):
-    httpx_mock.add_response(
-        method='POST',
-        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[{'project_geid': 'project_1'}],
-    )
+async def test_import_files_from_different_project_return_403(client, dataset):
+    dataset_id = str(dataset.id)
     payload = {
         'source_list': [],
         'operator': 'admin',
         'project_geid': 'project_2',
     }
-    res = await client.put('/v1/dataset/1234/files', json=payload)
+    res = await client.put(f'/v1/dataset/{dataset_id}/files', json=payload)
     assert res.status_code == 403
 
 
-async def test_import_files_from_non_existing_project_return_404(client, httpx_mock):
-    httpx_mock.add_response(
-        method='POST',
-        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json={},
-    )
+async def test_import_files_from_non_existing_project_return_404(client, test_db):
+    dataset_id = str(uuid4())
     payload = {
         'source_list': [],
         'operator': 'admin',
         'project_geid': 'NOT_EXIST_Project',
     }
-    res = await client.put('/v1/dataset/%s/files' % ('NOT_EXIST_Dataset'), json=payload)
+    res = await client.put(f'/v1/dataset/{dataset_id}/files', json=payload)
     assert res.status_code == 404
 
 
-async def test_05_test_import_duplicate(client, httpx_mock):
-    dataset_geid = '882f4d3f-8466-4961-ba3c-38a1c272e548-1646759169'
-    source_project = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
-    httpx_mock.add_response(
-        method='POST',
-        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[{'project_geid': source_project}],
-    )
+async def test_05_test_import_duplicate(client, httpx_mock, dataset):
+    dataset_geid = str(dataset.id)
+    source_project = str(dataset.project_id)
     httpx_mock.add_response(
         method='GET',
         url='http://neo4j_service/v1/neo4j/nodes/geid/b1064aa6-edbe-4eb6-b560-a8552f2f6162-1626719078',

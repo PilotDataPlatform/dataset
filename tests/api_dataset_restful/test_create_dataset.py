@@ -15,17 +15,13 @@
 
 import pytest
 
+from app.models.dataset import Dataset
+
 pytestmark = pytest.mark.asyncio
 
 
 @pytest.mark.parametrize('code', [('ot'), ('ascbdascbdascbdascbdascbdascbda12'), ('ps!@#'), (' ')])
-async def test_create_dataset_invalid_code_should_return_400(client, httpx_mock, code):
-    httpx_mock.add_response(
-        method='POST',
-        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[],
-    )
-
+async def test_create_dataset_invalid_code_should_return_400(client, code, test_db):
     payload = {
         'username': 'amyguindoc14',
         'title': '123',
@@ -39,17 +35,7 @@ async def test_create_dataset_invalid_code_should_return_400(client, httpx_mock,
     assert res.json()['error_msg'] == 'Invalid code'
 
 
-async def test_create_dataset_should_return_200(client, httpx_mock, test_db, schema_essential_template, mock_minio):
-    httpx_mock.add_response(
-        method='POST',
-        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[],
-    )
-    httpx_mock.add_response(
-        method='POST',
-        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset',
-        json=[{'global_entity_id': 'new_global_entity_id'}],
-    )
+async def test_create_dataset_should_return_200(client, httpx_mock, db_session, schema_essential_template, mock_minio):
     httpx_mock.add_response(
         method='POST',
         url='http://cataloguing_service/v1/entity',
@@ -71,11 +57,13 @@ async def test_create_dataset_should_return_200(client, httpx_mock, test_db, sch
     }
     res = await client.post('/v1/dataset', json=payload)
     assert res.status_code == 200
+    created_dataset = db_session.query(Dataset).one()
     assert res.json() == {
         'code': 200,
         'error_msg': '',
         'num_of_pages': 1,
         'page': 0,
-        'result': {'global_entity_id': 'new_global_entity_id'},
+        'result': {**created_dataset.to_dict()},
         'total': 1,
     }
+    db_session.delete(created_dataset)

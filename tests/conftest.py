@@ -16,9 +16,13 @@
 import asyncio
 from io import BytesIO
 from unittest import mock
+from uuid import uuid4
 
 import pytest
 import pytest_asyncio
+from alembic.command import downgrade
+from alembic.command import upgrade
+from alembic.config import Config
 from async_asgi_testclient import TestClient
 from httpx import Response
 from redis import StrictRedis
@@ -61,33 +65,40 @@ environ['REDIS_PASSWORD'] = ''
 
 environ['ROOT_PATH'] = './tests/'
 
-environ['RDS_SCHEMA_DEFAULT'] = 'INDOC_TEST'
-environ['RDS_DB_URI'] = 'postgresql://postgres:postgres@localhost:5432/INDOC_TEST'
+environ['POSTGRES_DB'] = 'dataset'
+
+environ['OPSDB_UTILITY_HOST'] = 'localhost'
+environ['OPSDB_UTILITY_PORT'] = '5432'
+environ['OPSDB_UTILITY_USERNAME'] = 'postgres'
+environ['OPSDB_UTILITY_PASSWORD'] = 'postgres'
 
 
 @pytest_asyncio.fixture(scope='session')
 def db_postgres():
-    with PostgresContainer('postgres:14.1') as postgres:
-        yield postgres.get_connection_url()
+    with PostgresContainer('postgres:14.1', dbname=environ['POSTGRES_DB']) as postgres:
+        environ['RDS_DB_URI'] = postgres.get_connection_url()
+        yield environ['RDS_DB_URI']
+
+
+@pytest.fixture(autouse=True)
+def set_settings(monkeypatch, db_postgres):
+    from app.config import ConfigClass
+
+    monkeypatch.setattr(ConfigClass, 'OPS_DB_URI', db_postgres)
 
 
 @pytest_asyncio.fixture()
 def create_db(db_postgres):
-    from app.models.bids_sql import Base as BidsBase
-    from app.models.schema_sql import Base as SchemaBase
-    from app.models.version_sql import Base as VersionBase
-
-    db_schema = environ.get('RDS_SCHEMA_DEFAULT')
+    # from app.models import DBModel
     engine = create_engine(db_postgres, echo=True)
-    if not engine.dialect.has_schema(engine, db_schema):
-        engine.execute(schema.CreateSchema(db_schema))
-    SchemaBase.metadata.create_all(bind=engine)
-    VersionBase.metadata.create_all(bind=engine)
-    BidsBase.metadata.create_all(bind=engine)
+    if not engine.dialect.has_schema(engine, environ['POSTGRES_DB']):
+        engine.execute(schema.CreateSchema(environ['POSTGRES_DB']))
+    config = Config('./alembic.ini')
+    upgrade(config, 'head')
+    # DBModel.metadata.create_all(bind=engine)
     yield engine
-    SchemaBase.metadata.drop_all(bind=engine)
-    VersionBase.metadata.drop_all(bind=engine)
-    BidsBase.metadata.drop_all(bind=engine)
+    # DBModel.metadata.drop_all(bind=engine)
+    downgrade(config, 'base')
 
 
 @pytest_asyncio.fixture()
@@ -108,11 +119,9 @@ def event_loop(request):
 
 
 @pytest.fixture
-def app(db_postgres):
-    from app.config import ConfigClass
+def app():
     from app.main import create_app
 
-    ConfigClass.OPS_DB_URI = db_postgres
     app = create_app()
     yield app
 
@@ -148,19 +157,18 @@ async def clean_up_redis():
 
 @pytest.fixture()
 def test_db(db_session):
-    yield
+    yield db_session
 
 
 @pytest.fixture
-def version(db_session):
-    from app.models.version_sql import DatasetVersion
+def version(db_session, dataset):
+    from app.models.version import DatasetVersion
 
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
     new_version = DatasetVersion(
-        dataset_code='dataset_code',
-        dataset_geid=dataset_geid,
+        dataset_code=dataset.code,
+        dataset_geid=dataset.id,
         version='2.0',
-        created_by='admin',
+        created_by=dataset.creator,
         location='minio_location',
         notes='test',
     )
@@ -168,4 +176,33 @@ def version(db_session):
     db_session.commit()
     yield new_version.to_dict()
     db_session.delete(new_version)
+    db_session.commit()
+
+
+@pytest.fixture
+def dataset(db_session):
+    from app.models.dataset import Dataset
+
+    new_dataset = Dataset(
+        **{
+            'source': '',
+            'title': 'fake_dataset',
+            'authors': 'test',
+            'code': 'fakedataset',
+            'type': 'general',
+            'modality': ['any', 'many'],
+            'collection_method': ['some'],
+            'license': 'mit',
+            'tags': ['dataset', 'test'],
+            'description': 'fake dataset created by test',
+            'size': 0,
+            'total_files': 0,
+            'creator': 'pytest',
+            'project_id': str(uuid4()),
+        }
+    )
+    db_session.add(new_dataset)
+    db_session.commit()
+    yield new_dataset
+    db_session.delete(new_dataset)
     db_session.commit()

@@ -15,11 +15,13 @@
 
 import pytest
 
+from app.config import ConfigClass
+
 pytestmark = pytest.mark.asyncio
 
 
-async def test_schema_without_template_should_return_404(client, httpx_mock):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+async def test_schema_without_template_should_return_404(client):
+    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3'
     payload = {
         'name': 'unittestdataset2',
         'dataset_geid': dataset_geid,
@@ -37,8 +39,8 @@ async def test_schema_without_template_should_return_404(client, httpx_mock):
 
 
 async def test_schema_should_return_200(client, httpx_mock, schema_template):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
-    schema_template_geid = 'ef4eb37d-6d81-46a7-a9d9-db71bf44edc7'
+    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3'
+    schema_template_geid = schema_template['geid']
     httpx_mock.add_response(
         method='POST',
         url='http://queue_service/v1/broker/pub',
@@ -62,8 +64,8 @@ async def test_schema_should_return_200(client, httpx_mock, schema_template):
 
 
 async def test_create_duplicate_schema_return_409(client, httpx_mock, schema):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
-    schema_template_geid = 'ef4eb37d-6d81-46a7-a9d9-db71bf44edc7'
+    dataset_geid = schema['dataset_geid']
+    schema_template_geid = schema['tpl_geid']
     payload = {
         'name': 'unittestdataset',
         'dataset_geid': dataset_geid,
@@ -81,7 +83,7 @@ async def test_create_duplicate_schema_return_409(client, httpx_mock, schema):
 
 
 async def test_get_schema_should_return_200(client, httpx_mock, schema):
-    schema_geid = 'ef4eb37d-6d81-46a7-a9d9-db71bf44edc7'
+    schema_geid = schema['geid']
     res = await client.get(f'/v1/schema/{schema_geid}')
     assert res.status_code == 200
     assert res.json()['result'] == schema
@@ -95,7 +97,7 @@ async def test_get_schema_not_found_should_return_404(client, httpx_mock):
 
 
 async def test_update_schema_should_reflect_change_and_return_200(client, httpx_mock, schema):
-    schema_geid = 'ef4eb37d-6d81-46a7-a9d9-db71bf44edc7'
+    schema_geid = schema['geid']
     payload = {
         'username': 'admin',
         'content': {'test': 'testing'},
@@ -106,9 +108,9 @@ async def test_update_schema_should_reflect_change_and_return_200(client, httpx_
     assert res.json()['result']['content'] == {'test': 'testing'}
 
 
-async def test_delete_schema_should_return_200(client, httpx_mock, schema):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
-    schema_geid = 'ef4eb37d-6d81-46a7-a9d9-db71bf44edc7'
+async def test_delete_schema_should_return_200(client, schema):
+    dataset_geid = schema['dataset_geid']
+    schema_geid = schema['geid']
     payload = {
         'username': 'admin',
         'dataset_geid': dataset_geid,
@@ -119,14 +121,11 @@ async def test_delete_schema_should_return_200(client, httpx_mock, schema):
     assert res.json()['result'] == 'success'
 
 
-async def test_list_schema_should_bring_essential_schema_first(client, httpx_mock, essential_schema, schema):
-    from app.config import ConfigClass
-
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+async def test_list_schema_should_bring_essential_schema_first(client, essential_schema, schema):
 
     # Get created essential schema
     payload = {
-        'dataset_geid': dataset_geid,
+        'dataset_geid': schema['dataset_geid'],
         'name': ConfigClass.ESSENTIALS_NAME,
     }
     res = await client.post('/v1/schema/list', json=payload)

@@ -21,19 +21,10 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
-async def test_rename_file_should_add_file_to_processing_and_return_200(client, httpx_mock):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+async def test_rename_file_should_add_file_to_processing_and_return_200(client, httpx_mock, dataset):
+    dataset_geid = str(dataset.id)
     file_geid = '6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067-1648138467'
 
-    httpx_mock.add_response(
-        method='POST',
-        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[
-            {
-                'global_entity_id': dataset_geid,
-            }
-        ],
-    )
     httpx_mock.add_response(
         method='GET',
         url=f'http://neo4j_service/v1/neo4j/nodes/geid/{file_geid}',
@@ -133,19 +124,10 @@ async def test_rename_file_should_add_file_to_processing_and_return_200(client, 
     assert res.status_code == 200
 
 
-async def test_rename_file_should_add_file_to_ignoring_when_file_wrong_and_return_200(client, httpx_mock):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+async def test_rename_file_should_add_file_to_ignoring_when_file_wrong_and_return_200(client, httpx_mock, dataset):
+    dataset_geid = str(dataset.id)
     file_geid = '6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067-1648138467'
 
-    httpx_mock.add_response(
-        method='POST',
-        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[
-            {
-                'global_entity_id': dataset_geid,
-            }
-        ],
-    )
     httpx_mock.add_response(
         method='GET',
         url=f'http://neo4j_service/v1/neo4j/nodes/geid/{file_geid}',
@@ -212,19 +194,10 @@ async def test_rename_file_should_add_file_to_ignoring_when_file_wrong_and_retur
     assert res.status_code == 200
 
 
-async def test_rename_file_should_add_file_to_ignoring_when_file_duplicated_and_return_200(client, httpx_mock):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
+async def test_rename_file_should_add_file_to_ignoring_when_file_duplicated_and_return_200(client, httpx_mock, dataset):
+    dataset_geid = str(dataset.id)
     file_geid = '6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067-1648138467'
 
-    httpx_mock.add_response(
-        method='POST',
-        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[
-            {
-                'global_entity_id': dataset_geid,
-            }
-        ],
-    )
     httpx_mock.add_response(
         method='GET',
         url=f'http://neo4j_service/v1/neo4j/nodes/geid/{file_geid}',

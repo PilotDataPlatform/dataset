@@ -18,61 +18,82 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
-@pytest.mark.parametrize(
-    'response,status_code,error_msg,expected_status_code,expected_result',
-    [
-        ({}, 200, '', 200, {}),
-        (None, 200, 'Not Found, invalid geid', 404, None),
-        (None, 500, '[]', 500, []),
-    ],
-)
-async def test_get_dataset_should_should_respect_response(
-    response, status_code, error_msg, expected_status_code, expected_result, client, httpx_mock
-):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3-1620404058'
-    httpx_mock.add_response(
-        method='POST',
-        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[] if response is None else [response],
-        status_code=status_code,
-    )
+async def test_get_dataset_when_dataset_not_found_should_return_404(client, test_db):
+    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3'
     res = await client.get(f'/v1/dataset/{dataset_geid}')
-    assert res.status_code == expected_status_code
+    assert res.status_code == 404
     assert res.json() == {
-        'code': expected_status_code,
-        'error_msg': error_msg,
+        'code': 404,
+        'error_msg': 'Not Found, invalid geid',
         'num_of_pages': 1,
         'page': 0,
-        'result': expected_result,
+        'result': {},
         'total': 1,
     }
 
 
-@pytest.mark.parametrize(
-    'response,status_code,error_msg,expected_status_code,expected_result',
-    [
-        ({}, 200, '', 200, {}),
-        (None, 200, 'Not Found, invalid dataset code', 404, None),
-        (None, 500, '[]', 500, []),
-    ],
-)
-async def test_get_dataset_by_code_should_respect_response(
-    response, status_code, error_msg, expected_status_code, expected_result, client, httpx_mock
+async def test_get_dataset_when_dataset_found_should_return_200(client, test_db, dataset):
+    dataset_id = str(dataset.id)
+    res = await client.get(f'/v1/dataset/{dataset_id}')
+    assert res.status_code == 200
+    assert res.json() == {
+        'code': 200,
+        'error_msg': '',
+        'num_of_pages': 1,
+        'page': 0,
+        'result': {**dataset.to_dict()},
+        'total': 1,
+    }
+
+
+async def test_get_dataset_when_exception_should_return_500(
+    client,
 ):
-    code = 'any'
-    httpx_mock.add_response(
-        method='POST',
-        url='http://NEO4J_SERVICE/v1/neo4j/nodes/Dataset/query',
-        json=[] if response is None else [response],
-        status_code=status_code,
-    )
-    res = await client.get(f'/v1/dataset-peek/{code}')
-    assert res.status_code == expected_status_code
+    res = await client.get('/v1/dataset/any')
+    assert res.status_code == 500
     assert res.json() == {
-        'code': expected_status_code,
-        'error_msg': error_msg,
+        'code': 500,
+        'error_msg': 'badly formed hexadecimal UUID string',
         'num_of_pages': 1,
         'page': 0,
-        'result': expected_result,
+        'result': {},
         'total': 1,
     }
+
+
+async def test_get_dataset_by_code_when_dataset_not_found_should_return_404(client, test_db):
+    res = await client.get('/v1/dataset-peek/code')
+    assert res.status_code == 404
+    assert res.json() == {
+        'code': 404,
+        'error_msg': 'Not Found, invalid dataset code',
+        'num_of_pages': 1,
+        'page': 0,
+        'result': {},
+        'total': 1,
+    }
+
+
+async def test_get_dataset_by_code_when_dataset_found_should_return_200(client, test_db, dataset):
+    dataset_code = dataset.code
+    res = await client.get(f'/v1/dataset-peek/{dataset_code}')
+    assert res.status_code == 200
+    assert res.json() == {
+        'code': 200,
+        'error_msg': '',
+        'num_of_pages': 1,
+        'page': 0,
+        'result': {**dataset.to_dict()},
+        'total': 1,
+    }
+
+
+async def test_get_dataset_by_code_when_exception_should_return_500(
+    client,
+):
+    res = await client.get('/v1/dataset-peek/any')
+    assert res.status_code == 500
+    json_resp = res.json()
+    assert json_resp['code'] == 500
+    assert json_resp['error_msg']
+    assert json_resp['result'] == {}
