@@ -26,7 +26,7 @@ class GetDBEngine:
     def __init__(self) -> None:
         self.instance = None
 
-    async def __call__(self):
+    def __call__(self):
         """Return an instance of AsyncEngine class."""
 
         if not self.instance:

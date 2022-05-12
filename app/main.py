@@ -84,4 +84,4 @@ def instrument_app(app) -> None:
 
     FastAPIInstrumentor.instrument_app(app)
     HTTPXClientInstrumentor().instrument()
-    SQLAlchemyInstrumentor().instrument(engine=db_engine, service=SRV_NAMESPACE)
+    SQLAlchemyInstrumentor().instrument(engine=db_engine(), service=SRV_NAMESPACE)
