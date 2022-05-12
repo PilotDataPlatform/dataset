@@ -33,8 +33,5 @@ RUN poetry config virtualenvs.create false
 RUN poetry install --no-root --no-interaction
 COPY . ./
 
-ENV ALEMBIC_CONFIG=alembic.ini
-RUN poetry run alembic upgrade head
-
 RUN chmod +x gunicorn_starter.sh
 CMD ["./gunicorn_starter.sh"]
