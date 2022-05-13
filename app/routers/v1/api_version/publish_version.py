@@ -20,9 +20,9 @@ import time
 from datetime import datetime
 
 import httpx
+from aioredis import StrictRedis
 from common import GEIDClient
 from common import LoggerFactory
-from redis import Redis
 
 from app.commons.service_connection.minio_client import Minio_Client
 from app.config import ConfigClass
@@ -52,14 +52,13 @@ class PublishVersion(object):
         self.tmp_folder = tmp_base + str(time.time()) + '/'
         self.zip_path = tmp_base + dataset_node['code'] + '_' + str(datetime.now())
         self.mc = Minio_Client()
-        self.redis_client = Redis(
+        self.redis_client = StrictRedis(
             host=ConfigClass.REDIS_HOST,
             port=ConfigClass.REDIS_PORT,
             password=ConfigClass.REDIS_PASSWORD,
             db=ConfigClass.REDIS_DB,
         )
         self.status_id = status_id
-        self.update_status('inprogress')
         self.version = version
 
         self.geid_client = GEIDClient()
@@ -97,11 +96,11 @@ class PublishVersion(object):
 
             logger.info(f'Successfully published {self.dataset_geid} version {self.version}')
             await self.update_activity_log()
-            self.update_status('success')
+            await self.update_status('success')
         except Exception as e:
             error_msg = f'Error publishing {self.dataset_geid}: {str(e)}'
             logger.error(error_msg)
-            self.update_status('failed', error_msg=error_msg)
+            await self.update_status('failed', error_msg=error_msg)
         finally:
             # unlock the nodes if we got blocked
             for resource_key, operation in locked_node:
@@ -133,7 +132,7 @@ class PublishVersion(object):
             raise Exception(error_msg)
         return res
 
-    def update_status(self, status, error_msg=''):
+    async def update_status(self, status, error_msg=''):
         """Updates job status in redis."""
         redis_status = json.dumps(
             {
@@ -141,7 +140,7 @@ class PublishVersion(object):
                 'error_msg': error_msg,
             }
         )
-        self.redis_client.set(self.status_id, redis_status, ex=1 * 60 * 60)
+        await self.redis_client.set(self.status_id, redis_status, ex=1 * 60 * 60)
 
     async def get_dataset_files_recursive(self, geid, start_label='Dataset'):
         """get all files from dataset."""

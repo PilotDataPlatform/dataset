@@ -18,12 +18,12 @@ import math
 import re
 import time
 
+from aioredis import StrictRedis
 from common import LoggerFactory
 from fastapi import APIRouter
 from fastapi import BackgroundTasks
 from fastapi import Depends
 from fastapi_utils import cbv
-from redis import Redis
 
 from app.config import ConfigClass
 from app.core.db import get_db_session
@@ -68,14 +68,14 @@ class VersionAPI:
             return api_response.json_response()
 
         # Check if publish is already running
-        self.redis_client = Redis(
+        self.redis_client = StrictRedis(
             host=ConfigClass.REDIS_HOST,
             port=ConfigClass.REDIS_PORT,
             password=ConfigClass.REDIS_PASSWORD,
             db=ConfigClass.REDIS_DB,
         )
         # TODO why here we block the double publish???
-        status = self.redis_client.get(dataset_geid)
+        status = await self.redis_client.get(dataset_geid)
         if status:
             status = json.loads(status)['status']
             if status == 'inprogress':
@@ -112,6 +112,7 @@ class VersionAPI:
             status_id=dataset_geid,
             version=data.version,
         )
+        await client.update_status('inprogress')
         background_tasks.add_task(client.publish, db)
 
         api_response.result = {'status_id': dataset_geid}
@@ -129,13 +130,13 @@ class VersionAPI:
         dataset = srv_dataset.get_bygeid(db, dataset_geid)
         if not dataset:
             raise APIException(status_code=404, error_msg='Dataset not found')
-        self.redis_client = Redis(
+        self.redis_client = StrictRedis(
             host=ConfigClass.REDIS_HOST,
             port=ConfigClass.REDIS_PORT,
             password=ConfigClass.REDIS_PASSWORD,
             db=ConfigClass.REDIS_DB,
         )
-        status = self.redis_client.get(status_id)
+        status = await self.redis_client.get(status_id)
         if not status:
             raise APIException(status_code=404, error_msg='Status not found')
         api_response.result = json.loads(status)

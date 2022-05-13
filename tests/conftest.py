@@ -20,12 +20,12 @@ from uuid import uuid4
 
 import pytest
 import pytest_asyncio
+from aioredis import StrictRedis
 from alembic.command import downgrade
 from alembic.command import upgrade
 from alembic.config import Config
 from async_asgi_testclient import TestClient
 from httpx import Response
-from redis import StrictRedis
 from sqlalchemy import create_engine
 from sqlalchemy import schema
 from sqlalchemy.orm import sessionmaker
