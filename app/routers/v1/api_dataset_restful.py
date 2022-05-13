@@ -163,7 +163,7 @@ class DatasetRestful:
             res.code = EAPIResponseCode.bad_request
             res.result = {'result': 'dataset not exist'}
             return res.json_response()
-        nodes = get_related_nodes(dataset.id)
+        nodes = await get_related_nodes(dataset.id)
 
         files_info = []
         TEMP_FOLDER = 'temp/'
@@ -173,7 +173,7 @@ class DatasetRestful:
                 files_info.append({'file_path': TEMP_FOLDER + dataset.code + file_path, 'file_size': node['file_size']})
 
             if 'Folder' in node['labels']:
-                files = get_files_recursive(node['global_entity_id'])
+                files = await get_files_recursive(node['global_entity_id'])
                 for file in files:
                     file_path = get_node_relative_path(dataset.code, file['location'])
                     files_info.append(
@@ -246,8 +246,10 @@ class DatasetRestful:
         }
         url = ConfigClass.SEND_MESSAGE_URL
         self.__logger.info('Sending Message To Queue: ' + str(payload))
-        with httpx.Client() as client:
-            msg_res = client.post(url=url, json=payload, headers={'Content-type': 'application/json; charset=utf-8'})
+        async with httpx.AsyncClient() as client:
+            msg_res = await client.post(
+                url=url, json=payload, headers={'Content-type': 'application/json; charset=utf-8'}
+            )
         if msg_res.status_code != 200:
             res.code = EAPIResponseCode.internal_error
             res.result = {'result': msg_res.text}

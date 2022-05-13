@@ -52,7 +52,7 @@ class Preview:
         api_response = APIResponse()
 
         # Get neo4j file node
-        file_node = self.get_file_by_geid(file_geid)
+        file_node = await self.get_file_by_geid(file_geid)
         if not file_node:
             api_response.error_msg = 'File not found'
             api_response.code = EAPIResponseCode.not_found
@@ -79,7 +79,7 @@ class Preview:
         return api_response.json_response()
 
     @router.get('/v1/{file_geid}/preview/stream', tags=['preview'], summary='CSV/JSON/TSV File preview stream')
-    def stream(self, file_geid):
+    async def stream(self, file_geid):
         """Get a file preview."""
 
         logger.info('Get preview for: ' + str(file_geid))
@@ -91,7 +91,7 @@ class Preview:
             return api_response.to_dict, api_response.code
 
         # Get neo4j file node
-        file_node = self.get_file_by_geid(file_geid)
+        file_node = await self.get_file_by_geid(file_geid)
         if not file_node:
             api_response.set_error_msg('File not found')
             api_response.set_code(EAPIResponseCode.not_found)
@@ -135,12 +135,12 @@ class Preview:
         path = '/'.join(path[2:])
         return {'bucket': bucket, 'path': path}
 
-    def get_file_by_geid(self, file_geid):
+    async def get_file_by_geid(self, file_geid):
         payload = {
             'global_entity_id': file_geid,
         }
-        with httpx.Client() as client:
-            response = client.post(ConfigClass.NEO4J_SERVICE + 'nodes/File/query', json=payload)
+        async with httpx.AsyncClient() as client:
+            response = await client.post(ConfigClass.NEO4J_SERVICE + 'nodes/File/query', json=payload)
         if not response.json():
             return None
         return response.json()[0]

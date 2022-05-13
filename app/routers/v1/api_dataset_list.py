@@ -59,8 +59,8 @@ class DatasetList:
 
         query_payload = {**page_kwargs, 'query': {'creator': username, 'labels': ['Dataset']}}
         try:
-            with httpx.Client() as client:
-                response = client.post(ConfigClass.NEO4J_SERVICE_V2 + 'nodes/query', json=query_payload)
+            async with httpx.AsyncClient() as client:
+                response = await client.post(ConfigClass.NEO4J_SERVICE_V2 + 'nodes/query', json=query_payload)
             if response.status_code != 200:
                 error_msg = response.json()
                 res.code = EAPIResponseCode.internal_error
