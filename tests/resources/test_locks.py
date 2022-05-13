@@ -15,8 +15,8 @@
 
 import pytest
 
+# from app.resources.locks import recursive_lock
 from app.resources.locks import lock_resource
-from app.resources.locks import recursive_lock
 from app.resources.locks import unlock_resource
 
 pytestmark = pytest.mark.asyncio
@@ -40,43 +40,3 @@ async def test_lock_resource_should_raise_exception_when_lock_request_not_200(
     )
     with pytest.raises(Exception):
         await lock_function('fake_key', 'me')
-
-
-@pytest.mark.parametrize('archived', [(False), (True)])
-async def test_recursive_lock_file(archived):
-    nodes = [
-        {'archived': archived, 'name': 'node_name_1', 'uploder': 'me', 'global_entity_id': 'any_1', 'labels': ['File']}
-    ]
-    code = 'any_code'
-    root_path = './tests'
-    new_name = None
-    locked_node, err = recursive_lock(code, nodes, root_path, new_name)
-    assert not err
-    assert locked_node == []
-
-
-async def test_recursive_lock_folder(httpx_mock):
-    httpx_mock.add_response(
-        method='POST',
-        url='http://neo4j_service/v1/neo4j/relations/query',
-        json=[
-            {
-                'end_node': {
-                    'archived': False,
-                    'name': 'node_name_2',
-                    'uploder': 'me',
-                    'global_entity_id': 'any_2',
-                    'labels': ['File'],
-                }
-            }
-        ],
-    )
-    nodes = [
-        {'archived': False, 'name': 'node_name_1', 'uploder': 'me', 'global_entity_id': 'any_1', 'labels': ['Folder']}
-    ]
-    code = 'any_code'
-    root_path = './tests'
-    new_name = None
-    locked_node, err = recursive_lock(code, nodes, root_path, new_name)
-    assert not err
-    assert locked_node == []

@@ -57,7 +57,7 @@ class DatasetFolder:
         srv_dataset = SrvDatasetMgr()
 
         dataset = srv_dataset.get_bygeid(db, dataset_geid)
-        # dataset_node = get_node_by_geid(dataset_geid, label='Dataset')
+        # dataset_node  = await get_node_by_geid(dataset_geid, label='Dataset')
 
         # length 1-20, exclude invalid character, ensure start & end aren't a space
         folder_pattern = re.compile(r'^(?=.{1,20}$)([^\s\/:?*<>|”]{1})+([^\/:?*<>|”])+([^\s\/:?*<>|”]{1})$')
@@ -75,7 +75,7 @@ class DatasetFolder:
         if data.parent_folder_geid:
             # Folder is being added as a subfolder
             start_label = 'Folder'
-            folder_node = get_node_by_geid(data.parent_folder_geid, label='Folder')
+            folder_node = await get_node_by_geid(data.parent_folder_geid, label='Folder')
             if not folder_node:
                 logger.error(f'Folder not found: {data.parent_folder_geid}')
                 raise APIException(error_msg='Folder not found', status_code=EAPIResponseCode.not_found.value)
@@ -95,7 +95,7 @@ class DatasetFolder:
             parent_node_id = parent_node.get('global_entity_id')
             folder_level = parent_node.get('folder_level', -1) + 1
 
-        result = query_relation(
+        result = await query_relation(
             'own',
             start_label,
             'Folder',
@@ -119,13 +119,13 @@ class DatasetFolder:
             'display_path': folder_relative_path + '/' + data.folder_name,
             'archived': False,
         }
-        folder_node = create_node('Folder', payload)
+        folder_node = await create_node('Folder', payload)
 
         # Create relation between folder and parent
         relation_payload = {
             'start_id': parent_node_id,
             'end_id': folder_node['id'],
         }
-        result = create_relation('own', relation_payload)
+        result = await create_relation('own', relation_payload)
         api_response.result = folder_node
         return api_response.json_response()

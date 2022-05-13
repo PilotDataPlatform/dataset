@@ -13,8 +13,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from typing import Union
-
 import httpx
 from common import LoggerFactory
 
@@ -49,42 +47,6 @@ async def unlock_resource(resource_key: str, operation: str) -> dict:
         raise Exception('Error when unlock resource %s' % resource_key)
 
     return response.json()
-
-
-# TODO somehow do the factory here?
-def recursive_lock(code: str, nodes, root_path, new_name: str = None) -> Union[list, Exception]:
-    """this function seems not doing anything.
-
-    Because 'locked_node' is never set
-    """
-    locked_node, err = [], None
-
-    def recur_walker(currenct_nodes, current_root_path, new_name=None):
-        """recursively trace down the node tree and run the lock function."""
-        for ff_object in currenct_nodes:
-            # update here if the folder/file is archieved then skip
-            if ff_object.get('archived', False):
-                continue
-
-            # conner case here, we DONT lock the name folder
-            if ff_object.get('name') != ff_object.get('uploader'):
-                pass
-
-            # open the next recursive loop if it is folder
-            if 'Folder' in ff_object.get('labels'):
-                next_root = current_root_path + '/' + (new_name if new_name else ff_object.get('name'))
-                children_nodes = get_children_nodes(ff_object.get('global_entity_id', None))
-                recur_walker(children_nodes, next_root)
-
-        return
-
-    # start here
-    try:
-        recur_walker(nodes, root_path, new_name)
-    except Exception as e:
-        err = e
-
-    return locked_node, err
 
 
 # TODO the issue here is how to raise the lock conflict
@@ -259,7 +221,7 @@ async def recursive_lock_import(dataset_code, nodes, root_path):
             # open the next recursive loop if it is folder
             if 'Folder' in ff_object.get('labels'):
                 next_root = current_root_path + '/' + (new_name if new_name else ff_object.get('name'))
-                children_nodes = get_children_nodes(ff_object.get('global_entity_id', None))
+                children_nodes = await get_children_nodes(ff_object.get('global_entity_id', None))
                 await recur_walker(children_nodes, next_root)
 
         return
@@ -308,7 +270,7 @@ async def recursive_lock_delete(nodes, new_name=None):
             # open the next recursive loop if it is folder
             if 'Folder' in ff_object.get('labels'):
                 # next_root = current_root_path+"/"+(new_name if new_name else ff_object.get("name"))
-                children_nodes = get_children_nodes(ff_object.get('global_entity_id', None))
+                children_nodes = await get_children_nodes(ff_object.get('global_entity_id', None))
                 await recur_walker(children_nodes)
 
         return
@@ -364,7 +326,7 @@ async def recursive_lock_move_rename(nodes, root_path, new_name=None):
             # open the next recursive loop if it is folder
             if 'Folder' in ff_object.get('labels'):
                 next_root = current_root_path + '/' + (new_name if new_name else ff_object.get('name'))
-                children_nodes = get_children_nodes(ff_object.get('global_entity_id', None))
+                children_nodes = await get_children_nodes(ff_object.get('global_entity_id', None))
                 await recur_walker(children_nodes, next_root)
 
         return
@@ -413,7 +375,7 @@ async def recursive_lock_publish(nodes):
             # open the next recursive loop if it is folder
             if 'Folder' in ff_object.get('labels'):
                 # next_root = current_root_path+"/"+(new_name if new_name else ff_object.get("name"))
-                children_nodes = get_children_nodes(ff_object.get('global_entity_id', None))
+                children_nodes = await get_children_nodes(ff_object.get('global_entity_id', None))
                 await recur_walker(children_nodes)
 
         return

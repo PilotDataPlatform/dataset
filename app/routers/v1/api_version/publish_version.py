@@ -70,7 +70,7 @@ class PublishVersion(object):
             # get_dataset_files_recursive both get the nodes under the dataset
 
             # lock file here
-            level1_nodes = get_children_nodes(self.dataset_geid, start_label='Dataset')
+            level1_nodes = await get_children_nodes(self.dataset_geid, start_label='Dataset')
             locked_node, err = await recursive_lock_publish(level1_nodes)
             if err:
                 raise err

@@ -109,7 +109,7 @@ class APIImportData:
 
         # check if file is from source project or exist
         # and check if file has been under the dataset
-        import_list, wrong_file = self.validate_files_folders(import_list, source_project, 'Container')
+        import_list, wrong_file = await self.validate_files_folders(import_list, source_project, 'Container')
         duplicate, import_list = self.remove_duplicate_file(import_list, dataset_geid, 'Dataset')
         import_list, not_core_file = self.check_core_file(import_list)
 
@@ -166,7 +166,7 @@ class APIImportData:
 
         # validate the file IS from the dataset
         delete_list = request_payload.source_list
-        delete_list, wrong_file = self.validate_files_folders(delete_list, dataset_geid, 'Dataset')
+        delete_list, wrong_file = await self.validate_files_folders(delete_list, dataset_geid, 'Dataset')
         # fomutate the result
         api_response.result = {'processing': delete_list, 'ignored': wrong_file}
 
@@ -294,7 +294,7 @@ class APIImportData:
             target_minio_path = ''
             root_label = 'Dataset'
         else:
-            target_folder = get_node_by_geid(request_payload.target_geid, 'Folder')
+            target_folder = await get_node_by_geid(request_payload.target_geid, 'Folder')
             if len(target_folder) == 0:
                 api_response.code = EAPIResponseCode.not_found
                 api_response.error_msg = 'The target folder does not exist'
@@ -313,7 +313,7 @@ class APIImportData:
 
         # validate the file if it is under the dataset
         move_list = request_payload.source_list
-        move_list, wrong_file = self.validate_files_folders(move_list, dataset_geid, 'Dataset')
+        move_list, wrong_file = await self.validate_files_folders(move_list, dataset_geid, 'Dataset')
         duplicate, move_list = self.remove_duplicate_file(move_list, request_payload.target_geid, root_label)
         # fomutate the result
         api_response.result = {'processing': move_list, 'ignored': wrong_file + duplicate}
@@ -352,7 +352,6 @@ class APIImportData:
         refresh_token: Optional[str] = Header(None),
         db=Depends(get_db_session),
     ):
-
         api_response = APIResponse()
         session_id = sessionId
         new_name = request_payload.new_name
@@ -371,9 +370,9 @@ class APIImportData:
 
         # validate the file IS from the dataset
         # rename to same name will be blocked
-        rename_list, wrong_file = self.validate_files_folders([target_file], dataset_geid, 'Dataset')
+        rename_list, wrong_file = await self.validate_files_folders([target_file], dataset_geid, 'Dataset')
         # check if there is a file under the folder
-        parent_node = get_parent_node(get_node_by_geid(target_file))
+        parent_node = await get_parent_node(await get_node_by_geid(target_file))
         pgeid = parent_node.get('global_entity_id')
         root_label = parent_node.get('labels')[0]
         duplicate, _ = self.remove_duplicate_file([{'name': new_name}], pgeid, root_label)
@@ -413,7 +412,7 @@ class APIImportData:
     # function will return two list:
     # - passed_file is the validated file
     # - not_passed_file is not under the target node
-    def validate_files_folders(self, ff_list, root_geid, root_label):
+    async def validate_files_folders(self, ff_list, root_geid, root_label):
 
         passed_file = []
         not_passed_file = []
@@ -424,7 +423,7 @@ class APIImportData:
         array_index = 0
         for ff in ff_list:
             # fetch the current node
-            current_node = get_node_by_geid(ff)
+            current_node = await get_node_by_geid(ff)
             # if not exist skip the node
             if not current_node:
                 not_passed_file.append({'global_entity_id': ff, 'feedback': 'not exists'})
@@ -563,7 +562,6 @@ class APIImportData:
 
         return res
 
-    #
     def create_job_status(self, session_id, source_file, action, status, dataset, operator, task_id, payload=None):
         if not payload:
             payload = {}
@@ -642,7 +640,7 @@ class APIImportData:
 
     ###########################################################################################
 
-    def recursive_copy(
+    async def recursive_copy(
         self,
         currenct_nodes,
         dataset,
@@ -697,7 +695,7 @@ class APIImportData:
                     parent_node_id = parent_node.get('global_entity_id')
 
                 # create the copied node
-                new_node, _ = create_file_node(
+                new_node, _ = await create_file_node(
                     dataset.code,
                     ff_object,
                     oper,
@@ -716,7 +714,7 @@ class APIImportData:
             elif 'Folder' in ff_object.get('labels'):
 
                 # first create the folder
-                new_node, _ = create_folder_node(
+                new_node, _ = await create_folder_node(
                     dataset.code, ff_object, oper, parent_node, current_root_path, new_name
                 )
                 new_lv1_nodes.append(new_node)
@@ -724,8 +722,8 @@ class APIImportData:
                 # seconds recursively go throught the folder/subfolder by same proccess
                 # also if we want the folder to be renamed if new_name is not None
                 next_root = current_root_path + '/' + (new_name if new_name else ff_object.get('name'))
-                children_nodes = get_children_nodes(ff_geid)
-                num_of_child_files, num_of_child_size, _ = self.recursive_copy(
+                children_nodes = await get_children_nodes(ff_geid)
+                num_of_child_files, num_of_child_size, _ = await self.recursive_copy(
                     children_nodes, dataset, oper, next_root, new_node, access_token, refresh_token
                 )
 
@@ -752,7 +750,7 @@ class APIImportData:
 
         return num_of_files, total_file_size, new_lv1_nodes
 
-    def recursive_delete(
+    async def recursive_delete(
         self, currenct_nodes, dataset, oper, parent_node, access_token, refresh_token, job_tracker=None
     ):
 
@@ -796,8 +794,8 @@ class APIImportData:
 
                 # for file we can just disconnect and delete
                 # TODO MOVE OUTSIDE <=============================================================
-                delete_relation_bw_nodes(parent_node_id, ff_object.get('id'))
-                delete_node(ff_object, access_token, refresh_token)
+                await delete_relation_bw_nodes(parent_node_id, ff_object.get('id'))
+                await delete_node(ff_object, access_token, refresh_token)
 
                 # update for number and size
                 num_of_files += 1
@@ -808,14 +806,14 @@ class APIImportData:
 
                 # for folder, we have to disconnect all child node then
                 # disconnect it from parent
-                children_nodes = get_children_nodes(ff_object.get('global_entity_id'))
-                num_of_child_files, num_of_child_size = self.recursive_delete(
+                children_nodes = await get_children_nodes(ff_object.get('global_entity_id'))
+                num_of_child_files, num_of_child_size = await self.recursive_delete(
                     children_nodes, dataset, oper, ff_object, access_token, refresh_token
                 )
 
                 # after the child has been deleted then we disconnect current node
-                delete_relation_bw_nodes(parent_node_id, ff_object.get('id'))
-                delete_node(ff_object, access_token, refresh_token)
+                await delete_relation_bw_nodes(parent_node_id, ff_object.get('id'))
+                await delete_node(ff_object, access_token, refresh_token)
 
                 # append the log together
                 num_of_files += num_of_child_files
@@ -855,7 +853,7 @@ class APIImportData:
                 raise err
 
             # recursively go throught the folder level by level
-            num_of_files, total_file_size, _ = self.recursive_copy(
+            num_of_files, total_file_size, _ = await self.recursive_copy(
                 import_list, dataset_obj, oper, root_path, dataset_obj, access_token, refresh_token, job_tracker
             )
 
@@ -870,7 +868,7 @@ class APIImportData:
 
             # also update the log
             dataset_geid = str(dataset_obj.id)
-            source_project = get_node_by_geid(source_project_geid)
+            source_project = await get_node_by_geid(source_project_geid)
             import_logs = [source_project.get('code') + '/' + x.get('display_path') for x in import_list]
             project = source_project.get('name', '')
             project_code = source_project.get('code', '')
@@ -931,12 +929,12 @@ class APIImportData:
 
             # but note here the job tracker is not pass into the function
             # we only let the delete to state the finish
-            _, _, _ = self.recursive_copy(
+            _, _, _ = await self.recursive_copy(
                 move_list, dataset_obj, oper, parent_path, parent_node, access_token, refresh_token
             )
 
             # delete the old one
-            self.recursive_delete(
+            await self.recursive_delete(
                 move_list, dataset_obj, oper, parent_node, access_token, refresh_token, job_tracker=job_tracker
             )
 
@@ -1000,7 +998,7 @@ class APIImportData:
             if err:
                 raise err
 
-            num_of_files, total_file_size = self.recursive_delete(
+            num_of_files, total_file_size = await self.recursive_delete(
                 delete_list, dataset_obj, oper, dataset_obj, access_token, refresh_token, job_tracker
             )
 
@@ -1070,7 +1068,6 @@ class APIImportData:
     # with only one file. the old_file is the node object and update
     # attribute to new name
     async def rename_file_worker(self, old_file, new_name, dataset_obj, oper, session_id, access_token, refresh_token):
-
         action = 'dataset_file_rename'
         job_tracker = self.initialize_file_jobs(session_id, action, old_file, dataset_obj, oper)
         # since the renanme will be just one file set to the running now
@@ -1088,7 +1085,7 @@ class APIImportData:
 
         # minio move update the arribute
         # find the parent node for path
-        parent_node = get_parent_node(old_file[0])
+        parent_node = await get_parent_node(old_file[0])
         parent_path = parent_node.get('folder_relative_path', None)
         parent_path = parent_path + '/' + parent_node.get('name') if parent_path else ConfigClass.DATASET_FILE_FOLDER
 
@@ -1100,12 +1097,12 @@ class APIImportData:
 
             # same here the job tracker is not pass into the function
             # we only let the delete to state the finish
-            _, _, new_nodes = self.recursive_copy(
+            _, _, new_nodes = await self.recursive_copy(
                 old_file, dataset_obj, oper, parent_path, parent_node, access_token, refresh_token, new_name=new_name
             )
 
             # delete the old one
-            self.recursive_delete(old_file, dataset_obj, oper, parent_node, access_token, refresh_token)
+            await self.recursive_delete(old_file, dataset_obj, oper, parent_node, access_token, refresh_token)
 
             # after deletion set the status using new node
             self.update_job_status(
