@@ -95,7 +95,7 @@ async def test_search_nested_in_elastic_search_should_call_correct_endpoint(http
             'field': 'field',
         }
     ]
-    result = search('index', 1, 10, data, sort_by=None, sort_type=None)
+    result = await search('index', 1, 10, data, sort_by=None, sort_type=None)
     assert result == {}
 
 
@@ -123,7 +123,7 @@ async def test_search_range_in_elastic_search_should_call_correct_endpoint(httpx
             'field': 'field',
         }
     ]
-    result = search('index', 1, 10, data, sort_by=None, sort_type=None)
+    result = await search('index', 1, 10, data, sort_by=None, sort_type=None)
     assert result == {}
 
 
@@ -160,5 +160,5 @@ async def test_search_multi_value_in_elastic_search_should_call_correct_endpoint
             'search_type': search_type,
         }
     ]
-    result = search('index', 1, 10, data, sort_by=None, sort_type=None)
+    result = await search('index', 1, 10, data, sort_by=None, sort_type=None)
     assert result == {}

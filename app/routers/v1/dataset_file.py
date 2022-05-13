@@ -841,7 +841,7 @@ class APIImportData:
 
     ######################################################################################################
 
-    def copy_files_worker(
+    async def copy_files_worker(
         self, db, import_list, dataset_obj, oper, source_project_geid, session_id, access_token, refresh_token
     ):
         action = 'dataset_file_import'
@@ -850,7 +850,7 @@ class APIImportData:
 
         try:
             # mark the source tree as read, destination as write
-            locked_node, err = recursive_lock_import(dataset_obj.code, import_list, root_path)
+            locked_node, err = await recursive_lock_import(dataset_obj.code, import_list, root_path)
             if err:
                 raise err
 
@@ -896,11 +896,11 @@ class APIImportData:
         finally:
             # unlock the nodes if we got blocked
             for resource_key, operation in locked_node:
-                unlock_resource(resource_key, operation)
+                await unlock_resource(resource_key, operation)
 
         return
 
-    def move_file_worker(
+    async def move_file_worker(
         self,
         db,
         move_list,
@@ -925,7 +925,7 @@ class APIImportData:
 
         try:
             # then we mark both source node tree and target nodes as write
-            locked_node, err = recursive_lock_move_rename(move_list, parent_path)
+            locked_node, err = await recursive_lock_move_rename(move_list, parent_path)
             if err:
                 raise err
 
@@ -984,11 +984,11 @@ class APIImportData:
         finally:
             # unlock the nodes if we got blocked
             for resource_key, operation in locked_node:
-                unlock_resource(resource_key, operation)
+                await unlock_resource(resource_key, operation)
 
         return
 
-    def delete_files_work(self, db, delete_list, dataset_obj, oper, session_id, access_token, refresh_token):
+    async def delete_files_work(self, db, delete_list, dataset_obj, oper, session_id, access_token, refresh_token):
 
         deleted_files = []  # for logging action
         action = 'dataset_file_delete'
@@ -996,7 +996,7 @@ class APIImportData:
         try:
             # mark both source&destination as write lock
 
-            locked_node, err = recursive_lock_delete(delete_list)
+            locked_node, err = await recursive_lock_delete(delete_list)
             if err:
                 raise err
 
@@ -1062,14 +1062,14 @@ class APIImportData:
         finally:
             # unlock the nodes if we got blocked
             for resource_key, operation in locked_node:
-                unlock_resource(resource_key, operation)
+                await unlock_resource(resource_key, operation)
 
         return
 
     # the rename worker will reuse the recursive_copy&recursive_delete
     # with only one file. the old_file is the node object and update
     # attribute to new name
-    def rename_file_worker(self, old_file, new_name, dataset_obj, oper, session_id, access_token, refresh_token):
+    async def rename_file_worker(self, old_file, new_name, dataset_obj, oper, session_id, access_token, refresh_token):
 
         action = 'dataset_file_rename'
         job_tracker = self.initialize_file_jobs(session_id, action, old_file, dataset_obj, oper)
@@ -1094,7 +1094,7 @@ class APIImportData:
 
         try:
             # then we mark both source node tree and target nodes as write
-            locked_node, err = recursive_lock_move_rename(old_file, parent_path, new_name=new_name)
+            locked_node, err = await recursive_lock_move_rename(old_file, parent_path, new_name=new_name)
             if err:
                 raise err
 
@@ -1146,6 +1146,6 @@ class APIImportData:
         finally:
             # unlock the nodes if we got blocked
             for resource_key, operation in locked_node:
-                unlock_resource(resource_key, operation)
+                await unlock_resource(resource_key, operation)
 
         return

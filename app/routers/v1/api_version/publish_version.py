@@ -64,14 +64,14 @@ class PublishVersion(object):
 
         self.geid_client = GEIDClient()
 
-    def publish(self, db):
+    async def publish(self, db):
         try:
             # TODO some merge needed here since get_children_nodes and
             # get_dataset_files_recursive both get the nodes under the dataset
 
             # lock file here
             level1_nodes = get_children_nodes(self.dataset_geid, start_label='Dataset')
-            locked_node, err = recursive_lock_publish(level1_nodes)
+            locked_node, err = await recursive_lock_publish(level1_nodes)
             if err:
                 raise err
 
@@ -105,7 +105,7 @@ class PublishVersion(object):
         finally:
             # unlock the nodes if we got blocked
             for resource_key, operation in locked_node:
-                unlock_resource(resource_key, operation)
+                await unlock_resource(resource_key, operation)
 
         return
 

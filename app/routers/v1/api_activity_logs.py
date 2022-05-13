@@ -81,7 +81,7 @@ class ActivityLogs:
                     }
                     search_params.append(filed_params)
 
-            res = search('activity-logs', page, page_size, search_params, sort_by, sort_type)
+            res = await search('activity-logs', page, page_size, search_params, sort_by, sort_type)
 
             self.__logger.info('activity logs result: {}'.format(res))
 
@@ -163,7 +163,7 @@ class ActivityLogs:
         )
 
         try:
-            res = search('activity-logs', page, page_size, search_params, 'create_timestamp', 'desc')
+            res = await search('activity-logs', page, page_size, search_params, 'create_timestamp', 'desc')
         except Exception as e:
             self.__logger.error('Elastic Search Error: ' + str(e))
             response.code = EAPIResponseCode.internal_error

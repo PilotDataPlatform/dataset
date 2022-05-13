@@ -66,7 +66,7 @@ async def test_copy_file_worker_should_import_file_succeed(
     with mock.patch.object(APIImportData, 'recursive_copy') as mock_recursive_copy:
         mock_recursive_copy.return_value = 1, 1, None
         try:
-            API.copy_files_worker(
+            await API.copy_files_worker(
                 test_db, import_list, dataset, OPER, source_project_geid, SESSION_ID, ACCESS_TOKEN, REFRESH_TOKEN
             )
         except Exception as e:
@@ -98,7 +98,7 @@ async def test_move_file_worker_should_move_file_succeed(
         mock_recursive_copy.return_value = 1, 1, None
         with mock.patch.object(APIImportData, 'recursive_delete'):
             try:
-                API.move_file_worker(
+                await API.move_file_worker(
                     test_db,
                     move_list,
                     dataset,
@@ -134,7 +134,7 @@ async def test_delete_files_work_should_delete_file_succeed(
     with mock.patch.object(APIImportData, 'recursive_delete') as mock_recursive_delete:
         mock_recursive_delete.return_value = 1, 1
         try:
-            API.delete_files_work(test_db, delete_list, dataset, OPER, SESSION_ID, ACCESS_TOKEN, REFRESH_TOKEN)
+            await API.delete_files_work(test_db, delete_list, dataset, OPER, SESSION_ID, ACCESS_TOKEN, REFRESH_TOKEN)
         except Exception as e:
             pytest.fail(f'copy_delete_work raised {e} unexpectedly')
     event_status_request = httpx_mock.get_requests()[-1]
@@ -180,7 +180,7 @@ async def test_rename_file_worker_should_move_file_succeed(
         mock_recursive_copy.return_value = 1, 1, [{}]
         with mock.patch.object(APIImportData, 'recursive_delete'):
             try:
-                API.rename_file_worker(old_file, new_name, dataset, OPER, SESSION_ID, ACCESS_TOKEN, REFRESH_TOKEN)
+                await API.rename_file_worker(old_file, new_name, dataset, OPER, SESSION_ID, ACCESS_TOKEN, REFRESH_TOKEN)
             except Exception as e:
                 pytest.fail(f'rename_file_worker raised {e} unexpectedly')
     event_status_request = httpx_mock.get_requests()[-1]

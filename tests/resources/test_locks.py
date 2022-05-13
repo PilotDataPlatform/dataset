@@ -27,7 +27,7 @@ async def test_lock_resource_should_call_resource_lock_correctly(httpx_mock, loc
     httpx_mock.add_response(
         method=request_method, url='http://data_ops_util/v2/resource/lock/', status_code=200, json={}
     )
-    resp = lock_function('fake_key', 'me')
+    resp = await lock_function('fake_key', 'me')
     assert resp == {}
 
 
@@ -39,7 +39,7 @@ async def test_lock_resource_should_raise_exception_when_lock_request_not_200(
         method=request_method, url='http://data_ops_util/v2/resource/lock/', status_code=404, json={}
     )
     with pytest.raises(Exception):
-        lock_function('fake_key', 'me')
+        await lock_function('fake_key', 'me')
 
 
 @pytest.mark.parametrize('archived', [(False), (True)])
