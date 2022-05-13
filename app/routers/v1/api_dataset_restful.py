@@ -82,7 +82,7 @@ class DatasetRestful:
                     res.error_msg = 'Invalid {}'.format(k)
                     return res.json_response()
 
-        created = srv_dataset.create(
+        created = await srv_dataset.create(
             db,
             request_payload.username,
             request_payload.code,

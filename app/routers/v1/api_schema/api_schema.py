@@ -47,7 +47,7 @@ class Schema:
     def __init__(self) -> None:
         self.geid_client = GEIDClient()
 
-    def update_dataset_node(self, dataset_geid, content):
+    async def update_dataset_node(self, dataset_geid, content):
         # Update dataset neo4j entry
         dataset_node = self.get_dataset_by_geid(dataset_geid)
         dataset_id = dataset_node['id']
@@ -71,13 +71,13 @@ class Schema:
         # on the node and doesn't exist in payload
         if dataset_node.get('license') and 'license' not in payload:
             payload['license'] = ''
-        with httpx.Client() as client:
-            response = client.put(ConfigClass.NEO4J_SERVICE + f'nodes/Dataset/node/{dataset_id}', json=payload)
+        async with httpx.AsyncClient() as client:
+            response = await client.put(ConfigClass.NEO4J_SERVICE + f'nodes/Dataset/node/{dataset_id}', json=payload)
         if response.status_code != 200:
             logger.error(response.json())
             raise APIException(error_msg=response.json(), status_code=response.status_code)
 
-    def update_activity_log(self, activity_data):
+    async def update_activity_log(self, activity_data):
         url = ConfigClass.QUEUE_SERVICE + 'broker/pub'
         post_json = {
             'event_type': activity_data['event_type'],
@@ -93,8 +93,8 @@ class Schema:
             'routing_key': '',
             'exchange': {'name': 'DATASET_ACTS', 'type': 'fanout'},
         }
-        with httpx.Client() as client:
-            res = client.post(url, json=post_json)
+        async with httpx.AsyncClient() as client:
+            res = await client.post(url, json=post_json)
         if res.status_code != 200:
             error_msg = 'update_activity_log {}: {}'.format(res.status_code, res.text)
             logger.error(error_msg)
@@ -178,7 +178,7 @@ class Schema:
                 'event_type': 'SCHEMA_CREATE',
                 **activity,
             }
-            self.update_activity_log(activity_data)
+            await self.update_activity_log(activity_data)
 
         return api_response.json_response()
 
@@ -216,9 +216,9 @@ class Schema:
                 'event_type': 'SCHEMA_UPDATE',
                 **activity,
             }
-            self.update_activity_log(activity_data)
+            await self.update_activity_log(activity_data)
         if schema.name == 'essential.schema.json':
-            self.update_dataset_node(schema.dataset_geid, data.content)
+            await self.update_dataset_node(schema.dataset_geid, data.content)
         return api_response.json_response()
 
     @router.delete(
@@ -237,7 +237,7 @@ class Schema:
                 'event_type': 'SCHEMA_DELETE',
                 **activity,
             }
-            self.update_activity_log(activity_data)
+            await self.update_activity_log(activity_data)
 
         api_response.result = 'success'
         return api_response.json_response()

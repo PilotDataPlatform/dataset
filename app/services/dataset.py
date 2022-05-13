@@ -47,7 +47,7 @@ class SrvDatasetMgr:
     logger = LoggerFactory('SrvDatasetMgr').get_logger()
     geid_client = GEIDClient()
 
-    def create(
+    async def create(
         self,
         db,
         username,
@@ -81,7 +81,7 @@ class SrvDatasetMgr:
         dataset_schema = Dataset(**post_json_form)
         dataset = db_add_operation(dataset_schema, db)
         global_entity_id = str(dataset.id)
-        self.__create_atlas_node(global_entity_id, username)
+        await self.__create_atlas_node(global_entity_id, username)
         self.__create_essentials(
             db,
             global_entity_id,
@@ -96,7 +96,7 @@ class SrvDatasetMgr:
             tags,
             username,
         )
-        self.__on_create_event(global_entity_id, username)
+        await self.__on_create_event(global_entity_id, username)
         # and also create minio bucket with the dataset code
         try:
             mc = Minio_Client()
@@ -147,8 +147,8 @@ class SrvDatasetMgr:
         except NoResultFound:
             return
 
-    def __create_atlas_node(self, geid, username):
-        res = create_atlas_dataset(geid, username)
+    async def __create_atlas_node(self, geid, username):
+        res = await create_atlas_dataset(geid, username)
         if res.status_code != 200:
             raise Exception('__create_atlas_node {}: {}'.format(res.status_code, res.text))
         return res
@@ -203,7 +203,7 @@ class SrvDatasetMgr:
         schema = db_add_operation(schema, db)
         return schema.to_dict()
 
-    def __on_create_event(self, geid, username):
+    async def __on_create_event(self, geid, username):
         url = ConfigClass.QUEUE_SERVICE + 'broker/pub'
         post_json = {
             'event_type': 'DATASET_CREATE_SUCCEED',
@@ -219,8 +219,8 @@ class SrvDatasetMgr:
             'routing_key': '',
             'exchange': {'name': 'DATASET_ACTS', 'type': 'fanout'},
         }
-        with httpx.Client() as client:
-            res = client.post(url, json=post_json)
+        async with httpx.AsyncClient() as client:
+            res = await client.post(url, json=post_json)
         if res.status_code != 200:
             raise Exception('__on_create_event {}: {}'.format(res.status_code, res.text))
         return res
@@ -238,7 +238,7 @@ def db_add_operation(schema, db):
     return schema
 
 
-def create_atlas_dataset(geid, operator):
+async def create_atlas_dataset(geid, operator):
     attrs = {
         'global_entity_id': geid,
         'qualifiedName': geid,
@@ -273,6 +273,6 @@ def create_atlas_dataset(geid, operator):
         },
     }
     url = ConfigClass.CATALOGUING_SERVICE_V1 + 'entity'
-    with httpx.Client() as client:
-        res = client.post(url, json=atlas_post_form_json)
+    async with httpx.AsyncClient() as client:
+        res = await client.post(url, json=atlas_post_form_json)
     return res

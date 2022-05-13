@@ -95,7 +95,7 @@ class APISchemaTemplate:
             api_response.result = new_template.to_dict()
 
             # create the log activity
-            self.__activity_manager.on_create_event(
+            await self.__activity_manager.on_create_event(
                 dataset_geid, new_template.geid, request_payload.creator, request_payload.name
             )
         except Exception as e:
@@ -206,7 +206,7 @@ class APISchemaTemplate:
             # based on the frontend infomation, create the log activity
             activities = request_payload.activity
             for act in activities:
-                self.__activity_manager.on_update_event(
+                await self.__activity_manager.on_update_event(
                     dataset_geid, template_geid, result.creator, act.get('action'), act.get('detail', {})
                 )
         except NoResultFound:
@@ -239,7 +239,9 @@ class APISchemaTemplate:
             api_response.result = result.to_dict()
 
             # create the log activity
-            self.__activity_manager.on_delete_event(result.dataset_geid, template_geid, result.creator, result.name)
+            await self.__activity_manager.on_delete_event(
+                result.dataset_geid, template_geid, result.creator, result.name
+            )
 
         except NoResultFound:
             api_response.code = EAPIResponseCode.not_found

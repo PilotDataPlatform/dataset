@@ -75,7 +75,7 @@ class PublishVersion(object):
             if err:
                 raise err
 
-            self.get_dataset_files_recursive(self.dataset_geid)
+            await self.get_dataset_files_recursive(self.dataset_geid)
             self.download_dataset_files()
             self.add_schemas(db)
             self.zip_files()
@@ -96,7 +96,7 @@ class PublishVersion(object):
                 raise e
 
             logger.info(f'Successfully published {self.dataset_geid} version {self.version}')
-            self.update_activity_log()
+            await self.update_activity_log()
             self.update_status('success')
         except Exception as e:
             error_msg = f'Error publishing {self.dataset_geid}: {str(e)}'
@@ -109,7 +109,7 @@ class PublishVersion(object):
 
         return
 
-    def update_activity_log(self):
+    async def update_activity_log(self):
         url = ConfigClass.QUEUE_SERVICE + 'broker/pub'
         post_json = {
             'event_type': 'DATASET_PUBLISH_SUCCEED',
@@ -125,8 +125,8 @@ class PublishVersion(object):
             'routing_key': '',
             'exchange': {'name': 'DATASET_ACTS', 'type': 'fanout'},
         }
-        with httpx.Client() as client:
-            res = client.post(url, json=post_json)
+        async with httpx.AsyncClient() as client:
+            res = await client.post(url, json=post_json)
         if res.status_code != 200:
             error_msg = 'update_activity_log {}: {}'.format(res.status_code, res.text)
             logger.error(error_msg)
@@ -143,7 +143,7 @@ class PublishVersion(object):
         )
         self.redis_client.set(self.status_id, redis_status, ex=1 * 60 * 60)
 
-    def get_dataset_files_recursive(self, geid, start_label='Dataset'):
+    async def get_dataset_files_recursive(self, geid, start_label='Dataset'):
         """get all files from dataset."""
         query = {
             'start_label': start_label,
@@ -157,13 +157,13 @@ class PublishVersion(object):
                 },
             },
         }
-        with httpx.Client() as client:
-            resp = client.post(ConfigClass.NEO4J_SERVICE_V2 + 'relations/query', json=query)
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(ConfigClass.NEO4J_SERVICE_V2 + 'relations/query', json=query)
         for node in resp.json()['results']:
             if 'File' in node['labels']:
                 self.dataset_files.append(node)
             else:
-                self.get_dataset_files_recursive(node['global_entity_id'], start_label='Folder')
+                await self.get_dataset_files_recursive(node['global_entity_id'], start_label='Folder')
         return self.dataset_files
 
     def download_dataset_files(self):
