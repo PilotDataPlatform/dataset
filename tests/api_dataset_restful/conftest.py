@@ -13,10 +13,10 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import pytest
+import pytest_asyncio
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def schema_essential_template(db_session):
     from app.config import ConfigClass
     from app.models.schema import DatasetSchemaTemplate
@@ -41,7 +41,7 @@ async def schema_essential_template(db_session):
     await db_session.delete(new_template)
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def bids_results(db_session):
     from app.models.bids import BIDSResult
 

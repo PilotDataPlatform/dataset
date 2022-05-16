@@ -18,6 +18,7 @@ from unittest import mock
 from uuid import uuid4
 
 import pytest
+import pytest_asyncio
 
 from app.routers.v1.dataset_file import APIImportData
 
@@ -30,7 +31,7 @@ ACCESS_TOKEN = 'token'
 REFRESH_TOKEN = 'refresh'
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 def external_requests(httpx_mock):
     httpx_mock.add_response(
         method='POST',

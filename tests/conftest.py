@@ -19,7 +19,6 @@ from unittest import mock
 from urllib.parse import urlparse
 from uuid import uuid4
 
-import pytest
 import pytest_asyncio
 from aioredis import StrictRedis
 from alembic.command import downgrade
@@ -79,7 +78,7 @@ def db_postgres():
         yield db_uri.replace(f'{urlparse(db_uri).scheme}://', 'postgresql+asyncpg://', 1)
 
 
-@pytest.fixture(autouse=True)
+@pytest_asyncio.fixture(autouse=True)
 def set_settings(monkeypatch, db_postgres):
     from app.config import ConfigClass
 
@@ -116,7 +115,7 @@ def event_loop(request):
     asyncio.set_event_loop_policy(None)
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 def app():
     from app.main import create_app
 
@@ -124,7 +123,7 @@ def app():
     yield app
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def client(app):
     return TestClient(app)
 
@@ -153,12 +152,12 @@ async def clean_up_redis():
     await cache.flushall()
 
 
-@pytest.fixture()
+@pytest_asyncio.fixture()
 def test_db(db_session):
     yield db_session
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def version(db_session, dataset):
     from app.models.version import DatasetVersion
 
@@ -178,7 +177,7 @@ async def version(db_session, dataset):
     await db_session.commit()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def dataset(db_session):
     from app.models.dataset import Dataset
 

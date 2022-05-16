@@ -15,19 +15,19 @@
 
 from uuid import uuid4
 
-import pytest
+import pytest_asyncio
 
 from app.config import ConfigClass
 from app.models.schema import DatasetSchema
 from app.models.schema import DatasetSchemaTemplate
 
 
-@pytest.fixture(autouse=True)
+@pytest_asyncio.fixture(autouse=True)
 def test_db(db_session):
     yield
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def schema_template(db_session, dataset):
     new_template = DatasetSchemaTemplate(
         geid=str(uuid4()),
@@ -47,7 +47,7 @@ async def schema_template(db_session, dataset):
     await db_session.commit()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def schema(schema_template, db_session, dataset):
     schema = DatasetSchema(
         geid=str(uuid4()),
@@ -68,7 +68,7 @@ async def schema(schema_template, db_session, dataset):
     await db_session.commit()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def essential_schema(schema_template, db_session, dataset):
     schema = DatasetSchema(
         geid=str(uuid4()),

@@ -68,4 +68,4 @@ async def test_create_dataset_should_return_200(client, httpx_mock, db_session, 
         'result': {**created_dataset.to_dict()},
         'total': 1,
     }
-    db_session.delete(created_dataset)
+    await db_session.delete(created_dataset)
