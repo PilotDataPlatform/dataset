@@ -109,13 +109,12 @@ class ActivityLogs:
         response = APIResponse()
 
         try:
-            async with db as session:
-                query = (
-                    select(DatasetVersion)
-                    .where(DatasetVersion.dataset_geid == dataset_geid, DatasetVersion.version == version)
-                    .order_by(DatasetVersion.created_at.desc())
-                )
-                versions = (await session.execute(query)).scalars()
+            query = (
+                select(DatasetVersion)
+                .where(DatasetVersion.dataset_geid == dataset_geid, DatasetVersion.version == version)
+                .order_by(DatasetVersion.created_at.desc())
+            )
+            versions = (await db.execute(query)).scalars()
             version_info = versions.first()
 
             if not version_info:

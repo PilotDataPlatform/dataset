@@ -131,8 +131,7 @@ class SrvDatasetMgr:
 
     async def update(self, db, current_node, update_json):
         try:
-            async with db as session:
-                await session.execute(update(Dataset).where(Dataset.id == current_node.id).values({**update_json}))
+            await db.execute(update(Dataset).where(Dataset.id == current_node.id).values({**update_json}))
             await db.commit()
         except Exception as e:
             await db.rollback()
@@ -145,9 +144,8 @@ class SrvDatasetMgr:
 
     async def get_bycode(self, db: Session, code: str) -> Optional[Dataset]:
         try:
-            async with db as session:
-                query = select(Dataset).where(Dataset.code == code)
-                result = (await session.execute(query)).scalars().one()
+            query = select(Dataset).where(Dataset.code == code)
+            result = (await db.execute(query)).scalars().one()
             return result
         except NoResultFound:
             return
@@ -174,9 +172,8 @@ class SrvDatasetMgr:
         creator,
     ):
         async def get_essential_tpl() -> DatasetSchemaTemplate:
-            async with db as session:
-                query = select(DatasetSchemaTemplate).where(DatasetSchemaTemplate.name == ESSENTIALS_TPL_NAME)
-                etpl_result = (await session.execute(query)).scalars().all()
+            query = select(DatasetSchemaTemplate).where(DatasetSchemaTemplate.name == ESSENTIALS_TPL_NAME)
+            etpl_result = (await db.execute(query)).scalars().all()
             if not etpl_result:
                 raise Exception('{} template not found in database.'.format(ESSENTIALS_TPL_NAME))
             etpl_result = etpl_result[0]

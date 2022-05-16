@@ -126,9 +126,8 @@ class Schema:
 
     async def get_schema_or_404(self, schema_geid, db):
         try:
-            async with db as session:
-                query = select(DatasetSchema).where(DatasetSchema.geid == schema_geid)
-                schema = (await session.execute(query)).scalars().first()
+            query = select(DatasetSchema).where(DatasetSchema.geid == schema_geid)
+            schema = (await db.execute(query)).scalars().first()
 
             if not schema:
                 logger.info('Schema not found')
@@ -142,13 +141,12 @@ class Schema:
         return schema
 
     async def duplicate_check(self, name, dataset_geid, db):
-        async with db as session:
-            query = select(DatasetSchema).where(DatasetSchema.name == name, DatasetSchema.dataset_geid == dataset_geid)
-            result = (await session.execute(query)).scalars()
-            if result.first():
-                error_msg = 'Schema with that name already exists'
-                logger.info(error_msg)
-                raise APIException(error_msg=error_msg, status_code=EAPIResponseCode.conflict.value)
+        query = select(DatasetSchema).where(DatasetSchema.name == name, DatasetSchema.dataset_geid == dataset_geid)
+        result = (await db.execute(query)).scalars()
+        if result.first():
+            error_msg = 'Schema with that name already exists'
+            logger.info(error_msg)
+            raise APIException(error_msg=error_msg, status_code=EAPIResponseCode.conflict.value)
 
     @router.post('/v1/schema', tags=['schema'], response_model=POSTSchemaResponse, summary='Create a new schema')
     async def create(self, data: POSTSchema, db=Depends(get_db_session)):
@@ -157,9 +155,7 @@ class Schema:
 
         await self.duplicate_check(data.name, data.dataset_geid, db)
         query = select(DatasetSchemaTemplate).where(DatasetSchemaTemplate.geid == data.tpl_geid)
-
-        async with db as session:
-            result = (await session.execute(query)).scalars().first()
+        result = (await db.execute(query)).scalars().first()
         if not result:
             api_response.code = EAPIResponseCode.bad_request
             api_response.error_msg = 'Template not found'
@@ -268,14 +264,13 @@ class Schema:
             'update_timestamp',
             'creator',
         ]
-        async with db as session:
-            query = select(DatasetSchema)
-            for key in filter_allowed:
-                filter_val = getattr(request_payload, key)
-                if filter_val is not None:
-                    query = query.where(getattr(DatasetSchema, key) == filter_val)
-            result = (await session.execute(query)).scalars()
-            schemas_fetched = result.all()
+        query = select(DatasetSchema)
+        for key in filter_allowed:
+            filter_val = getattr(request_payload, key)
+            if filter_val is not None:
+                query = query.where(getattr(DatasetSchema, key) == filter_val)
+        result = (await db.execute(query)).scalars()
+        schemas_fetched = result.all()
         result = [record.to_dict() for record in schemas_fetched] if schemas_fetched else []
         # essentials rank top
         essentials = [record for record in result if record['name'] == ESSENTIALS_NAME]

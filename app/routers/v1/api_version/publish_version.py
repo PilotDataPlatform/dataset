@@ -198,9 +198,8 @@ class PublishVersion(object):
         query_default = query.where(DatasetSchema.standard == 'default')
         query_open_minds = query.where(DatasetSchema.standard == 'open_minds')
 
-        async with db as session:
-            schemas_default = (await session.execute(query_default)).scalars().all()
-            schemas_open_minds = (await session.execute(query_open_minds)).scalars().all()
+        schemas_default = (await db.execute(query_default)).scalars().all()
+        schemas_open_minds = (await db.execute(query_open_minds)).scalars().all()
 
         for schema in schemas_default:
             with open(self.tmp_folder + '/default_' + schema.name, 'w') as w:

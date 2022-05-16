@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+
 from common import GEIDClient
 from common import LoggerFactory
 from fastapi import APIRouter
@@ -42,13 +43,12 @@ HEADERS = {'accept': 'application/json', 'Content-Type': 'application/json'}
 # this function will check if the template name already exist
 async def check_template_name(name, dataset_geid, db):
     try:
-        async with db as session:
-            query = (
-                select(DatasetSchemaTemplate)
-                .where(DatasetSchemaTemplate.name == name)
-                .where(DatasetSchemaTemplate.dataset_geid == dataset_geid)
-            )
-            (await session.execute(query)).scalars().one()
+        query = (
+            select(DatasetSchemaTemplate)
+            .where(DatasetSchemaTemplate.name == name)
+            .where(DatasetSchemaTemplate.dataset_geid == dataset_geid)
+        )
+        (await db.execute(query)).scalars().one()
     except NoResultFound:
         return False
 
@@ -71,7 +71,6 @@ class APISchemaTemplate:
     async def create_schema_template(
         self, dataset_geid, request_payload: SchemaTemplatePost, db=Depends(get_db_session)
     ):
-
         api_response = APIResponse()
         # here we enforce the uniqueness of the name within dataset_geid
         exist = await check_template_name(request_payload.name, dataset_geid, db)
@@ -79,7 +78,6 @@ class APISchemaTemplate:
             api_response.code = EAPIResponseCode.forbidden
             api_response.error_msg = 'The template name already exists.'
             return api_response
-
         try:
             new_template = DatasetSchemaTemplate(
                 geid=self.geid_client.get_GEID(),
@@ -118,12 +116,11 @@ class APISchemaTemplate:
         result = None
 
         try:
-            async with db as session:
-                if dataset_geid == 'default':
-                    query = select(DatasetSchemaTemplate).where(DatasetSchemaTemplate.system_defined.is_(True))
-                else:
-                    query = select(DatasetSchemaTemplate).where(DatasetSchemaTemplate.dataset_geid == dataset_geid)
-                result = (await session.execute(query)).scalars().all()
+            if dataset_geid == 'default':
+                query = select(DatasetSchemaTemplate).where(DatasetSchemaTemplate.system_defined.is_(True))
+            else:
+                query = select(DatasetSchemaTemplate).where(DatasetSchemaTemplate.dataset_geid == dataset_geid)
+            result = (await db.execute(query)).scalars().all()
 
             ret = []
             for x in result:
@@ -154,13 +151,12 @@ class APISchemaTemplate:
 
         api_response = APIResponse()
         try:
-            async with db as session:
-                query = select(DatasetSchemaTemplate).where(DatasetSchemaTemplate.geid == template_geid)
-                if dataset_geid == 'default':
-                    query = query.where(DatasetSchemaTemplate.system_defined.is_(True))
-                else:
-                    query = query.where(DatasetSchemaTemplate.dataset_geid == dataset_geid)
-                result = (await session.execute(query)).scalars().one()
+            query = select(DatasetSchemaTemplate).where(DatasetSchemaTemplate.geid == template_geid)
+            if dataset_geid == 'default':
+                query = query.where(DatasetSchemaTemplate.system_defined.is_(True))
+            else:
+                query = query.where(DatasetSchemaTemplate.dataset_geid == dataset_geid)
+            result = (await db.execute(query)).scalars().one()
 
             api_response.result = result.to_dict()
         except NoResultFound:
@@ -193,13 +189,12 @@ class APISchemaTemplate:
             return api_response, EAPIResponseCode.forbidden
 
         try:
-            async with db as session:
-                query = (
-                    select(DatasetSchemaTemplate)
-                    .where(DatasetSchemaTemplate.geid == template_geid)
-                    .where(DatasetSchemaTemplate.dataset_geid == dataset_geid)
-                )
-                result = (await session.execute(query)).scalars().one()
+            query = (
+                select(DatasetSchemaTemplate)
+                .where(DatasetSchemaTemplate.geid == template_geid)
+                .where(DatasetSchemaTemplate.dataset_geid == dataset_geid)
+            )
+            result = (await db.execute(query)).scalars().one()
 
             # update the row if we find it
             result.name = request_payload.name
@@ -237,9 +232,8 @@ class APISchemaTemplate:
 
         # delete the row if we find it
         try:
-            async with db as session:
-                query = select(DatasetSchemaTemplate).where(DatasetSchemaTemplate.geid == template_geid)
-                result = (await session.execute(query)).scalars().one()
+            query = select(DatasetSchemaTemplate).where(DatasetSchemaTemplate.geid == template_geid)
+            result = (await db.execute(query)).scalars().one()
             await db.delete(result)
             await db.commit()
             api_response.result = result.to_dict()

@@ -266,15 +266,14 @@ class DatasetRestful:
     async def get_bids_msg(self, dataset_geid, db=Depends(get_db_session)):
         api_response = APIResponse()
         try:
-            async with db as session:
-                query = (
-                    select(BIDSResult)
-                    .where(
-                        BIDSResult.dataset_geid == dataset_geid,
-                    )
-                    .order_by(BIDSResult.created_time.desc())
+            query = (
+                select(BIDSResult)
+                .where(
+                    BIDSResult.dataset_geid == dataset_geid,
                 )
-                bids_results = (await session.execute(query)).scalars()
+                .order_by(BIDSResult.created_time.desc())
+            )
+            bids_results = (await db.execute(query)).scalars()
             bids_result = bids_results.first()
 
             if not bids_result:

@@ -86,14 +86,13 @@ class VersionAPI:
 
         # Duplicate check
         try:
-            async with db as session:
-                query = (
-                    select(DatasetVersion)
-                    .where(DatasetVersion.dataset_geid == dataset_geid)
-                    .where(DatasetVersion.version == data.version)
-                    .order_by(DatasetVersion.created_at.desc())
-                )
-                versions = (await session.execute(query)).scalars()
+            query = (
+                select(DatasetVersion)
+                .where(DatasetVersion.dataset_geid == dataset_geid)
+                .where(DatasetVersion.version == data.version)
+                .order_by(DatasetVersion.created_at.desc())
+            )
+            versions = (await db.execute(query)).scalars()
         except Exception as e:
             logger.error('Psql Error: ' + str(e))
             api_response.code = EAPIResponseCode.internal_error
@@ -157,14 +156,13 @@ class VersionAPI:
     ):
         api_response = VersionResponse()
         try:
-            async with db as session:
-                query = (
-                    select(DatasetVersion)
-                    .where(DatasetVersion.dataset_geid == dataset_geid)
-                    .order_by(DatasetVersion.created_at.desc())
-                )
+            query = (
+                select(DatasetVersion)
+                .where(DatasetVersion.dataset_geid == dataset_geid)
+                .order_by(DatasetVersion.created_at.desc())
+            )
             query = query.offset(data.page * data.page_size).limit(data.page_size)
-            versions = (await session.execute(query)).scalars().all()
+            versions = (await db.execute(query)).scalars().all()
         except Exception as e:
             logger.error('Psql Error: ' + str(e))
             api_response.code = EAPIResponseCode.internal_error
@@ -220,9 +218,8 @@ class VersionAPI:
                 query = {
                     'dataset_geid': dataset_geid,
                 }
-            async with db as session:
-                query = select(DatasetVersion).filter_by(**query).order_by(DatasetVersion.created_at.desc())
-                versions = (await session.execute(query)).scalars()
+            query = select(DatasetVersion).filter_by(**query).order_by(DatasetVersion.created_at.desc())
+            versions = (await db.execute(query)).scalars()
         except Exception as e:
             logger.error('Psql Error: ' + str(e))
             api_response.code = EAPIResponseCode.internal_error
