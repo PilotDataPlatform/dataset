@@ -18,6 +18,7 @@ from common import LoggerFactory
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi_utils import cbv
+from sqlalchemy.future import select
 from sqlalchemy.orm.exc import NoResultFound
 
 from app.core.db import get_db_session
@@ -39,14 +40,15 @@ HEADERS = {'accept': 'application/json', 'Content-Type': 'application/json'}
 
 
 # this function will check if the template name already exist
-def check_template_name(name, dataset_geid, db):
+async def check_template_name(name, dataset_geid, db):
     try:
-        (
-            db.query(DatasetSchemaTemplate)
-            .filter(DatasetSchemaTemplate.name == name)
-            .filter(DatasetSchemaTemplate.dataset_geid == dataset_geid)
-            .one()
-        )
+        async with db as session:
+            query = (
+                select(DatasetSchemaTemplate)
+                .where(DatasetSchemaTemplate.name == name)
+                .where(DatasetSchemaTemplate.dataset_geid == dataset_geid)
+            )
+            (await session.execute(query)).scalars().one()
     except NoResultFound:
         return False
 
@@ -72,7 +74,7 @@ class APISchemaTemplate:
 
         api_response = APIResponse()
         # here we enforce the uniqueness of the name within dataset_geid
-        exist = check_template_name(request_payload.name, dataset_geid, db)
+        exist = await check_template_name(request_payload.name, dataset_geid, db)
         if exist:
             api_response.code = EAPIResponseCode.forbidden
             api_response.error_msg = 'The template name already exists.'
@@ -91,7 +93,7 @@ class APISchemaTemplate:
             )
 
             db.add(new_template)
-            db.commit()
+            await db.commit()
             api_response.result = new_template.to_dict()
 
             # create the log activity
@@ -101,7 +103,7 @@ class APISchemaTemplate:
         except Exception as e:
             api_response.code = EAPIResponseCode.bad_request
             api_response.error_msg = str(e)
-            db.rollback()
+            await db.rollback()
 
         return api_response.json_response()
 
@@ -116,12 +118,12 @@ class APISchemaTemplate:
         result = None
 
         try:
-            if dataset_geid == 'default':
-                result = db.query(DatasetSchemaTemplate).filter(DatasetSchemaTemplate.system_defined.is_(True)).all()
-            else:
-                result = (
-                    db.query(DatasetSchemaTemplate).filter(DatasetSchemaTemplate.dataset_geid == dataset_geid).all()
-                )
+            async with db as session:
+                if dataset_geid == 'default':
+                    query = select(DatasetSchemaTemplate).where(DatasetSchemaTemplate.system_defined.is_(True))
+                else:
+                    query = select(DatasetSchemaTemplate).where(DatasetSchemaTemplate.dataset_geid == dataset_geid)
+                result = (await session.execute(query)).scalars().all()
 
             ret = []
             for x in result:
@@ -152,17 +154,19 @@ class APISchemaTemplate:
 
         api_response = APIResponse()
         try:
-            result = db.query(DatasetSchemaTemplate).filter(DatasetSchemaTemplate.geid == template_geid)
-            if dataset_geid == 'default':
-                result = result.filter(DatasetSchemaTemplate.system_defined.is_(True)).one()
-            else:
-                result = result.filter(DatasetSchemaTemplate.dataset_geid == dataset_geid).one()
+            async with db as session:
+                query = select(DatasetSchemaTemplate).where(DatasetSchemaTemplate.geid == template_geid)
+                if dataset_geid == 'default':
+                    query = query.where(DatasetSchemaTemplate.system_defined.is_(True))
+                else:
+                    query = query.where(DatasetSchemaTemplate.dataset_geid == dataset_geid)
+                result = (await session.execute(query)).scalars().one()
 
             api_response.result = result.to_dict()
         except NoResultFound:
             api_response.code = EAPIResponseCode.not_found
             api_response.error_msg = 'template %s is not found' % template_geid
-            db.rollback()
+            await db.rollback()
         except Exception as e:
             api_response.code = EAPIResponseCode.bad_request
             api_response.error_msg = str(e)
@@ -182,25 +186,26 @@ class APISchemaTemplate:
         api_response = APIResponse()
 
         # here we enforce the uniqueness of the name with in dataset_geid
-        exist = check_template_name(request_payload.name, dataset_geid, db)
+        exist = await check_template_name(request_payload.name, dataset_geid, db)
         if exist:
             api_response.code = EAPIResponseCode.forbidden
             api_response.error_msg = 'The template name already exists.'
             return api_response, EAPIResponseCode.forbidden
 
         try:
-            result = (
-                db.query(DatasetSchemaTemplate)
-                .filter(DatasetSchemaTemplate.geid == template_geid)
-                .filter(DatasetSchemaTemplate.dataset_geid == dataset_geid)
-                .one()
-            )
+            async with db as session:
+                query = (
+                    select(DatasetSchemaTemplate)
+                    .where(DatasetSchemaTemplate.geid == template_geid)
+                    .where(DatasetSchemaTemplate.dataset_geid == dataset_geid)
+                )
+                result = (await session.execute(query)).scalars().one()
 
             # update the row if we find it
             result.name = request_payload.name
             result.content = request_payload.content
             result.is_draft = request_payload.is_draft
-            db.commit()
+            await db.commit()
             api_response.result = result.to_dict()
 
             # based on the frontend infomation, create the log activity
@@ -212,11 +217,11 @@ class APISchemaTemplate:
         except NoResultFound:
             api_response.code = EAPIResponseCode.not_found
             api_response.error_msg = 'template %s is not found' % template_geid
-            db.rollback()
+            await db.rollback()
         except Exception as e:
             api_response.code = EAPIResponseCode.bad_request
             api_response.error_msg = str(e)
-            db.rollback()
+            await db.rollback()
 
         return api_response.json_response()
 
@@ -232,10 +237,11 @@ class APISchemaTemplate:
 
         # delete the row if we find it
         try:
-            result = db.query(DatasetSchemaTemplate).filter(DatasetSchemaTemplate.geid == template_geid).one()
-
-            db.delete(result)
-            db.commit()
+            async with db as session:
+                query = select(DatasetSchemaTemplate).where(DatasetSchemaTemplate.geid == template_geid)
+                result = (await session.execute(query)).scalars().one()
+            await db.delete(result)
+            await db.commit()
             api_response.result = result.to_dict()
 
             # create the log activity
@@ -246,10 +252,10 @@ class APISchemaTemplate:
         except NoResultFound:
             api_response.code = EAPIResponseCode.not_found
             api_response.error_msg = 'template %s is not found' % template_geid
-            db.rollback()
+            await db.rollback()
         except Exception as e:
             api_response.code = EAPIResponseCode.bad_request
             api_response.error_msg = str(e)
-            db.rollback()
+            await db.rollback()
 
         return api_response.json_response()

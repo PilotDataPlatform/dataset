@@ -22,6 +22,7 @@ from common import LoggerFactory
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi_utils import cbv
+from sqlalchemy.future import select
 
 from app.core.db import get_db_session
 from app.models.version import DatasetVersion
@@ -108,12 +109,13 @@ class ActivityLogs:
         response = APIResponse()
 
         try:
-            versions = (
-                db.query(DatasetVersion)
-                .filter_by(dataset_geid=dataset_geid, version=version)
-                .order_by(DatasetVersion.created_at.desc())
-            )
-
+            async with db as session:
+                query = (
+                    select(DatasetVersion)
+                    .where(DatasetVersion.dataset_geid == dataset_geid, DatasetVersion.version == version)
+                    .order_by(DatasetVersion.created_at.desc())
+                )
+                versions = (await session.execute(query)).scalars()
             version_info = versions.first()
 
             if not version_info:

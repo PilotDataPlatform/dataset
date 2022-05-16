@@ -16,6 +16,7 @@
 import asyncio
 from io import BytesIO
 from unittest import mock
+from urllib.parse import urlparse
 from uuid import uuid4
 
 import pytest
@@ -26,10 +27,8 @@ from alembic.command import upgrade
 from alembic.config import Config
 from async_asgi_testclient import TestClient
 from httpx import Response
-from sqlalchemy import create_engine
-from sqlalchemy import schema
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.orm.session import close_all_sessions
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import create_async_engine
 from starlette.config import environ
 from testcontainers.postgres import PostgresContainer
 from urllib3 import HTTPResponse
@@ -76,8 +75,8 @@ environ['OPSDB_UTILITY_PASSWORD'] = 'postgres'
 @pytest_asyncio.fixture(scope='session')
 def db_postgres():
     with PostgresContainer('postgres:14.1', dbname=environ['POSTGRES_DB']) as postgres:
-        environ['RDS_DB_URI'] = postgres.get_connection_url()
-        yield environ['RDS_DB_URI']
+        db_uri = postgres.get_connection_url()
+        yield db_uri.replace(f'{urlparse(db_uri).scheme}://', 'postgresql+asyncpg://', 1)
 
 
 @pytest.fixture(autouse=True)
@@ -88,25 +87,24 @@ def set_settings(monkeypatch, db_postgres):
 
 
 @pytest_asyncio.fixture()
-def create_db(db_postgres):
-    # from app.models import DBModel
-    engine = create_engine(db_postgres, echo=True)
-    if not engine.dialect.has_schema(engine, environ['POSTGRES_DB']):
-        engine.execute(schema.CreateSchema(environ['POSTGRES_DB']))
+async def create_db(db_postgres):
+    engine = create_async_engine(db_postgres)
     config = Config('./alembic.ini')
     upgrade(config, 'head')
-    # DBModel.metadata.create_all(bind=engine)
     yield engine
-    # DBModel.metadata.drop_all(bind=engine)
     downgrade(config, 'base')
+    await engine.dispose()
 
 
 @pytest_asyncio.fixture()
-def db_session(create_db):
+async def db_session(create_db):
     engine = create_db
-    Session = sessionmaker(engine)
-    yield Session()
-    close_all_sessions()
+    session = AsyncSession(
+        engine,
+        expire_on_commit=False,
+    )
+    yield session
+    await session.close()
 
 
 @pytest_asyncio.fixture(scope='session')
@@ -152,7 +150,7 @@ def mock_minio(monkeypatch):
 @pytest_asyncio.fixture(autouse=True)
 async def clean_up_redis():
     cache = StrictRedis(host=environ.get('REDIS_HOST'))
-    cache.flushall()
+    await cache.flushall()
 
 
 @pytest.fixture()
@@ -161,26 +159,27 @@ def test_db(db_session):
 
 
 @pytest.fixture
-def version(db_session, dataset):
+async def version(db_session, dataset):
     from app.models.version import DatasetVersion
 
     new_version = DatasetVersion(
         dataset_code=dataset.code,
-        dataset_geid=dataset.id,
+        dataset_geid=str(dataset.id),
         version='2.0',
         created_by=dataset.creator,
         location='minio_location',
         notes='test',
     )
     db_session.add(new_version)
-    db_session.commit()
+    await db_session.commit()
+    await db_session.refresh(new_version)
     yield new_version.to_dict()
-    db_session.delete(new_version)
-    db_session.commit()
+    await db_session.delete(new_version)
+    await db_session.commit()
 
 
 @pytest.fixture
-def dataset(db_session):
+async def dataset(db_session):
     from app.models.dataset import Dataset
 
     new_dataset = Dataset(
@@ -202,7 +201,8 @@ def dataset(db_session):
         }
     )
     db_session.add(new_dataset)
-    db_session.commit()
+    await db_session.commit()
+    await db_session.refresh(new_dataset)
     yield new_dataset
-    db_session.delete(new_dataset)
-    db_session.commit()
+    await db_session.delete(new_dataset)
+    await db_session.commit()

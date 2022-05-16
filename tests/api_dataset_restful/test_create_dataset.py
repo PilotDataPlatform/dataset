@@ -14,6 +14,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import pytest
+from sqlalchemy.future import select
 
 from app.models.dataset import Dataset
 
@@ -57,7 +58,8 @@ async def test_create_dataset_should_return_200(client, httpx_mock, db_session, 
     }
     res = await client.post('/v1/dataset', json=payload)
     assert res.status_code == 200
-    created_dataset = db_session.query(Dataset).one()
+    qyery = select(Dataset)
+    created_dataset = (await db_session.execute(qyery)).scalars().one()
     assert res.json() == {
         'code': 200,
         'error_msg': '',

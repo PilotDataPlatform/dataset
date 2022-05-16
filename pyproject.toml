@@ -19,7 +19,6 @@ aiofiles = "0.6.0"
 minio = "7.0.3"
 xmltodict = "0.12.0"
 pika = "1.1.0"
-fastapi-sqlalchemy = "0.2.1"
 psycopg2 = "2.8.6"
 bids-validator = "1.7.3"
 python-dotenv = "0.19.1"
@@ -33,6 +32,9 @@ opentelemetry-instrumentation-sqlalchemy = "^0.30b1"
 opentelemetry-instrumentation-fastapi = "^0.30b1"
 alembic = "^1.7.7"
 aioredis = "^2.0.1"
+SQLAlchemy = "^1.4.36"
+asyncpg = "^0.25.0"
+greenlet = "^1.1.2"
 
 
 [tool.poetry.dev-dependencies]

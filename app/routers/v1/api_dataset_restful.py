@@ -25,6 +25,7 @@ from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import Header
 from fastapi_utils import cbv
+from sqlalchemy.future import select
 
 from app.config import ConfigClass
 from app.core.db import get_db_session
@@ -62,7 +63,7 @@ class DatasetRestful:
         res = APIResponse()
         srv_dataset = SrvDatasetMgr()
 
-        check_created = srv_dataset.get_bycode(db, request_payload.code)
+        check_created = await srv_dataset.get_bycode(db, request_payload.code)
         if check_created:
             if len(check_created.json()) > 0:
                 res.result = None
@@ -109,7 +110,7 @@ class DatasetRestful:
         res = APIResponse()
         srv_dataset = SrvDatasetMgr()
         try:
-            dataset = srv_dataset.get_bygeid(db, dataset_geid)
+            dataset = await srv_dataset.get_bygeid(db, dataset_geid)
             if dataset:
                 res.code = EAPIResponseCode.success
                 res.result = dataset.to_dict()
@@ -135,7 +136,7 @@ class DatasetRestful:
 
         srv_dataset = SrvDatasetMgr()
         try:
-            dataset = srv_dataset.get_bycode(db, code)
+            dataset = await srv_dataset.get_bycode(db, code)
             if dataset:
                 res.code = EAPIResponseCode.success
                 res.result = dataset.to_dict()
@@ -158,7 +159,7 @@ class DatasetRestful:
         srv_dataset = SrvDatasetMgr()
         payload = request_payload.dict()
 
-        dataset = srv_dataset.get_bygeid(db, payload['dataset_geid'])
+        dataset = await srv_dataset.get_bygeid(db, payload['dataset_geid'])
         if not dataset:
             res.code = EAPIResponseCode.bad_request
             res.result = {'result': 'dataset not exist'}
@@ -226,7 +227,7 @@ class DatasetRestful:
         srv_dataset = SrvDatasetMgr()
         payload = request_payload.dict()
 
-        dataset = srv_dataset.get_bygeid(db, payload['dataset_geid'])
+        dataset = await srv_dataset.get_bygeid(db, payload['dataset_geid'])
         if not dataset:
             res.code = EAPIResponseCode.bad_request
             res.result = {'result': 'dataset not exist'}
@@ -265,13 +266,15 @@ class DatasetRestful:
     async def get_bids_msg(self, dataset_geid, db=Depends(get_db_session)):
         api_response = APIResponse()
         try:
-            bids_results = (
-                db.query(BIDSResult)
-                .filter_by(
-                    dataset_geid=dataset_geid,
+            async with db as session:
+                query = (
+                    select(BIDSResult)
+                    .where(
+                        BIDSResult.dataset_geid == dataset_geid,
+                    )
+                    .order_by(BIDSResult.created_time.desc())
                 )
-                .order_by(BIDSResult.created_time.desc())
-            )
+                bids_results = (await session.execute(query)).scalars()
             bids_result = bids_results.first()
 
             if not bids_result:

@@ -93,7 +93,7 @@ class APIImportData:
 
         # if dataset not found return 404
         srv_dataset = SrvDatasetMgr()
-        dataset_obj = srv_dataset.get_bygeid(db, dataset_geid)
+        dataset_obj = await srv_dataset.get_bygeid(db, dataset_geid)
         if dataset_obj is None:
             api_response.code = EAPIResponseCode.not_found
             api_response.error_msg = 'Invalid geid for dataset'
@@ -157,7 +157,7 @@ class APIImportData:
 
         # validate the dataset if exists
         srv_dataset = SrvDatasetMgr()
-        dataset_obj = srv_dataset.get_bygeid(db, dataset_geid)
+        dataset_obj = await srv_dataset.get_bygeid(db, dataset_geid)
 
         if dataset_obj is None:
             api_response.code = EAPIResponseCode.not_found
@@ -210,7 +210,7 @@ class APIImportData:
 
         # validate the dataset if exists
         srv_dataset = SrvDatasetMgr()
-        dataset_obj = srv_dataset.get_bygeid(db, dataset_geid)
+        dataset_obj = await srv_dataset.get_bygeid(db, dataset_geid)
 
         if dataset_obj is None:
             api_response.code = EAPIResponseCode.not_found
@@ -279,7 +279,7 @@ class APIImportData:
 
         # validate the dataset if exists
         srv_dataset = SrvDatasetMgr()
-        dataset_obj = srv_dataset.get_bygeid(db, dataset_geid)
+        dataset_obj = await srv_dataset.get_bygeid(db, dataset_geid)
 
         if dataset_obj is None:
             api_response.code = EAPIResponseCode.not_found
@@ -359,7 +359,7 @@ class APIImportData:
 
         # validate the dataset if exists
         srv_dataset = SrvDatasetMgr()
-        dataset_obj = srv_dataset.get_bygeid(db, dataset_geid)
+        dataset_obj = await srv_dataset.get_bygeid(db, dataset_geid)
 
         if dataset_obj is None:
             api_response.code = EAPIResponseCode.not_found
@@ -849,7 +849,6 @@ class APIImportData:
         action = 'dataset_file_import'
         job_tracker = await self.initialize_file_jobs(session_id, action, import_list, dataset_obj, oper)
         root_path = ConfigClass.DATASET_FILE_FOLDER
-
         try:
             # mark the source tree as read, destination as write
             locked_node, err = await recursive_lock_import(dataset_obj.code, import_list, root_path)
@@ -868,7 +867,7 @@ class APIImportData:
                 'size': dataset_obj.size + total_file_size,
                 'project_id': source_project_geid,
             }
-            srv_dataset.update(db, dataset_obj, update_attribute)
+            await srv_dataset.update(db, dataset_obj, update_attribute)
 
             # also update the log
             dataset_geid = str(dataset_obj.id)
@@ -1038,7 +1037,7 @@ class APIImportData:
                 'total_files': dataset_obj.total_files - num_of_files,
                 'size': dataset_obj.size - total_file_size,
             }
-            srv_dataset.update(db, dataset_obj, update_attribute)
+            await srv_dataset.update(db, dataset_obj, update_attribute)
 
             # also update the message to service queue
             dataset_geid = str(dataset_obj.id)

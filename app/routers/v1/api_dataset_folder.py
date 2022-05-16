@@ -56,7 +56,7 @@ class DatasetFolder:
         api_response = FolderResponse()
         srv_dataset = SrvDatasetMgr()
 
-        dataset = srv_dataset.get_bygeid(db, dataset_geid)
+        dataset = await srv_dataset.get_bygeid(db, dataset_geid)
         # dataset_node  = await get_node_by_geid(dataset_geid, label='Dataset')
 
         # length 1-20, exclude invalid character, ensure start & end aren't a space

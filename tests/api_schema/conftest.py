@@ -28,10 +28,10 @@ def test_db(db_session):
 
 
 @pytest.fixture
-def schema_template(db_session, dataset):
+async def schema_template(db_session, dataset):
     new_template = DatasetSchemaTemplate(
         geid=str(uuid4()),
-        dataset_geid=dataset.id,
+        dataset_geid=str(dataset.id),
         name='test_schema_template',
         standard='default',
         system_defined=True,
@@ -40,18 +40,19 @@ def schema_template(db_session, dataset):
         creator='admin',
     )
     db_session.add(new_template)
-    db_session.commit()
+    await db_session.commit()
+    await db_session.refresh(new_template)
     yield new_template.to_dict()
-    db_session.delete(new_template)
-    db_session.commit()
+    await db_session.delete(new_template)
+    await db_session.commit()
 
 
 @pytest.fixture
-def schema(schema_template, db_session, dataset):
+async def schema(schema_template, db_session, dataset):
     schema = DatasetSchema(
         geid=str(uuid4()),
         name='unittestdataset',
-        dataset_geid=dataset.id,
+        dataset_geid=str(dataset.id),
         tpl_geid=schema_template['geid'],
         standard='default',
         system_defined=True,
@@ -60,18 +61,19 @@ def schema(schema_template, db_session, dataset):
         creator='admin',
     )
     db_session.add(schema)
-    db_session.commit()
+    await db_session.commit()
+    await db_session.refresh(schema)
     yield schema.to_dict()
-    db_session.delete(schema)
-    db_session.commit()
+    await db_session.delete(schema)
+    await db_session.commit()
 
 
 @pytest.fixture
-def essential_schema(schema_template, db_session, dataset):
+async def essential_schema(schema_template, db_session, dataset):
     schema = DatasetSchema(
         geid=str(uuid4()),
         name=ConfigClass.ESSENTIALS_NAME,
-        dataset_geid=dataset.id,
+        dataset_geid=str(dataset.id),
         tpl_geid=schema_template['geid'],
         standard='default',
         system_defined=True,
@@ -80,7 +82,8 @@ def essential_schema(schema_template, db_session, dataset):
         creator='admin',
     )
     db_session.add(schema)
-    db_session.commit()
+    await db_session.commit()
+    await db_session.refresh(schema)
     yield schema.to_dict()
-    db_session.delete(schema)
-    db_session.commit()
+    await db_session.delete(schema)
+    await db_session.commit()

@@ -25,6 +25,8 @@ from common import GEIDClient
 from common import LoggerFactory
 from minio.sseconfig import Rule
 from minio.sseconfig import SSEConfig
+from sqlalchemy import update
+from sqlalchemy.future import select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -79,10 +81,10 @@ class SrvDatasetMgr:
         }
         self.logger.debug('SrvDatasetMgr post_json_form' + str(post_json_form))
         dataset_schema = Dataset(**post_json_form)
-        dataset = db_add_operation(dataset_schema, db)
+        dataset = await db_add_operation(dataset_schema, db)
         global_entity_id = str(dataset.id)
         await self.__create_atlas_node(global_entity_id, username)
-        self.__create_essentials(
+        await self.__create_essentials(
             db,
             global_entity_id,
             code,
@@ -127,22 +129,25 @@ class SrvDatasetMgr:
             self.logger.error('error when creating minio: ' + str(e))
         return dataset.to_dict()
 
-    def update(self, db, current_node, update_json):
+    async def update(self, db, current_node, update_json):
         try:
-            db.query(Dataset).filter(Dataset.id == current_node.id).update({**update_json})
-            db.commit()
+            async with db as session:
+                await session.execute(update(Dataset).where(Dataset.id == current_node.id).values({**update_json}))
+            await db.commit()
         except Exception as e:
-            db.rollback()
+            await db.rollback()
             error_msg = f'Psql Error: {str(e)}'
             raise Exception(error_msg)
         return current_node.to_dict()
 
-    def get_bygeid(self, db: Session, geid: str) -> Dataset:
-        return db.query(Dataset).get(UUID(geid))
+    async def get_bygeid(self, db: Session, geid: str) -> Dataset:
+        return await db.get(Dataset, UUID(geid))
 
-    def get_bycode(self, db: Session, code: str) -> Optional[Dataset]:
+    async def get_bycode(self, db: Session, code: str) -> Optional[Dataset]:
         try:
-            result = db.query(Dataset).filter(Dataset.code == code).one()
+            async with db as session:
+                query = select(Dataset).where(Dataset.code == code)
+                result = (await session.execute(query)).scalars().one()
             return result
         except NoResultFound:
             return
@@ -153,7 +158,7 @@ class SrvDatasetMgr:
             raise Exception('__create_atlas_node {}: {}'.format(res.status_code, res.text))
         return res
 
-    def __create_essentials(
+    async def __create_essentials(
         self,
         db,
         dataset_geid,
@@ -168,16 +173,16 @@ class SrvDatasetMgr:
         tags,
         creator,
     ):
-        def get_essential_tpl() -> DatasetSchemaTemplate:
-            etpl_result = (
-                db.query(DatasetSchemaTemplate).filter(DatasetSchemaTemplate.name == ESSENTIALS_TPL_NAME).all()
-            )
+        async def get_essential_tpl() -> DatasetSchemaTemplate:
+            async with db as session:
+                query = select(DatasetSchemaTemplate).where(DatasetSchemaTemplate.name == ESSENTIALS_TPL_NAME)
+                etpl_result = (await session.execute(query)).scalars().all()
             if not etpl_result:
                 raise Exception('{} template not found in database.'.format(ESSENTIALS_TPL_NAME))
             etpl_result = etpl_result[0]
             return etpl_result
 
-        etpl = get_essential_tpl()
+        etpl = await get_essential_tpl()
         model_data = {
             'geid': self.geid_client.get_GEID(),
             'name': ESSENTIALS_NAME,
@@ -200,7 +205,7 @@ class SrvDatasetMgr:
             'creator': creator,
         }
         schema = DatasetSchema(**model_data)
-        schema = db_add_operation(schema, db)
+        schema = await db_add_operation(schema, db)
         return schema.to_dict()
 
     async def __on_create_event(self, geid, username):
@@ -226,13 +231,13 @@ class SrvDatasetMgr:
         return res
 
 
-def db_add_operation(schema, db):
+async def db_add_operation(schema, db):
     try:
         db.add(schema)
-        db.commit()
-        db.refresh(schema)
+        await db.commit()
+        await db.refresh(schema)
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         error_msg = f'Psql Error: {str(e)}'
         raise Exception(error_msg)
     return schema

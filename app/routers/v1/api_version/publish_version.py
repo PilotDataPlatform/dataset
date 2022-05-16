@@ -23,6 +23,7 @@ import httpx
 from aioredis import StrictRedis
 from common import GEIDClient
 from common import LoggerFactory
+from sqlalchemy.future import select
 
 from app.commons.service_connection.minio_client import Minio_Client
 from app.config import ConfigClass
@@ -76,7 +77,7 @@ class PublishVersion(object):
 
             await self.get_dataset_files_recursive(self.dataset_geid)
             self.download_dataset_files()
-            self.add_schemas(db)
+            await self.add_schemas(db)
             self.zip_files()
             minio_location = self.upload_version()
             try:
@@ -89,7 +90,7 @@ class PublishVersion(object):
                     notes=self.notes,
                 )
                 db.add(dataset_version)
-                db.commit()
+                await db.commit()
             except Exception as e:
                 logger.error('Psql Error: ' + str(e))
                 raise e
@@ -185,24 +186,27 @@ class PublishVersion(object):
         shutil.make_archive(self.zip_path, 'zip', self.tmp_folder)
         return self.zip_path
 
-    def add_schemas(self, db):
+    async def add_schemas(self, db):
         """Saves schema json files to folder that will zipped."""
         if not os.path.isdir(self.tmp_folder):
             os.mkdir(self.tmp_folder)
             os.mkdir(self.tmp_folder + '/data')
 
-        schemas = (
-            db.query(DatasetSchema).filter_by(dataset_geid=self.dataset_geid, standard='default', is_draft=False).all()
+        query = select(DatasetSchema).where(
+            DatasetSchema.dataset_geid == self.dataset_geid, DatasetSchema.is_draft.is_(False)
         )
-        for schema in schemas:
+        query_default = query.where(DatasetSchema.standard == 'default')
+        query_open_minds = query.where(DatasetSchema.standard == 'open_minds')
+
+        async with db as session:
+            schemas_default = (await session.execute(query_default)).scalars().all()
+            schemas_open_minds = (await session.execute(query_open_minds)).scalars().all()
+
+        for schema in schemas_default:
             with open(self.tmp_folder + '/default_' + schema.name, 'w') as w:
                 w.write(json.dumps(schema.content, indent=4, ensure_ascii=False))
-        schemas = (
-            db.query(DatasetSchema)
-            .filter_by(dataset_geid=self.dataset_geid, standard='open_minds', is_draft=False)
-            .all()
-        )
-        for schema in schemas:
+
+        for schema in schemas_open_minds:
             with open(self.tmp_folder + '/openMINDS_' + schema.name, 'w') as w:
                 w.write(json.dumps(schema.content, indent=4, ensure_ascii=False))
 

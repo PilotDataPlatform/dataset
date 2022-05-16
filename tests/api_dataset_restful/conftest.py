@@ -17,7 +17,7 @@ import pytest
 
 
 @pytest.fixture
-def schema_essential_template(db_session):
+async def schema_essential_template(db_session):
     from app.config import ConfigClass
     from app.models.schema import DatasetSchemaTemplate
 
@@ -35,21 +35,21 @@ def schema_essential_template(db_session):
         creator='admin',
     )
     db_session.add(new_template)
-    db_session.commit()
+    await db_session.commit()
+    await db_session.refresh(new_template)
     yield new_template.to_dict()
-    db_session.delete(new_template)
-    db_session.commit()
+    await db_session.delete(new_template)
 
 
 @pytest.fixture
-def bids_results(db_session):
+async def bids_results(db_session):
     from app.models.bids import BIDSResult
 
     dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3'
 
     new_bid_result = BIDSResult(dataset_geid=dataset_geid, validate_output={})
     db_session.add(new_bid_result)
-    db_session.commit()
+    await db_session.commit()
+    await db_session.refresh(new_bid_result)
     yield new_bid_result.to_dict()
-    db_session.delete(new_bid_result)
-    db_session.commit()
+    await db_session.delete(new_bid_result)
