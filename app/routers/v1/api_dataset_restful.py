@@ -26,6 +26,7 @@ from fastapi import Depends
 from fastapi import Header
 from fastapi_utils import cbv
 from sqlalchemy.future import select
+from starlette.concurrency import run_in_threadpool
 
 from app.config import ConfigClass
 from app.core.db import get_db_session
@@ -182,7 +183,7 @@ class DatasetRestful:
                     )
 
         try:
-            make_temp_folder(files_info)
+            await run_in_threadpool(make_temp_folder, files_info)
         except Exception:
             res.code = EAPIResponseCode.internal_error
             res.result = 'failed to create temp folder for bids'
@@ -205,7 +206,7 @@ class DatasetRestful:
             return res.json_response()
 
         try:
-            shutil.rmtree(TEMP_FOLDER + dataset.code)
+            await run_in_threadpool(shutil.rmtree, TEMP_FOLDER + dataset.code)
         except Exception:
             res.code = EAPIResponseCode.internal_error
             res.result = 'failed to remove temp bids folder'

@@ -24,6 +24,7 @@ from aioredis import StrictRedis
 from common import GEIDClient
 from common import LoggerFactory
 from sqlalchemy.future import select
+from starlette.concurrency import run_in_threadpool
 
 from app.commons.service_connection.minio_client import Minio_Client
 from app.config import ConfigClass
@@ -78,8 +79,8 @@ class PublishVersion(object):
             await self.get_dataset_files_recursive(self.dataset_geid)
             self.download_dataset_files()
             await self.add_schemas(db)
-            self.zip_files()
-            minio_location = self.upload_version()
+            await run_in_threadpool(self.zip_files)
+            minio_location = await self.upload_version()
             try:
                 dataset_version = DatasetVersion(
                     dataset_code=self.dataset_node['code'],
@@ -209,12 +210,13 @@ class PublishVersion(object):
             with open(self.tmp_folder + '/openMINDS_' + schema.name, 'w') as w:
                 w.write(json.dumps(schema.content, indent=4, ensure_ascii=False))
 
-    def upload_version(self):
+    async def upload_version(self):
         """Upload version zip to minio."""
         bucket = self.dataset_node['code']
         path = 'versions/' + self.zip_path.split('/')[-1] + '.zip'
         try:
-            self.mc.client.fput_object(
+            await run_in_threadpool(
+                self.mc.client.fput_object,
                 bucket,
                 path,
                 self.zip_path + '.zip',

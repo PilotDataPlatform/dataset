@@ -23,6 +23,7 @@ from fastapi import APIRouter
 from fastapi import Header
 from fastapi.responses import StreamingResponse
 from fastapi_utils import cbv
+from starlette.concurrency import run_in_threadpool
 
 from app.commons.service_connection.minio_client import Minio_Client
 from app.commons.service_connection.minio_client import Minio_Client_
@@ -63,9 +64,11 @@ class Preview:
         file_data = self.parse_location(file_node['location'])
         file_type = file_node['name'].split('.')[1]
 
-        response = mc.client.get_object(file_data['bucket'], file_data['path'], length=ConfigClass.MAX_PREVIEW_SIZE)
+        response = await run_in_threadpool(
+            mc.client.get_object, file_data['bucket'], file_data['path'], length=ConfigClass.MAX_PREVIEW_SIZE
+        )
         if file_type in ['csv', 'tsv']:
-            result['content'] = self.parse_csv_response(response.data.decode('utf-8-sig'))
+            result['content'] = await run_in_threadpool(self.parse_csv_response, response.data.decode('utf-8-sig'))
         else:
             result['content'] = response.data.decode('utf-8-sig')
 
@@ -101,7 +104,7 @@ class Preview:
         file_data = self.parse_location(file_node['location'])
         file_type = file_node['name'][file_node['name'].rfind('.') :].replace('.', '')
 
-        response = mc.client.get_object(file_data['bucket'], file_data['path'])
+        response = await run_in_threadpool(mc.client.get_object, file_data['bucket'], file_data['path'])
         if file_type in ['csv', 'tsv']:
             mimetype = 'text/csv'
         else:
