@@ -48,7 +48,7 @@ def get_one_by_id(es_index, es_type, dataset_id):
     return res.json()
 
 
-def search(es_index, page, page_size, data, sort_by=None, sort_type=None):
+async def search(es_index, page, page_size, data, sort_by=None, sort_type=None):
     url = ConfigClass.ELASTIC_SEARCH_SERVICE + '{}/_search'.format(es_index)
 
     search_fields = []
@@ -130,6 +130,6 @@ def search(es_index, page, page_size, data, sort_by=None, sort_type=None):
     }
     __logger.info('elastic search url: {}'.format(url))
     __logger.info('elastic search params: {}'.format(str(search_params)))
-    with httpx.Client() as client:
-        res = client.request(method='GET', url=url, json=search_params)
+    async with httpx.AsyncClient() as client:
+        res = await client.request(method='GET', url=url, json=search_params)
     return res.json()

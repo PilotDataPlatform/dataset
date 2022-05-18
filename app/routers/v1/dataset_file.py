@@ -93,7 +93,7 @@ class APIImportData:
 
         # if dataset not found return 404
         srv_dataset = SrvDatasetMgr()
-        dataset_obj = srv_dataset.get_bygeid(db, dataset_geid)
+        dataset_obj = await srv_dataset.get_bygeid(db, dataset_geid)
         if dataset_obj is None:
             api_response.code = EAPIResponseCode.not_found
             api_response.error_msg = 'Invalid geid for dataset'
@@ -109,8 +109,8 @@ class APIImportData:
 
         # check if file is from source project or exist
         # and check if file has been under the dataset
-        import_list, wrong_file = self.validate_files_folders(import_list, source_project, 'Container')
-        duplicate, import_list = self.remove_duplicate_file(import_list, dataset_geid, 'Dataset')
+        import_list, wrong_file = await self.validate_files_folders(import_list, source_project, 'Container')
+        duplicate, import_list = await self.remove_duplicate_file(import_list, dataset_geid, 'Dataset')
         import_list, not_core_file = self.check_core_file(import_list)
 
         # fomutate the result
@@ -157,7 +157,7 @@ class APIImportData:
 
         # validate the dataset if exists
         srv_dataset = SrvDatasetMgr()
-        dataset_obj = srv_dataset.get_bygeid(db, dataset_geid)
+        dataset_obj = await srv_dataset.get_bygeid(db, dataset_geid)
 
         if dataset_obj is None:
             api_response.code = EAPIResponseCode.not_found
@@ -166,7 +166,7 @@ class APIImportData:
 
         # validate the file IS from the dataset
         delete_list = request_payload.source_list
-        delete_list, wrong_file = self.validate_files_folders(delete_list, dataset_geid, 'Dataset')
+        delete_list, wrong_file = await self.validate_files_folders(delete_list, dataset_geid, 'Dataset')
         # fomutate the result
         api_response.result = {'processing': delete_list, 'ignored': wrong_file}
 
@@ -210,7 +210,7 @@ class APIImportData:
 
         # validate the dataset if exists
         srv_dataset = SrvDatasetMgr()
-        dataset_obj = srv_dataset.get_bygeid(db, dataset_geid)
+        dataset_obj = await srv_dataset.get_bygeid(db, dataset_geid)
 
         if dataset_obj is None:
             api_response.code = EAPIResponseCode.not_found
@@ -235,16 +235,16 @@ class APIImportData:
             },
         }
 
-        with httpx.Client() as client:
-            response = client.post(ConfigClass.NEO4J_SERVICE_V2 + 'relations/query', json=relation_payload)
+        async with httpx.AsyncClient() as client:
+            response = await client.post(ConfigClass.NEO4J_SERVICE_V2 + 'relations/query', json=relation_payload)
         file_folder_nodes = response.json().get('results', [])
         # print(file_folder_nodes)
 
         # then get the routing this will return as parent level
         # like admin->folder1->file1 in UI
         node_query_url = ConfigClass.NEO4J_SERVICE + 'relations/connected/' + root_geid
-        with httpx.Client() as client:
-            response = client.get(node_query_url, params={'direction': 'input'})
+        async with httpx.AsyncClient() as client:
+            response = await client.get(node_query_url, params={'direction': 'input'})
         file_routing = response.json().get('result', [])
         ret_routing = [x for x in file_routing if 'User' not in x.get('labels')]
 
@@ -279,7 +279,7 @@ class APIImportData:
 
         # validate the dataset if exists
         srv_dataset = SrvDatasetMgr()
-        dataset_obj = srv_dataset.get_bygeid(db, dataset_geid)
+        dataset_obj = await srv_dataset.get_bygeid(db, dataset_geid)
 
         if dataset_obj is None:
             api_response.code = EAPIResponseCode.not_found
@@ -294,7 +294,7 @@ class APIImportData:
             target_minio_path = ''
             root_label = 'Dataset'
         else:
-            target_folder = get_node_by_geid(request_payload.target_geid, 'Folder')
+            target_folder = await get_node_by_geid(request_payload.target_geid, 'Folder')
             if len(target_folder) == 0:
                 api_response.code = EAPIResponseCode.not_found
                 api_response.error_msg = 'The target folder does not exist'
@@ -313,8 +313,8 @@ class APIImportData:
 
         # validate the file if it is under the dataset
         move_list = request_payload.source_list
-        move_list, wrong_file = self.validate_files_folders(move_list, dataset_geid, 'Dataset')
-        duplicate, move_list = self.remove_duplicate_file(move_list, request_payload.target_geid, root_label)
+        move_list, wrong_file = await self.validate_files_folders(move_list, dataset_geid, 'Dataset')
+        duplicate, move_list = await self.remove_duplicate_file(move_list, request_payload.target_geid, root_label)
         # fomutate the result
         api_response.result = {'processing': move_list, 'ignored': wrong_file + duplicate}
 
@@ -352,7 +352,6 @@ class APIImportData:
         refresh_token: Optional[str] = Header(None),
         db=Depends(get_db_session),
     ):
-
         api_response = APIResponse()
         session_id = sessionId
         new_name = request_payload.new_name
@@ -360,7 +359,7 @@ class APIImportData:
 
         # validate the dataset if exists
         srv_dataset = SrvDatasetMgr()
-        dataset_obj = srv_dataset.get_bygeid(db, dataset_geid)
+        dataset_obj = await srv_dataset.get_bygeid(db, dataset_geid)
 
         if dataset_obj is None:
             api_response.code = EAPIResponseCode.not_found
@@ -371,12 +370,12 @@ class APIImportData:
 
         # validate the file IS from the dataset
         # rename to same name will be blocked
-        rename_list, wrong_file = self.validate_files_folders([target_file], dataset_geid, 'Dataset')
+        rename_list, wrong_file = await self.validate_files_folders([target_file], dataset_geid, 'Dataset')
         # check if there is a file under the folder
-        parent_node = get_parent_node(get_node_by_geid(target_file))
+        parent_node = await get_parent_node(await get_node_by_geid(target_file))
         pgeid = parent_node.get('global_entity_id')
         root_label = parent_node.get('labels')[0]
-        duplicate, _ = self.remove_duplicate_file([{'name': new_name}], pgeid, root_label)
+        duplicate, _ = await self.remove_duplicate_file([{'name': new_name}], pgeid, root_label)
 
         # cannot rename to self
         if len(duplicate) > 0:
@@ -413,7 +412,7 @@ class APIImportData:
     # function will return two list:
     # - passed_file is the validated file
     # - not_passed_file is not under the target node
-    def validate_files_folders(self, ff_list, root_geid, root_label):
+    async def validate_files_folders(self, ff_list, root_geid, root_label):
 
         passed_file = []
         not_passed_file = []
@@ -424,7 +423,7 @@ class APIImportData:
         array_index = 0
         for ff in ff_list:
             # fetch the current node
-            current_node = get_node_by_geid(ff)
+            current_node = await get_node_by_geid(ff)
             # if not exist skip the node
             if not current_node:
                 not_passed_file.append({'global_entity_id': ff, 'feedback': 'not exists'})
@@ -437,8 +436,8 @@ class APIImportData:
                 'start_params': {'global_entity_id': root_geid},
                 'end_params': {'global_entity_id': current_node.get('global_entity_id', None)},
             }
-            with httpx.Client() as client:
-                response = client.post(ConfigClass.NEO4J_SERVICE + 'relations/query', json=relation_payload)
+            async with httpx.AsyncClient() as client:
+                response = await client.post(ConfigClass.NEO4J_SERVICE + 'relations/query', json=relation_payload)
             file_folder_nodes = response.json()
 
             # if there is no connect then the node is not correct
@@ -498,7 +497,7 @@ class APIImportData:
     # the function will reuse the <validate_files_folders> to check
     # if the file already exist directly under the root node
     # return True if duplicate else false
-    def remove_duplicate_file(self, ff_list, root_geid, root_label):
+    async def remove_duplicate_file(self, ff_list, root_geid, root_label):
 
         duplic_file = []
         not_duplic_file = []
@@ -512,8 +511,8 @@ class APIImportData:
                 'start_params': {'global_entity_id': root_geid},
                 'end_params': {'name': current_node.get('name', None)},
             }
-            with httpx.Client() as client:
-                response = client.post(
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
                     ConfigClass.NEO4J_SERVICE + 'relations/query',
                     data=json.dumps(relation_payload).encode('utf-8'),
                     headers={'Content-Type': 'application/json'},
@@ -533,7 +532,9 @@ class APIImportData:
     # TODO make it into the helper function
     # match (n)-[r:own*]->(f) where n.global_entity_id="9ff8382d-f476-4cdf-a357-66c4babf8320-1626104650" delete
     # FOREACH(r), f
-    def send_notification(self, session_id, source_list, action, status, dataset_geid, operator, task_id, payload=None):
+    async def send_notification(
+        self, session_id, source_list, action, status, dataset_geid, operator, task_id, payload=None
+    ):
         if not payload:
             payload = {}
 
@@ -556,21 +557,22 @@ class APIImportData:
             'routing_key': 'socketio',
             'exchange': {'name': 'socketio', 'type': 'fanout'},
         }
-        with httpx.Client() as client:
-            res = client.post(url, json=post_json)
+        async with httpx.AsyncClient() as client:
+            res = await client.post(url, json=post_json)
         if res.status_code != 200:
             raise Exception('send_notification() {}: {}'.format(res.status_code, res.text))
 
         return res
 
-    #
-    def create_job_status(self, session_id, source_file, action, status, dataset, operator, task_id, payload=None):
+    async def create_job_status(
+        self, session_id, source_file, action, status, dataset, operator, task_id, payload=None
+    ):
         if not payload:
             payload = {}
         # first send the notification
         dataset_geid = str(dataset.id)
         dataset_code = dataset.code
-        self.send_notification(session_id, source_file, action, status, dataset_geid, operator, task_id)
+        await self.send_notification(session_id, source_file, action, status, dataset_geid, operator, task_id)
 
         # also save to redis for display
         source_geid = source_file.get('global_entity_id')
@@ -588,21 +590,21 @@ class APIImportData:
             'operator': operator,
             'payload': source_file,
         }
-        with httpx.Client() as client:
-            res = client.post(task_url, json=post_json)
+        async with httpx.AsyncClient() as client:
+            res = await client.post(task_url, json=post_json)
         if res.status_code != 200:
             raise Exception('save redis error {}: {}'.format(res.status_code, res.text))
 
         return {source_geid: job_id}
 
-    def update_job_status(
+    async def update_job_status(
         self, session_id, source_file, action, status, dataset, operator, task_id, job_id, payload=None
     ):
         if not payload:
             payload = {}
         # first send the notification
         dataset_geid = str(dataset.id)
-        self.send_notification(session_id, source_file, action, status, dataset_geid, operator, task_id, payload)
+        await self.send_notification(session_id, source_file, action, status, dataset_geid, operator, task_id, payload)
 
         # also save to redis for display
         task_url = ConfigClass.DATA_UTILITY_SERVICE + 'tasks/'
@@ -614,8 +616,8 @@ class APIImportData:
             'status': status,
             'add_payload': payload,
         }
-        with httpx.Client() as client:
-            res = client.put(task_url, json=post_json)
+        async with httpx.AsyncClient() as client:
+            res = await client.put(task_url, json=post_json)
         if res.status_code != 200:
             raise Exception('save redis error {}: {}'.format(res.status_code, res.text))
 
@@ -628,21 +630,21 @@ class APIImportData:
     #   - task id: random generate for batch operation
     #   - action: the file action name
     #   - job id mapping: dictionary for tracking EACH file progress
-    def initialize_file_jobs(self, session_id, action, batch_list, dataset_obj, oper):
+    async def initialize_file_jobs(self, session_id, action, batch_list, dataset_obj, oper):
         # use the dictionary to keep track the file action with
         session_id = 'local_test' if not session_id else session_id
         # action = "dataset_file_import"
         task_id = action + '-' + str(int(time.time()))
         job_tracker = {'session_id': session_id, 'task_id': task_id, 'action': action, 'job_id': {}}
         for file_object in batch_list:
-            tracker = self.create_job_status(session_id, file_object, action, 'INIT', dataset_obj, oper, task_id)
+            tracker = await self.create_job_status(session_id, file_object, action, 'INIT', dataset_obj, oper, task_id)
             job_tracker['job_id'].update(tracker)
 
         return job_tracker
 
     ###########################################################################################
 
-    def recursive_copy(
+    async def recursive_copy(
         self,
         currenct_nodes,
         dataset,
@@ -672,7 +674,7 @@ class APIImportData:
             # here ONLY the first level file/folder will trigger the notification&job status
             if job_tracker:
                 job_id = job_tracker['job_id'].get(ff_geid)
-                self.update_job_status(
+                await self.update_job_status(
                     job_tracker['session_id'],
                     ff_object,
                     job_tracker['action'],
@@ -697,7 +699,7 @@ class APIImportData:
                     parent_node_id = parent_node.get('global_entity_id')
 
                 # create the copied node
-                new_node, _ = create_file_node(
+                new_node, _ = await create_file_node(
                     dataset.code,
                     ff_object,
                     oper,
@@ -716,7 +718,7 @@ class APIImportData:
             elif 'Folder' in ff_object.get('labels'):
 
                 # first create the folder
-                new_node, _ = create_folder_node(
+                new_node, _ = await create_folder_node(
                     dataset.code, ff_object, oper, parent_node, current_root_path, new_name
                 )
                 new_lv1_nodes.append(new_node)
@@ -724,8 +726,8 @@ class APIImportData:
                 # seconds recursively go throught the folder/subfolder by same proccess
                 # also if we want the folder to be renamed if new_name is not None
                 next_root = current_root_path + '/' + (new_name if new_name else ff_object.get('name'))
-                children_nodes = get_children_nodes(ff_geid)
-                num_of_child_files, num_of_child_size, _ = self.recursive_copy(
+                children_nodes = await get_children_nodes(ff_geid)
+                num_of_child_files, num_of_child_size, _ = await self.recursive_copy(
                     children_nodes, dataset, oper, next_root, new_node, access_token, refresh_token
                 )
 
@@ -738,7 +740,7 @@ class APIImportData:
             # if the geid is not in the tracker then it is child level ff. ignore them
             if job_tracker:
                 job_id = job_tracker['job_id'].get(ff_geid)
-                self.update_job_status(
+                await self.update_job_status(
                     job_tracker['session_id'],
                     ff_object,
                     job_tracker['action'],
@@ -752,7 +754,7 @@ class APIImportData:
 
         return num_of_files, total_file_size, new_lv1_nodes
 
-    def recursive_delete(
+    async def recursive_delete(
         self, currenct_nodes, dataset, oper, parent_node, access_token, refresh_token, job_tracker=None
     ):
 
@@ -769,7 +771,7 @@ class APIImportData:
             # here ONLY the first level file/folder will trigger the notification&job status
             if job_tracker:
                 job_id = job_tracker['job_id'].get(ff_geid)
-                self.update_job_status(
+                await self.update_job_status(
                     job_tracker['session_id'],
                     ff_object,
                     job_tracker['action'],
@@ -796,8 +798,8 @@ class APIImportData:
 
                 # for file we can just disconnect and delete
                 # TODO MOVE OUTSIDE <=============================================================
-                delete_relation_bw_nodes(parent_node_id, ff_object.get('id'))
-                delete_node(ff_object, access_token, refresh_token)
+                await delete_relation_bw_nodes(parent_node_id, ff_object.get('id'))
+                await delete_node(ff_object, access_token, refresh_token)
 
                 # update for number and size
                 num_of_files += 1
@@ -808,14 +810,14 @@ class APIImportData:
 
                 # for folder, we have to disconnect all child node then
                 # disconnect it from parent
-                children_nodes = get_children_nodes(ff_object.get('global_entity_id'))
-                num_of_child_files, num_of_child_size = self.recursive_delete(
+                children_nodes = await get_children_nodes(ff_object.get('global_entity_id'))
+                num_of_child_files, num_of_child_size = await self.recursive_delete(
                     children_nodes, dataset, oper, ff_object, access_token, refresh_token
                 )
 
                 # after the child has been deleted then we disconnect current node
-                delete_relation_bw_nodes(parent_node_id, ff_object.get('id'))
-                delete_node(ff_object, access_token, refresh_token)
+                await delete_relation_bw_nodes(parent_node_id, ff_object.get('id'))
+                await delete_node(ff_object, access_token, refresh_token)
 
                 # append the log together
                 num_of_files += num_of_child_files
@@ -826,7 +828,7 @@ class APIImportData:
             # if the geid is not in the tracker then it is child level ff. ignore them
             if job_tracker:
                 job_id = job_tracker['job_id'].get(ff_geid)
-                self.update_job_status(
+                await self.update_job_status(
                     job_tracker['session_id'],
                     ff_object,
                     job_tracker['action'],
@@ -841,21 +843,20 @@ class APIImportData:
 
     ######################################################################################################
 
-    def copy_files_worker(
+    async def copy_files_worker(
         self, db, import_list, dataset_obj, oper, source_project_geid, session_id, access_token, refresh_token
     ):
         action = 'dataset_file_import'
-        job_tracker = self.initialize_file_jobs(session_id, action, import_list, dataset_obj, oper)
+        job_tracker = await self.initialize_file_jobs(session_id, action, import_list, dataset_obj, oper)
         root_path = ConfigClass.DATASET_FILE_FOLDER
-
         try:
             # mark the source tree as read, destination as write
-            locked_node, err = recursive_lock_import(dataset_obj.code, import_list, root_path)
+            locked_node, err = await recursive_lock_import(dataset_obj.code, import_list, root_path)
             if err:
                 raise err
 
             # recursively go throught the folder level by level
-            num_of_files, total_file_size, _ = self.recursive_copy(
+            num_of_files, total_file_size, _ = await self.recursive_copy(
                 import_list, dataset_obj, oper, root_path, dataset_obj, access_token, refresh_token, job_tracker
             )
 
@@ -866,15 +867,15 @@ class APIImportData:
                 'size': dataset_obj.size + total_file_size,
                 'project_id': source_project_geid,
             }
-            srv_dataset.update(db, dataset_obj, update_attribute)
+            await srv_dataset.update(db, dataset_obj, update_attribute)
 
             # also update the log
             dataset_geid = str(dataset_obj.id)
-            source_project = get_node_by_geid(source_project_geid)
+            source_project = await get_node_by_geid(source_project_geid)
             import_logs = [source_project.get('code') + '/' + x.get('display_path') for x in import_list]
             project = source_project.get('name', '')
             project_code = source_project.get('code', '')
-            self.file_act_notifier.on_import_event(dataset_geid, oper, import_logs, project, project_code)
+            await self.file_act_notifier.on_import_event(dataset_geid, oper, import_logs, project, project_code)
 
         except Exception as e:
             # here batch deny the operation
@@ -882,7 +883,7 @@ class APIImportData:
             # loop over all existing job and send error
             for ff_object in import_list:
                 job_id = job_tracker['job_id'].get(ff_object.get('global_entity_id'))
-                self.update_job_status(
+                await self.update_job_status(
                     job_tracker['session_id'],
                     ff_object,
                     job_tracker['action'],
@@ -896,11 +897,11 @@ class APIImportData:
         finally:
             # unlock the nodes if we got blocked
             for resource_key, operation in locked_node:
-                unlock_resource(resource_key, operation)
+                await unlock_resource(resource_key, operation)
 
         return
 
-    def move_file_worker(
+    async def move_file_worker(
         self,
         db,
         move_list,
@@ -915,7 +916,7 @@ class APIImportData:
 
         dataset_geid = str(dataset_obj.id)
         action = 'dataset_file_move'
-        job_tracker = self.initialize_file_jobs(session_id, action, move_list, dataset_obj, oper)
+        job_tracker = await self.initialize_file_jobs(session_id, action, move_list, dataset_obj, oper)
 
         # minio move update the arribute
         # find the parent node for path
@@ -925,18 +926,18 @@ class APIImportData:
 
         try:
             # then we mark both source node tree and target nodes as write
-            locked_node, err = recursive_lock_move_rename(move_list, parent_path)
+            locked_node, err = await recursive_lock_move_rename(move_list, parent_path)
             if err:
                 raise err
 
             # but note here the job tracker is not pass into the function
             # we only let the delete to state the finish
-            _, _, _ = self.recursive_copy(
+            _, _, _ = await self.recursive_copy(
                 move_list, dataset_obj, oper, parent_path, parent_node, access_token, refresh_token
             )
 
             # delete the old one
-            self.recursive_delete(
+            await self.recursive_delete(
                 move_list, dataset_obj, oper, parent_node, access_token, refresh_token, job_tracker=job_tracker
             )
 
@@ -962,7 +963,7 @@ class APIImportData:
                     new_path = new_path.replace(dff, '', 1)
 
                 # send to the es for logging
-                self.file_act_notifier.on_move_event(dataset_geid, oper, old_path, new_path)
+                await self.file_act_notifier.on_move_event(dataset_geid, oper, old_path, new_path)
 
         except Exception as e:
             # here batch deny the operation
@@ -970,7 +971,7 @@ class APIImportData:
             # loop over all existing job and send error
             for ff_object in move_list:
                 job_id = job_tracker['job_id'].get(ff_object.get('global_entity_id'))
-                self.update_job_status(
+                await self.update_job_status(
                     job_tracker['session_id'],
                     ff_object,
                     job_tracker['action'],
@@ -984,23 +985,23 @@ class APIImportData:
         finally:
             # unlock the nodes if we got blocked
             for resource_key, operation in locked_node:
-                unlock_resource(resource_key, operation)
+                await unlock_resource(resource_key, operation)
 
         return
 
-    def delete_files_work(self, db, delete_list, dataset_obj, oper, session_id, access_token, refresh_token):
+    async def delete_files_work(self, db, delete_list, dataset_obj, oper, session_id, access_token, refresh_token):
 
         deleted_files = []  # for logging action
         action = 'dataset_file_delete'
-        job_tracker = self.initialize_file_jobs(session_id, action, delete_list, dataset_obj, oper)
+        job_tracker = await self.initialize_file_jobs(session_id, action, delete_list, dataset_obj, oper)
         try:
             # mark both source&destination as write lock
 
-            locked_node, err = recursive_lock_delete(delete_list)
+            locked_node, err = await recursive_lock_delete(delete_list)
             if err:
                 raise err
 
-            num_of_files, total_file_size = self.recursive_delete(
+            num_of_files, total_file_size = await self.recursive_delete(
                 delete_list, dataset_obj, oper, dataset_obj, access_token, refresh_token, job_tracker
             )
 
@@ -1036,11 +1037,11 @@ class APIImportData:
                 'total_files': dataset_obj.total_files - num_of_files,
                 'size': dataset_obj.size - total_file_size,
             }
-            srv_dataset.update(db, dataset_obj, update_attribute)
+            await srv_dataset.update(db, dataset_obj, update_attribute)
 
             # also update the message to service queue
             dataset_geid = str(dataset_obj.id)
-            self.file_act_notifier.on_delete_event(dataset_geid, oper, deleted_files)
+            await self.file_act_notifier.on_delete_event(dataset_geid, oper, deleted_files)
 
         except Exception as e:
             # here batch deny the operation
@@ -1048,7 +1049,7 @@ class APIImportData:
             # loop over all existing job and send error
             for ff_object in delete_list:
                 job_id = job_tracker['job_id'].get(ff_object.get('global_entity_id'))
-                self.update_job_status(
+                await self.update_job_status(
                     job_tracker['session_id'],
                     ff_object,
                     job_tracker['action'],
@@ -1062,20 +1063,19 @@ class APIImportData:
         finally:
             # unlock the nodes if we got blocked
             for resource_key, operation in locked_node:
-                unlock_resource(resource_key, operation)
+                await unlock_resource(resource_key, operation)
 
         return
 
     # the rename worker will reuse the recursive_copy&recursive_delete
     # with only one file. the old_file is the node object and update
     # attribute to new name
-    def rename_file_worker(self, old_file, new_name, dataset_obj, oper, session_id, access_token, refresh_token):
-
+    async def rename_file_worker(self, old_file, new_name, dataset_obj, oper, session_id, access_token, refresh_token):
         action = 'dataset_file_rename'
-        job_tracker = self.initialize_file_jobs(session_id, action, old_file, dataset_obj, oper)
+        job_tracker = await self.initialize_file_jobs(session_id, action, old_file, dataset_obj, oper)
         # since the renanme will be just one file set to the running now
         job_id = job_tracker['job_id'].get(old_file[0].get('global_entity_id'))
-        self.update_job_status(
+        await self.update_job_status(
             job_tracker['session_id'],
             old_file[0],
             job_tracker['action'],
@@ -1088,27 +1088,27 @@ class APIImportData:
 
         # minio move update the arribute
         # find the parent node for path
-        parent_node = get_parent_node(old_file[0])
+        parent_node = await get_parent_node(old_file[0])
         parent_path = parent_node.get('folder_relative_path', None)
         parent_path = parent_path + '/' + parent_node.get('name') if parent_path else ConfigClass.DATASET_FILE_FOLDER
 
         try:
             # then we mark both source node tree and target nodes as write
-            locked_node, err = recursive_lock_move_rename(old_file, parent_path, new_name=new_name)
+            locked_node, err = await recursive_lock_move_rename(old_file, parent_path, new_name=new_name)
             if err:
                 raise err
 
             # same here the job tracker is not pass into the function
             # we only let the delete to state the finish
-            _, _, new_nodes = self.recursive_copy(
+            _, _, new_nodes = await self.recursive_copy(
                 old_file, dataset_obj, oper, parent_path, parent_node, access_token, refresh_token, new_name=new_name
             )
 
             # delete the old one
-            self.recursive_delete(old_file, dataset_obj, oper, parent_node, access_token, refresh_token)
+            await self.recursive_delete(old_file, dataset_obj, oper, parent_node, access_token, refresh_token)
 
             # after deletion set the status using new node
-            self.update_job_status(
+            await self.update_job_status(
                 job_tracker['session_id'],
                 old_file[0],
                 job_tracker['action'],
@@ -1127,12 +1127,12 @@ class APIImportData:
             frp = ''
             if ConfigClass.DATASET_FILE_FOLDER != parent_path:
                 frp = parent_path.replace(ConfigClass.DATASET_FILE_FOLDER + '/', '', 1) + '/'
-            self.file_act_notifier.on_rename_event(dataset_geid, oper, frp + old_file_name, frp + new_name)
+            await self.file_act_notifier.on_rename_event(dataset_geid, oper, frp + old_file_name, frp + new_name)
 
         except Exception as e:
             # send the cannelled
             error_message = {'err_message': str(e)}
-            self.update_job_status(
+            await self.update_job_status(
                 job_tracker['session_id'],
                 old_file[0],
                 job_tracker['action'],
@@ -1146,6 +1146,6 @@ class APIImportData:
         finally:
             # unlock the nodes if we got blocked
             for resource_key, operation in locked_node:
-                unlock_resource(resource_key, operation)
+                await unlock_resource(resource_key, operation)
 
         return

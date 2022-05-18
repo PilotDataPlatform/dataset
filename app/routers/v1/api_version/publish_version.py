@@ -20,9 +20,11 @@ import time
 from datetime import datetime
 
 import httpx
+from aioredis import StrictRedis
 from common import GEIDClient
 from common import LoggerFactory
-from redis import Redis
+from sqlalchemy.future import select
+from starlette.concurrency import run_in_threadpool
 
 from app.commons.service_connection.minio_client import Minio_Client
 from app.config import ConfigClass
@@ -52,34 +54,33 @@ class PublishVersion(object):
         self.tmp_folder = tmp_base + str(time.time()) + '/'
         self.zip_path = tmp_base + dataset_node['code'] + '_' + str(datetime.now())
         self.mc = Minio_Client()
-        self.redis_client = Redis(
+        self.redis_client = StrictRedis(
             host=ConfigClass.REDIS_HOST,
             port=ConfigClass.REDIS_PORT,
             password=ConfigClass.REDIS_PASSWORD,
             db=ConfigClass.REDIS_DB,
         )
         self.status_id = status_id
-        self.update_status('inprogress')
         self.version = version
 
         self.geid_client = GEIDClient()
 
-    def publish(self, db):
+    async def publish(self, db):
         try:
             # TODO some merge needed here since get_children_nodes and
             # get_dataset_files_recursive both get the nodes under the dataset
 
             # lock file here
-            level1_nodes = get_children_nodes(self.dataset_geid, start_label='Dataset')
-            locked_node, err = recursive_lock_publish(level1_nodes)
+            level1_nodes = await get_children_nodes(self.dataset_geid, start_label='Dataset')
+            locked_node, err = await recursive_lock_publish(level1_nodes)
             if err:
                 raise err
 
-            self.get_dataset_files_recursive(self.dataset_geid)
+            await self.get_dataset_files_recursive(self.dataset_geid)
             self.download_dataset_files()
-            self.add_schemas(db)
-            self.zip_files()
-            minio_location = self.upload_version()
+            await self.add_schemas(db)
+            await run_in_threadpool(self.zip_files)
+            minio_location = await self.upload_version()
             try:
                 dataset_version = DatasetVersion(
                     dataset_code=self.dataset_node['code'],
@@ -90,26 +91,26 @@ class PublishVersion(object):
                     notes=self.notes,
                 )
                 db.add(dataset_version)
-                db.commit()
+                await db.commit()
             except Exception as e:
                 logger.error('Psql Error: ' + str(e))
                 raise e
 
             logger.info(f'Successfully published {self.dataset_geid} version {self.version}')
-            self.update_activity_log()
-            self.update_status('success')
+            await self.update_activity_log()
+            await self.update_status('success')
         except Exception as e:
             error_msg = f'Error publishing {self.dataset_geid}: {str(e)}'
             logger.error(error_msg)
-            self.update_status('failed', error_msg=error_msg)
+            await self.update_status('failed', error_msg=error_msg)
         finally:
             # unlock the nodes if we got blocked
             for resource_key, operation in locked_node:
-                unlock_resource(resource_key, operation)
+                await unlock_resource(resource_key, operation)
 
         return
 
-    def update_activity_log(self):
+    async def update_activity_log(self):
         url = ConfigClass.QUEUE_SERVICE + 'broker/pub'
         post_json = {
             'event_type': 'DATASET_PUBLISH_SUCCEED',
@@ -125,15 +126,15 @@ class PublishVersion(object):
             'routing_key': '',
             'exchange': {'name': 'DATASET_ACTS', 'type': 'fanout'},
         }
-        with httpx.Client() as client:
-            res = client.post(url, json=post_json)
+        async with httpx.AsyncClient() as client:
+            res = await client.post(url, json=post_json)
         if res.status_code != 200:
             error_msg = 'update_activity_log {}: {}'.format(res.status_code, res.text)
             logger.error(error_msg)
             raise Exception(error_msg)
         return res
 
-    def update_status(self, status, error_msg=''):
+    async def update_status(self, status, error_msg=''):
         """Updates job status in redis."""
         redis_status = json.dumps(
             {
@@ -141,9 +142,9 @@ class PublishVersion(object):
                 'error_msg': error_msg,
             }
         )
-        self.redis_client.set(self.status_id, redis_status, ex=1 * 60 * 60)
+        await self.redis_client.set(self.status_id, redis_status, ex=1 * 60 * 60)
 
-    def get_dataset_files_recursive(self, geid, start_label='Dataset'):
+    async def get_dataset_files_recursive(self, geid, start_label='Dataset'):
         """get all files from dataset."""
         query = {
             'start_label': start_label,
@@ -157,13 +158,13 @@ class PublishVersion(object):
                 },
             },
         }
-        with httpx.Client() as client:
-            resp = client.post(ConfigClass.NEO4J_SERVICE_V2 + 'relations/query', json=query)
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(ConfigClass.NEO4J_SERVICE_V2 + 'relations/query', json=query)
         for node in resp.json()['results']:
             if 'File' in node['labels']:
                 self.dataset_files.append(node)
             else:
-                self.get_dataset_files_recursive(node['global_entity_id'], start_label='Folder')
+                await self.get_dataset_files_recursive(node['global_entity_id'], start_label='Folder')
         return self.dataset_files
 
     def download_dataset_files(self):
@@ -186,33 +187,36 @@ class PublishVersion(object):
         shutil.make_archive(self.zip_path, 'zip', self.tmp_folder)
         return self.zip_path
 
-    def add_schemas(self, db):
+    async def add_schemas(self, db):
         """Saves schema json files to folder that will zipped."""
         if not os.path.isdir(self.tmp_folder):
             os.mkdir(self.tmp_folder)
             os.mkdir(self.tmp_folder + '/data')
 
-        schemas = (
-            db.query(DatasetSchema).filter_by(dataset_geid=self.dataset_geid, standard='default', is_draft=False).all()
+        query = select(DatasetSchema).where(
+            DatasetSchema.dataset_geid == self.dataset_geid, DatasetSchema.is_draft.is_(False)
         )
-        for schema in schemas:
+        query_default = query.where(DatasetSchema.standard == 'default')
+        query_open_minds = query.where(DatasetSchema.standard == 'open_minds')
+
+        schemas_default = (await db.execute(query_default)).scalars().all()
+        schemas_open_minds = (await db.execute(query_open_minds)).scalars().all()
+
+        for schema in schemas_default:
             with open(self.tmp_folder + '/default_' + schema.name, 'w') as w:
                 w.write(json.dumps(schema.content, indent=4, ensure_ascii=False))
-        schemas = (
-            db.query(DatasetSchema)
-            .filter_by(dataset_geid=self.dataset_geid, standard='open_minds', is_draft=False)
-            .all()
-        )
-        for schema in schemas:
+
+        for schema in schemas_open_minds:
             with open(self.tmp_folder + '/openMINDS_' + schema.name, 'w') as w:
                 w.write(json.dumps(schema.content, indent=4, ensure_ascii=False))
 
-    def upload_version(self):
+    async def upload_version(self):
         """Upload version zip to minio."""
         bucket = self.dataset_node['code']
         path = 'versions/' + self.zip_path.split('/')[-1] + '.zip'
         try:
-            self.mc.client.fput_object(
+            await run_in_threadpool(
+                self.mc.client.fput_object,
                 bucket,
                 path,
                 self.zip_path + '.zip',

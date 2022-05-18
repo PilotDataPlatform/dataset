@@ -23,6 +23,7 @@ from fastapi import APIRouter
 from fastapi import Header
 from fastapi.responses import StreamingResponse
 from fastapi_utils import cbv
+from starlette.concurrency import run_in_threadpool
 
 from app.commons.service_connection.minio_client import Minio_Client
 from app.commons.service_connection.minio_client import Minio_Client_
@@ -52,7 +53,7 @@ class Preview:
         api_response = APIResponse()
 
         # Get neo4j file node
-        file_node = self.get_file_by_geid(file_geid)
+        file_node = await self.get_file_by_geid(file_geid)
         if not file_node:
             api_response.error_msg = 'File not found'
             api_response.code = EAPIResponseCode.not_found
@@ -63,9 +64,11 @@ class Preview:
         file_data = self.parse_location(file_node['location'])
         file_type = file_node['name'].split('.')[1]
 
-        response = mc.client.get_object(file_data['bucket'], file_data['path'], length=ConfigClass.MAX_PREVIEW_SIZE)
+        response = await run_in_threadpool(
+            mc.client.get_object, file_data['bucket'], file_data['path'], length=ConfigClass.MAX_PREVIEW_SIZE
+        )
         if file_type in ['csv', 'tsv']:
-            result['content'] = self.parse_csv_response(response.data.decode('utf-8-sig'))
+            result['content'] = await run_in_threadpool(self.parse_csv_response, response.data.decode('utf-8-sig'))
         else:
             result['content'] = response.data.decode('utf-8-sig')
 
@@ -79,7 +82,7 @@ class Preview:
         return api_response.json_response()
 
     @router.get('/v1/{file_geid}/preview/stream', tags=['preview'], summary='CSV/JSON/TSV File preview stream')
-    def stream(self, file_geid):
+    async def stream(self, file_geid):
         """Get a file preview."""
 
         logger.info('Get preview for: ' + str(file_geid))
@@ -91,7 +94,7 @@ class Preview:
             return api_response.to_dict, api_response.code
 
         # Get neo4j file node
-        file_node = self.get_file_by_geid(file_geid)
+        file_node = await self.get_file_by_geid(file_geid)
         if not file_node:
             api_response.set_error_msg('File not found')
             api_response.set_code(EAPIResponseCode.not_found)
@@ -101,7 +104,7 @@ class Preview:
         file_data = self.parse_location(file_node['location'])
         file_type = file_node['name'][file_node['name'].rfind('.') :].replace('.', '')
 
-        response = mc.client.get_object(file_data['bucket'], file_data['path'])
+        response = await run_in_threadpool(mc.client.get_object, file_data['bucket'], file_data['path'])
         if file_type in ['csv', 'tsv']:
             mimetype = 'text/csv'
         else:
@@ -135,12 +138,12 @@ class Preview:
         path = '/'.join(path[2:])
         return {'bucket': bucket, 'path': path}
 
-    def get_file_by_geid(self, file_geid):
+    async def get_file_by_geid(self, file_geid):
         payload = {
             'global_entity_id': file_geid,
         }
-        with httpx.Client() as client:
-            response = client.post(ConfigClass.NEO4J_SERVICE + 'nodes/File/query', json=payload)
+        async with httpx.AsyncClient() as client:
+            response = await client.post(ConfigClass.NEO4J_SERVICE + 'nodes/File/query', json=payload)
         if not response.json():
             return None
         return response.json()[0]

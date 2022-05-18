@@ -25,6 +25,8 @@ from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import Header
 from fastapi_utils import cbv
+from sqlalchemy.future import select
+from starlette.concurrency import run_in_threadpool
 
 from app.config import ConfigClass
 from app.core.db import get_db_session
@@ -62,7 +64,7 @@ class DatasetRestful:
         res = APIResponse()
         srv_dataset = SrvDatasetMgr()
 
-        check_created = srv_dataset.get_bycode(db, request_payload.code)
+        check_created = await srv_dataset.get_bycode(db, request_payload.code)
         if check_created:
             if len(check_created.json()) > 0:
                 res.result = None
@@ -82,7 +84,7 @@ class DatasetRestful:
                     res.error_msg = 'Invalid {}'.format(k)
                     return res.json_response()
 
-        created = srv_dataset.create(
+        created = await srv_dataset.create(
             db,
             request_payload.username,
             request_payload.code,
@@ -109,7 +111,7 @@ class DatasetRestful:
         res = APIResponse()
         srv_dataset = SrvDatasetMgr()
         try:
-            dataset = srv_dataset.get_bygeid(db, dataset_geid)
+            dataset = await srv_dataset.get_bygeid(db, dataset_geid)
             if dataset:
                 res.code = EAPIResponseCode.success
                 res.result = dataset.to_dict()
@@ -135,7 +137,7 @@ class DatasetRestful:
 
         srv_dataset = SrvDatasetMgr()
         try:
-            dataset = srv_dataset.get_bycode(db, code)
+            dataset = await srv_dataset.get_bycode(db, code)
             if dataset:
                 res.code = EAPIResponseCode.success
                 res.result = dataset.to_dict()
@@ -158,12 +160,12 @@ class DatasetRestful:
         srv_dataset = SrvDatasetMgr()
         payload = request_payload.dict()
 
-        dataset = srv_dataset.get_bygeid(db, payload['dataset_geid'])
+        dataset = await srv_dataset.get_bygeid(db, payload['dataset_geid'])
         if not dataset:
             res.code = EAPIResponseCode.bad_request
             res.result = {'result': 'dataset not exist'}
             return res.json_response()
-        nodes = get_related_nodes(dataset.id)
+        nodes = await get_related_nodes(dataset.id)
 
         files_info = []
         TEMP_FOLDER = 'temp/'
@@ -173,7 +175,7 @@ class DatasetRestful:
                 files_info.append({'file_path': TEMP_FOLDER + dataset.code + file_path, 'file_size': node['file_size']})
 
             if 'Folder' in node['labels']:
-                files = get_files_recursive(node['global_entity_id'])
+                files = await get_files_recursive(node['global_entity_id'])
                 for file in files:
                     file_path = get_node_relative_path(dataset.code, file['location'])
                     files_info.append(
@@ -181,7 +183,7 @@ class DatasetRestful:
                     )
 
         try:
-            make_temp_folder(files_info)
+            await run_in_threadpool(make_temp_folder, files_info)
         except Exception:
             res.code = EAPIResponseCode.internal_error
             res.result = 'failed to create temp folder for bids'
@@ -204,7 +206,7 @@ class DatasetRestful:
             return res.json_response()
 
         try:
-            shutil.rmtree(TEMP_FOLDER + dataset.code)
+            await run_in_threadpool(shutil.rmtree, TEMP_FOLDER + dataset.code)
         except Exception:
             res.code = EAPIResponseCode.internal_error
             res.result = 'failed to remove temp bids folder'
@@ -226,7 +228,7 @@ class DatasetRestful:
         srv_dataset = SrvDatasetMgr()
         payload = request_payload.dict()
 
-        dataset = srv_dataset.get_bygeid(db, payload['dataset_geid'])
+        dataset = await srv_dataset.get_bygeid(db, payload['dataset_geid'])
         if not dataset:
             res.code = EAPIResponseCode.bad_request
             res.result = {'result': 'dataset not exist'}
@@ -246,8 +248,10 @@ class DatasetRestful:
         }
         url = ConfigClass.SEND_MESSAGE_URL
         self.__logger.info('Sending Message To Queue: ' + str(payload))
-        with httpx.Client() as client:
-            msg_res = client.post(url=url, json=payload, headers={'Content-type': 'application/json; charset=utf-8'})
+        async with httpx.AsyncClient() as client:
+            msg_res = await client.post(
+                url=url, json=payload, headers={'Content-type': 'application/json; charset=utf-8'}
+            )
         if msg_res.status_code != 200:
             res.code = EAPIResponseCode.internal_error
             res.result = {'result': msg_res.text}
@@ -263,13 +267,14 @@ class DatasetRestful:
     async def get_bids_msg(self, dataset_geid, db=Depends(get_db_session)):
         api_response = APIResponse()
         try:
-            bids_results = (
-                db.query(BIDSResult)
-                .filter_by(
-                    dataset_geid=dataset_geid,
+            query = (
+                select(BIDSResult)
+                .where(
+                    BIDSResult.dataset_geid == dataset_geid,
                 )
                 .order_by(BIDSResult.created_time.desc())
             )
+            bids_results = (await db.execute(query)).scalars()
             bids_result = bids_results.first()
 
             if not bids_result:

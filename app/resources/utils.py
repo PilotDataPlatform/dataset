@@ -21,7 +21,7 @@ import httpx
 from app.config import ConfigClass
 
 
-def get_files_recursive(folder_geid, all_files=None):
+async def get_files_recursive(folder_geid, all_files=None):
     if not all_files:
         all_files = []
     query = {
@@ -34,17 +34,17 @@ def get_files_recursive(folder_geid, all_files=None):
             'end_params': {},
         },
     }
-    with httpx.Client() as client:
-        resp = client.post(ConfigClass.NEO4J_SERVICE_V2 + 'relations/query', json=query)
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(ConfigClass.NEO4J_SERVICE_V2 + 'relations/query', json=query)
     for node in resp.json()['results']:
         if 'File' in node['labels']:
             all_files.append(node)
         else:
-            get_files_recursive(node['global_entity_id'], all_files=all_files)
+            await get_files_recursive(node['global_entity_id'], all_files=all_files)
     return all_files
 
 
-def get_related_nodes(dataset_geid):
+async def get_related_nodes(dataset_geid):
     query = {
         'start_label': 'Dataset',
         'end_labels': ['File', 'Folder'],
@@ -55,8 +55,8 @@ def get_related_nodes(dataset_geid):
             'end_params': {},
         },
     }
-    with httpx.Client() as client:
-        resp = client.post(ConfigClass.NEO4J_SERVICE_V2 + 'relations/query', json=query)
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(ConfigClass.NEO4J_SERVICE_V2 + 'relations/query', json=query)
 
     return resp.json()['results']
 

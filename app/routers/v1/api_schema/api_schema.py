@@ -19,6 +19,7 @@ from common import LoggerFactory
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi_utils import cbv
+from sqlalchemy.future import select
 
 from app.config import ConfigClass
 from app.core.db import get_db_session
@@ -47,7 +48,7 @@ class Schema:
     def __init__(self) -> None:
         self.geid_client = GEIDClient()
 
-    def update_dataset_node(self, dataset_geid, content):
+    async def update_dataset_node(self, dataset_geid, content):
         # Update dataset neo4j entry
         dataset_node = self.get_dataset_by_geid(dataset_geid)
         dataset_id = dataset_node['id']
@@ -71,13 +72,13 @@ class Schema:
         # on the node and doesn't exist in payload
         if dataset_node.get('license') and 'license' not in payload:
             payload['license'] = ''
-        with httpx.Client() as client:
-            response = client.put(ConfigClass.NEO4J_SERVICE + f'nodes/Dataset/node/{dataset_id}', json=payload)
+        async with httpx.AsyncClient() as client:
+            response = await client.put(ConfigClass.NEO4J_SERVICE + f'nodes/Dataset/node/{dataset_id}', json=payload)
         if response.status_code != 200:
             logger.error(response.json())
             raise APIException(error_msg=response.json(), status_code=response.status_code)
 
-    def update_activity_log(self, activity_data):
+    async def update_activity_log(self, activity_data):
         url = ConfigClass.QUEUE_SERVICE + 'broker/pub'
         post_json = {
             'event_type': activity_data['event_type'],
@@ -93,39 +94,41 @@ class Schema:
             'routing_key': '',
             'exchange': {'name': 'DATASET_ACTS', 'type': 'fanout'},
         }
-        with httpx.Client() as client:
-            res = client.post(url, json=post_json)
+        async with httpx.AsyncClient() as client:
+            res = await client.post(url, json=post_json)
         if res.status_code != 200:
             error_msg = 'update_activity_log {}: {}'.format(res.status_code, res.text)
             logger.error(error_msg)
             raise Exception(error_msg)
         return res
 
-    def db_add_operation(self, schema, db):
+    async def db_add_operation(self, schema, db):
         try:
             db.add(schema)
-            db.commit()
-            db.refresh(schema)
+            await db.commit()
+            await db.refresh(schema)
         except Exception as e:
             error_msg = f'Psql Error: {str(e)}'
-            db.rollback()
+            await db.rollback()
             logger.error(error_msg)
             raise APIException(error_msg=error_msg, status_code=EAPIResponseCode.internal_error.value)
         return schema
 
-    def db_delete_operation(self, schema, db):
+    async def db_delete_operation(self, schema, db):
         try:
-            db.delete(schema)
-            db.commit()
+            await db.delete(schema)
+            await db.commit()
         except Exception as e:
             error_msg = f'Psql Error: {str(e)}'
-            db.rollback()
+            await db.rollback()
             logger.error(error_msg)
             raise APIException(error_msg=error_msg, status_code=EAPIResponseCode.internal_error.value)
 
-    def get_schema_or_404(self, schema_geid, db):
+    async def get_schema_or_404(self, schema_geid, db):
         try:
-            schema = db.query(DatasetSchema).filter_by(geid=schema_geid).first()
+            query = select(DatasetSchema).where(DatasetSchema.geid == schema_geid)
+            schema = (await db.execute(query)).scalars().first()
+
             if not schema:
                 logger.info('Schema not found')
                 raise APIException(error_msg='Schema not found', status_code=EAPIResponseCode.not_found.value)
@@ -137,8 +140,10 @@ class Schema:
             raise APIException(error_msg=error_msg, status_code=EAPIResponseCode.internal_error.value)
         return schema
 
-    def duplicate_check(self, name, dataset_geid, db):
-        if db.query(DatasetSchema).filter_by(name=name, dataset_geid=dataset_geid).first():
+    async def duplicate_check(self, name, dataset_geid, db):
+        query = select(DatasetSchema).where(DatasetSchema.name == name, DatasetSchema.dataset_geid == dataset_geid)
+        result = (await db.execute(query)).scalars()
+        if result.first():
             error_msg = 'Schema with that name already exists'
             logger.info(error_msg)
             raise APIException(error_msg=error_msg, status_code=EAPIResponseCode.conflict.value)
@@ -148,9 +153,10 @@ class Schema:
         logger.info('Calling schema create')
         api_response = POSTSchemaResponse()
 
-        self.duplicate_check(data.name, data.dataset_geid, db)
-
-        if not db.query(DatasetSchemaTemplate).filter_by(geid=data.tpl_geid).first():
+        await self.duplicate_check(data.name, data.dataset_geid, db)
+        query = select(DatasetSchemaTemplate).where(DatasetSchemaTemplate.geid == data.tpl_geid)
+        result = (await db.execute(query)).scalars().first()
+        if not result:
             api_response.code = EAPIResponseCode.bad_request
             api_response.error_msg = 'Template not found'
             logger.info(api_response.error_msg)
@@ -168,7 +174,7 @@ class Schema:
             'creator': data.creator,
         }
         schema = DatasetSchema(**model_data)
-        schema = self.db_add_operation(schema, db)
+        schema = await self.db_add_operation(schema, db)
         api_response.result = schema.to_dict()
 
         for activity in data.activity:
@@ -178,7 +184,7 @@ class Schema:
                 'event_type': 'SCHEMA_CREATE',
                 **activity,
             }
-            self.update_activity_log(activity_data)
+            await self.update_activity_log(activity_data)
 
         return api_response.json_response()
 
@@ -186,7 +192,7 @@ class Schema:
     async def get(self, schema_geid: str, db=Depends(get_db_session)):
         logger.info('Calling schema get')
         api_response = POSTSchemaResponse()
-        schema = self.get_schema_or_404(schema_geid, db)
+        schema = await self.get_schema_or_404(schema_geid, db)
         api_response.result = schema.to_dict()
         return api_response.json_response()
 
@@ -196,18 +202,18 @@ class Schema:
     async def update(self, schema_geid: str, data: PUTSchema, db=Depends(get_db_session)):
         logger.info('Calling schema update')
         api_response = POSTSchemaResponse()
-        schema = self.get_schema_or_404(schema_geid, db)
+        schema = await self.get_schema_or_404(schema_geid, db)
 
         if data.name is not None:
             if data.name != schema.name:
-                self.duplicate_check(data.name, schema.dataset_geid)
+                await self.duplicate_check(data.name, schema.dataset_geid)
 
         fields = ['name', 'standard', 'is_draft', 'content']
         for field in fields:
             if getattr(data, field) is not None:
                 setattr(schema, field, getattr(data, field))
 
-        schema = self.db_add_operation(schema, db)
+        schema = await self.db_add_operation(schema, db)
         api_response.result = schema.to_dict()
         for activity in data.activity:
             activity_data = {
@@ -216,9 +222,9 @@ class Schema:
                 'event_type': 'SCHEMA_UPDATE',
                 **activity,
             }
-            self.update_activity_log(activity_data)
+            await self.update_activity_log(activity_data)
         if schema.name == 'essential.schema.json':
-            self.update_dataset_node(schema.dataset_geid, data.content)
+            await self.update_dataset_node(schema.dataset_geid, data.content)
         return api_response.json_response()
 
     @router.delete(
@@ -227,8 +233,8 @@ class Schema:
     async def delete(self, schema_geid: str, data: DELETESchema, db=Depends(get_db_session)):
         logger.info('Calling schema delete')
         api_response = POSTSchemaResponse()
-        schema = self.get_schema_or_404(schema_geid, db)
-        schema = self.db_delete_operation(schema, db)
+        schema = await self.get_schema_or_404(schema_geid, db)
+        schema = await self.db_delete_operation(schema, db)
 
         for activity in data.activity:
             activity_data = {
@@ -237,7 +243,7 @@ class Schema:
                 'event_type': 'SCHEMA_DELETE',
                 **activity,
             }
-            self.update_activity_log(activity_data)
+            await self.update_activity_log(activity_data)
 
         api_response.result = 'success'
         return api_response.json_response()
@@ -258,13 +264,13 @@ class Schema:
             'update_timestamp',
             'creator',
         ]
-        query = db.query(DatasetSchema)
+        query = select(DatasetSchema)
         for key in filter_allowed:
             filter_val = getattr(request_payload, key)
             if filter_val is not None:
-                query = query.filter(getattr(DatasetSchema, key) == filter_val)
-
-        schemas_fetched = query.all()
+                query = query.where(getattr(DatasetSchema, key) == filter_val)
+        result = (await db.execute(query)).scalars()
+        schemas_fetched = result.all()
         result = [record.to_dict() for record in schemas_fetched] if schemas_fetched else []
         # essentials rank top
         essentials = [record for record in result if record['name'] == ESSENTIALS_NAME]

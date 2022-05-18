@@ -14,8 +14,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from fastapi import Depends
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.config import ConfigClass
 
@@ -26,21 +27,20 @@ class GetDBEngine:
     def __init__(self) -> None:
         self.instance = None
 
-    def __call__(self):
+    async def __call__(self) -> AsyncEngine:
         """Return an instance of AsyncEngine class."""
 
         if not self.instance:
-            self.instance = create_engine(ConfigClass.OPS_DB_URI)
+            self.instance = create_async_engine(ConfigClass.OPS_DB_URI)
         return self.instance
 
 
 db_engine = GetDBEngine()
 
 
-def get_db_session(engine=Depends(db_engine)):
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    db = SessionLocal()
+async def get_db_session(engine=Depends(db_engine)) -> AsyncSession:
+    db = AsyncSession(bind=engine, expire_on_commit=False)
     try:
         yield db
     finally:
-        db.close()
+        await db.close()

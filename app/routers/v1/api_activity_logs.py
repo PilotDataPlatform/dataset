@@ -22,6 +22,7 @@ from common import LoggerFactory
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi_utils import cbv
+from sqlalchemy.future import select
 
 from app.core.db import get_db_session
 from app.models.version import DatasetVersion
@@ -81,7 +82,7 @@ class ActivityLogs:
                     }
                     search_params.append(filed_params)
 
-            res = search('activity-logs', page, page_size, search_params, sort_by, sort_type)
+            res = await search('activity-logs', page, page_size, search_params, sort_by, sort_type)
 
             self.__logger.info('activity logs result: {}'.format(res))
 
@@ -108,12 +109,12 @@ class ActivityLogs:
         response = APIResponse()
 
         try:
-            versions = (
-                db.query(DatasetVersion)
-                .filter_by(dataset_geid=dataset_geid, version=version)
+            query = (
+                select(DatasetVersion)
+                .where(DatasetVersion.dataset_geid == dataset_geid, DatasetVersion.version == version)
                 .order_by(DatasetVersion.created_at.desc())
             )
-
+            versions = (await db.execute(query)).scalars()
             version_info = versions.first()
 
             if not version_info:
@@ -163,7 +164,7 @@ class ActivityLogs:
         )
 
         try:
-            res = search('activity-logs', page, page_size, search_params, 'create_timestamp', 'desc')
+            res = await search('activity-logs', page, page_size, search_params, 'create_timestamp', 'desc')
         except Exception as e:
             self.__logger.error('Elastic Search Error: ' + str(e))
             response.code = EAPIResponseCode.internal_error

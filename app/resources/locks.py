@@ -13,8 +13,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from typing import Union
-
 import httpx
 from common import LoggerFactory
 
@@ -24,67 +22,31 @@ from app.resources.neo4j_helper import get_children_nodes
 logger = LoggerFactory(__name__).get_logger()
 
 
-def lock_resource(resource_key: str, operation: str) -> dict:
+async def lock_resource(resource_key: str, operation: str) -> dict:
     # operation can be either read or write
     logger.info('Lock resource:', extra={'resource_key': resource_key})
     url = ConfigClass.DATA_UTILITY_SERVICE_v2 + 'resource/lock/'
     post_json = {'resource_key': resource_key, 'operation': operation}
-    with httpx.Client() as client:
-        response = client.post(url, json=post_json)
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, json=post_json)
     if response.status_code != 200:
         raise Exception('resource %s already in used' % resource_key)
 
     return response.json()
 
 
-def unlock_resource(resource_key: str, operation: str) -> dict:
+async def unlock_resource(resource_key: str, operation: str) -> dict:
     # operation can be either read or write
     logger.info('Unlock resource:', extra={'resource_key': resource_key})
     url = ConfigClass.DATA_UTILITY_SERVICE_v2 + 'resource/lock/'
     post_json = {'resource_key': resource_key, 'operation': operation}
 
-    with httpx.Client() as client:
-        response = client.request(url=url, json=post_json, method='DELETE')
+    async with httpx.AsyncClient() as client:
+        response = await client.request(url=url, json=post_json, method='DELETE')
     if response.status_code != 200:
         raise Exception('Error when unlock resource %s' % resource_key)
 
     return response.json()
-
-
-# TODO somehow do the factory here?
-def recursive_lock(code: str, nodes, root_path, new_name: str = None) -> Union[list, Exception]:
-    """this function seems not doing anything.
-
-    Because 'locked_node' is never set
-    """
-    locked_node, err = [], None
-
-    def recur_walker(currenct_nodes, current_root_path, new_name=None):
-        """recursively trace down the node tree and run the lock function."""
-        for ff_object in currenct_nodes:
-            # update here if the folder/file is archieved then skip
-            if ff_object.get('archived', False):
-                continue
-
-            # conner case here, we DONT lock the name folder
-            if ff_object.get('name') != ff_object.get('uploader'):
-                pass
-
-            # open the next recursive loop if it is folder
-            if 'Folder' in ff_object.get('labels'):
-                next_root = current_root_path + '/' + (new_name if new_name else ff_object.get('name'))
-                children_nodes = get_children_nodes(ff_object.get('global_entity_id', None))
-                recur_walker(children_nodes, next_root)
-
-        return
-
-    # start here
-    try:
-        recur_walker(nodes, root_path, new_name)
-    except Exception as e:
-        err = e
-
-    return locked_node, err
 
 
 # TODO the issue here is how to raise the lock conflict
@@ -186,7 +148,7 @@ class lock_factory:  # pragma no cover
 
         return
 
-    def lock_publish(self, source_node):
+    async def lock_publish(self, source_node):
         # bucket, minio_obj_path = None, None
         locked_node = []
         err = None
@@ -204,7 +166,7 @@ class lock_factory:  # pragma no cover
 
         try:
             source_key = '{}/{}'.format(bucket, minio_obj_path)
-            lock_resource(source_key, 'read')
+            await lock_resource(source_key, 'read')
             locked_node.append((source_key, 'read'))
         except Exception as e:
             err = e
@@ -212,7 +174,7 @@ class lock_factory:  # pragma no cover
         return locked_node, err
 
 
-def recursive_lock_import(dataset_code, nodes, root_path):
+async def recursive_lock_import(dataset_code, nodes, root_path):
     """the function will recursively lock the node tree OR unlock the tree base on the parameter.
 
     - if lock = true then perform the lock
@@ -225,7 +187,7 @@ def recursive_lock_import(dataset_code, nodes, root_path):
     # then it will affect the processing one.
     locked_node, err = [], None
 
-    def recur_walker(currenct_nodes, current_root_path, new_name=None):
+    async def recur_walker(currenct_nodes, current_root_path, new_name=None):
         """recursively trace down the node tree and run the lock function."""
 
         for ff_object in currenct_nodes:
@@ -246,34 +208,34 @@ def recursive_lock_import(dataset_code, nodes, root_path):
                     minio_obj_path = '%s/%s' % (ff_object.get('folder_relative_path'), ff_object.get('name'))
                 # source is from project
                 source_key = '{}/{}'.format(bucket, minio_obj_path)
-                lock_resource(source_key, 'read')
+                await lock_resource(source_key, 'read')
                 locked_node.append((source_key, 'read'))
 
                 # destination is in the dataset
                 target_key = '{}/{}/{}'.format(
                     dataset_code, current_root_path, new_name if new_name else ff_object.get('name')
                 )
-                lock_resource(target_key, 'write')
+                await lock_resource(target_key, 'write')
                 locked_node.append((target_key, 'write'))
 
             # open the next recursive loop if it is folder
             if 'Folder' in ff_object.get('labels'):
                 next_root = current_root_path + '/' + (new_name if new_name else ff_object.get('name'))
-                children_nodes = get_children_nodes(ff_object.get('global_entity_id', None))
-                recur_walker(children_nodes, next_root)
+                children_nodes = await get_children_nodes(ff_object.get('global_entity_id', None))
+                await recur_walker(children_nodes, next_root)
 
         return
 
     # start here
     try:
-        recur_walker(nodes, root_path)
+        await recur_walker(nodes, root_path)
     except Exception as e:
         err = e
 
     return locked_node, err
 
 
-def recursive_lock_delete(nodes, new_name=None):
+async def recursive_lock_delete(nodes, new_name=None):
 
     # this is for crash recovery, if something trigger the exception
     # we will unlock the locked node only. NOT the whole tree. The example
@@ -281,7 +243,7 @@ def recursive_lock_delete(nodes, new_name=None):
     # then it will affect the processing one.
     locked_node, err = [], None
 
-    def recur_walker(currenct_nodes, new_name=None):
+    async def recur_walker(currenct_nodes, new_name=None):
         """recursively trace down the node tree and run the lock function."""
 
         for ff_object in currenct_nodes:
@@ -302,27 +264,27 @@ def recursive_lock_delete(nodes, new_name=None):
                     minio_obj_path = '%s/%s' % (ff_object.get('folder_relative_path'), ff_object.get('name'))
 
                 source_key = '{}/{}'.format(bucket, minio_obj_path)
-                lock_resource(source_key, 'write')
+                await lock_resource(source_key, 'write')
                 locked_node.append((source_key, 'write'))
 
             # open the next recursive loop if it is folder
             if 'Folder' in ff_object.get('labels'):
                 # next_root = current_root_path+"/"+(new_name if new_name else ff_object.get("name"))
-                children_nodes = get_children_nodes(ff_object.get('global_entity_id', None))
-                recur_walker(children_nodes)
+                children_nodes = await get_children_nodes(ff_object.get('global_entity_id', None))
+                await recur_walker(children_nodes)
 
         return
 
     # start here
     try:
-        recur_walker(nodes, new_name)
+        await recur_walker(nodes, new_name)
     except Exception as e:
         err = e
 
     return locked_node, err
 
 
-def recursive_lock_move_rename(nodes, root_path, new_name=None):
+async def recursive_lock_move_rename(nodes, root_path, new_name=None):
 
     # this is for crash recovery, if something trigger the exception
     # we will unlock the locked node only. NOT the whole tree. The example
@@ -332,7 +294,7 @@ def recursive_lock_move_rename(nodes, root_path, new_name=None):
 
     # TODO lock
 
-    def recur_walker(currenct_nodes, current_root_path, new_name=None):
+    async def recur_walker(currenct_nodes, current_root_path, new_name=None):
         """recursively trace down the node tree and run the lock function."""
 
         for ff_object in currenct_nodes:
@@ -352,33 +314,33 @@ def recursive_lock_move_rename(nodes, root_path, new_name=None):
                     bucket = ff_object.get('dataset_code')
                     minio_obj_path = '%s/%s' % (ff_object.get('folder_relative_path'), ff_object.get('name'))
                 source_key = '{}/{}'.format(bucket, minio_obj_path)
-                lock_resource(source_key, 'write')
+                await lock_resource(source_key, 'write')
                 locked_node.append((source_key, 'write'))
 
                 target_key = '{}/{}/{}'.format(
                     bucket, current_root_path, new_name if new_name else ff_object.get('name')
                 )
-                lock_resource(target_key, 'write')
+                await lock_resource(target_key, 'write')
                 locked_node.append((target_key, 'write'))
 
             # open the next recursive loop if it is folder
             if 'Folder' in ff_object.get('labels'):
                 next_root = current_root_path + '/' + (new_name if new_name else ff_object.get('name'))
-                children_nodes = get_children_nodes(ff_object.get('global_entity_id', None))
-                recur_walker(children_nodes, next_root)
+                children_nodes = await get_children_nodes(ff_object.get('global_entity_id', None))
+                await recur_walker(children_nodes, next_root)
 
         return
 
     # start here
     try:
-        recur_walker(nodes, root_path, new_name)
+        await recur_walker(nodes, root_path, new_name)
     except Exception as e:
         err = e
 
     return locked_node, err
 
 
-def recursive_lock_publish(nodes):
+async def recursive_lock_publish(nodes):
 
     # this is for crash recovery, if something trigger the exception
     # we will unlock the locked node only. NOT the whole tree. The example
@@ -386,7 +348,7 @@ def recursive_lock_publish(nodes):
     # then it will affect the processing one.
     locked_node, err = [], None
 
-    def recur_walker(currenct_nodes):
+    async def recur_walker(currenct_nodes):
         """recursively trace down the node tree and run the lock function."""
 
         for ff_object in currenct_nodes:
@@ -407,20 +369,20 @@ def recursive_lock_publish(nodes):
                     minio_obj_path = '%s/%s' % (ff_object.get('folder_relative_path'), ff_object.get('name'))
 
                 source_key = '{}/{}'.format(bucket, minio_obj_path)
-                lock_resource(source_key, 'read')
+                await lock_resource(source_key, 'read')
                 locked_node.append((source_key, 'read'))
 
             # open the next recursive loop if it is folder
             if 'Folder' in ff_object.get('labels'):
                 # next_root = current_root_path+"/"+(new_name if new_name else ff_object.get("name"))
-                children_nodes = get_children_nodes(ff_object.get('global_entity_id', None))
-                recur_walker(children_nodes)
+                children_nodes = await get_children_nodes(ff_object.get('global_entity_id', None))
+                await recur_walker(children_nodes)
 
         return
 
     # start here
     try:
-        recur_walker(nodes)
+        await recur_walker(nodes)
     except Exception as e:
         err = e
 

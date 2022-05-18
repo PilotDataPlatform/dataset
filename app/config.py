@@ -142,7 +142,7 @@ class Settings(BaseSettings):
 
         self.RDS_SCHEMA_DEFAULT = 'dataset'
         self.OPS_DB_URI = (
-            f'postgresql://{self.OPSDB_UTILITY_USERNAME}:{self.OPSDB_UTILITY_PASSWORD}'
+            f'postgresql+asyncpg://{self.OPSDB_UTILITY_USERNAME}:{self.OPSDB_UTILITY_PASSWORD}'
             f'@{self.OPSDB_UTILITY_HOST}:{self.OPSDB_UTILITY_PORT}'
             f'/{self.RDS_SCHEMA_DEFAULT}'
         )

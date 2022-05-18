@@ -49,7 +49,7 @@ class SrvDatasetSchemaTemplateMgr:
     logger = LoggerFactory('SrvDatasetSchemaTemplateMgr').get_logger()
     geid_client = GEIDClient()
 
-    def on_create_event(self, dataset_geid, template_geid, username, template_name):
+    async def on_create_event(self, dataset_geid, template_geid, username, template_name):
         url = ConfigClass.QUEUE_SERVICE + 'broker/pub'
         post_json = {
             'event_type': 'DATASET_SCHEMA_TEMPLATE_CREATE',
@@ -66,14 +66,14 @@ class SrvDatasetSchemaTemplateMgr:
             'routing_key': '',
             'exchange': {'name': 'DATASET_ACTS', 'type': 'fanout'},
         }
-        with httpx.Client() as client:
-            res = client.post(url, json=post_json)
+        async with httpx.AsyncClient() as client:
+            res = await client.post(url, json=post_json)
         if res.status_code != 200:
             raise Exception('__on_import_event {}: {}'.format(res.status_code, res.text))
         return res
 
     # this will adapt to add/delete the attributes
-    def on_update_event(self, dataset_geid, template_geid, username, attribute_action, attributes):
+    async def on_update_event(self, dataset_geid, template_geid, username, attribute_action, attributes):
         url = ConfigClass.QUEUE_SERVICE + 'broker/pub'
         post_json = {
             'event_type': 'DATASET_SCHEMA_TEMPLATE_UPDATE',
@@ -90,13 +90,13 @@ class SrvDatasetSchemaTemplateMgr:
             'routing_key': '',
             'exchange': {'name': 'DATASET_ACTS', 'type': 'fanout'},
         }
-        with httpx.Client() as client:
-            res = client.post(url, json=post_json)
+        async with httpx.AsyncClient() as client:
+            res = await client.post(url, json=post_json)
         if res.status_code != 200:
             raise Exception('__on_import_event {}: {}'.format(res.status_code, res.text))
         return res
 
-    def on_delete_event(self, dataset_geid, template_geid, username, template_name):
+    async def on_delete_event(self, dataset_geid, template_geid, username, template_name):
         url = ConfigClass.QUEUE_SERVICE + 'broker/pub'
         post_json = {
             'event_type': 'DATASET_SCHEMA_TEMPLATE_DELETE',
@@ -113,8 +113,8 @@ class SrvDatasetSchemaTemplateMgr:
             'routing_key': '',
             'exchange': {'name': 'DATASET_ACTS', 'type': 'fanout'},
         }
-        with httpx.Client() as client:
-            res = client.post(url, json=post_json)
+        async with httpx.AsyncClient() as client:
+            res = await client.post(url, json=post_json)
         if res.status_code != 200:
             raise Exception('__on_import_event {}: {}'.format(res.status_code, res.text))
         return res
