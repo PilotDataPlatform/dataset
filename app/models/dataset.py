@@ -40,7 +40,7 @@ class Dataset(DBModel):
     collection_method = Column(ARRAY(VARCHAR(256)), default=[])
     license = Column(VARCHAR(length=256))
     tags = Column(ARRAY(VARCHAR(256)), default=[])
-    description = Column(VARCHAR(length=256), nullable=False)
+    description = Column(VARCHAR(length=5000), nullable=False)
     size = Column(INTEGER())
     total_files = Column(INTEGER())
     title = Column(VARCHAR(length=256), nullable=False)
