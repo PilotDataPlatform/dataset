@@ -28,7 +28,7 @@ from app.models import DBModel
 
 
 class DatasetSchemaTemplate(DBModel):
-    __tablename__ = 'dataset_schema_template'
+    __tablename__ = 'schema_template'
     __table_args__ = {'schema': ConfigClass.RDS_SCHEMA_DEFAULT}
     geid = Column(String(), primary_key=True)
     name = Column(String())
@@ -78,7 +78,7 @@ class DatasetSchemaTemplate(DBModel):
 
 
 class DatasetSchema(DBModel):
-    __tablename__ = 'dataset_schema'
+    __tablename__ = 'schema'
     __table_args__ = {'schema': ConfigClass.RDS_SCHEMA_DEFAULT}
     geid = Column(String(), primary_key=True)
     name = Column(String())
