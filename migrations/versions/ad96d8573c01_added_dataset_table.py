@@ -43,7 +43,7 @@ def upgrade():
         sa.Column('collection_method', postgresql.ARRAY(sa.VARCHAR(length=256)), nullable=True),
         sa.Column('license', sa.VARCHAR(length=256), nullable=True),
         sa.Column('tags', postgresql.ARRAY(sa.VARCHAR(length=256)), nullable=True),
-        sa.Column('description', sa.VARCHAR(length=256), nullable=False),
+        sa.Column('description', sa.VARCHAR(length=5000), nullable=False),
         sa.Column('size', sa.INTEGER(), nullable=True),
         sa.Column('total_files', sa.INTEGER(), nullable=True),
         sa.Column('title', sa.VARCHAR(length=256), nullable=False),

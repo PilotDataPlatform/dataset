@@ -25,7 +25,7 @@ from app.models import DBModel
 
 
 class DatasetVersion(DBModel):
-    __tablename__ = 'dataset_version'
+    __tablename__ = 'version'
     __table_args__ = {'schema': ConfigClass.RDS_SCHEMA_DEFAULT}
     id = Column(Integer, primary_key=True)
     dataset_code = Column(String())

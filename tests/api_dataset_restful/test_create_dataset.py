@@ -55,6 +55,7 @@ async def test_create_dataset_should_return_200(client, httpx_mock, db_session, 
         'type': 'GENERAL',
         'description': '123',
         'code': 'datasetcode',
+        'tags': ['{!@#$%^&*()_{}:\\?><'],
     }
     res = await client.post('/v1/dataset', json=payload)
     assert res.status_code == 200
