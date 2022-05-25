@@ -21,12 +21,11 @@ async def schema_essential_template(db_session):
     from app.config import ConfigClass
     from app.models.schema import DatasetSchemaTemplate
 
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3'
     schema_template_geid = 'ef4eb37d-6d81-46a7-a9d9-db71bf44edc7'
 
     new_template = DatasetSchemaTemplate(
         geid=schema_template_geid,
-        dataset_geid=dataset_geid,
+        dataset_geid=None,
         name=ConfigClass.ESSENTIALS_TPL_NAME,
         standard='default',
         system_defined=True,

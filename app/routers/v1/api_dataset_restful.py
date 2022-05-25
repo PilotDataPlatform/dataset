@@ -63,14 +63,12 @@ class DatasetRestful:
         """dataset creation api."""
         res = APIResponse()
         srv_dataset = SrvDatasetMgr()
-
         check_created = await srv_dataset.get_bycode(db, request_payload.code)
         if check_created:
-            if len(check_created.json()) > 0:
-                res.result = None
-                res.error_msg = "[Invalid 'code']: already taken by other dataset."
-                res.code = EAPIResponseCode.conflict
-                return res.json_response()
+            res.result = None
+            res.error_msg = "[Invalid 'code']: already taken by other dataset."
+            res.code = EAPIResponseCode.conflict
+            return res.json_response()
 
         post_dict = request_payload.dict()
         for k, v in post_dict.items():
