@@ -70,3 +70,24 @@ async def test_create_dataset_should_return_200(client, httpx_mock, db_session, 
         'total': 1,
     }
     await db_session.delete(created_dataset)
+
+
+async def test_duplicated_dataset_code_should_return_409(client, dataset):
+    payload = {
+        'username': 'amyguindoc14',
+        'title': '123',
+        'authors': ['123'],
+        'type': 'GENERAL',
+        'description': '123',
+        'code': dataset.code,
+    }
+    res = await client.post('/v1/dataset', json=payload)
+    assert res.status_code == 409
+    assert res.json() == {
+        'code': 409,
+        'error_msg': "[Invalid 'code']: already taken by other dataset.",
+        'num_of_pages': 1,
+        'page': 0,
+        'result': None,
+        'total': 1,
+    }

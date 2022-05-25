@@ -101,13 +101,18 @@ class SrvDatasetMgr:
         await self.__on_create_event(global_entity_id, username)
         # and also create minio bucket with the dataset code
         try:
+            # TODO: IO-blocking code, also review this add policy logic.
+            #       We are getting an keyError exception when we try to
+            #       append the new resource. After "fixing" that we get
+            #       this error:
+            #       mc: <ERROR> Unable to add new policy. Policy has invalid resource.
             mc = Minio_Client()
             mc.client.make_bucket(code)
             mc.client.set_bucket_encryption(code, SSEConfig(Rule.new_sse_s3_rule()))
 
             self.logger.info('createing the policy')
             # also use the lazy loading to create the policy in minio
-            stream = os.popen('mc admin policy info minio %s' % (username))
+            stream = os.popen(f'mc admin policy info minio {username}')
             output = stream.read()
             policy_file_name = None
             try:
