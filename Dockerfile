@@ -14,8 +14,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 FROM python:3.7-buster
+ARG MINIO_USERNAME
+ARG MINIO_PASSWORD
 
 ENV TZ=America/Toronto
+ENV MINIO_USERNAME=$MINIO_USERNAME
+ENV MINIO_PASSWORD=$MINIO_PASSWORD
 
 WORKDIR /usr/src/app
 
@@ -35,4 +39,4 @@ RUN poetry install --no-root --no-interaction
 COPY . ./
 
 RUN chmod +x gunicorn_starter.sh
-CMD ["sh", "-c", "mc alias set minio http://minio.minio:9000 && ./gunicorn_starter.sh"]
+CMD ["sh", "-c", "mc alias set minio http://minio.minio:9000 $MINIO_USERNAME $MINIO_PASSWORD && ./gunicorn_starter.sh"]
