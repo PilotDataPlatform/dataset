@@ -72,7 +72,12 @@ class Dataset(DBModel):
         ]
         for field in fields:
             if field == 'created_at' or field == 'updated_at':
+                # date fields
                 result[field] = str(getattr(self, field).isoformat()[:-3] + 'Z')
-            else:
+            elif field == 'id' or field == 'project_id':
+                # uuid fields
                 result[field] = str(getattr(self, field))
+            else:
+                # other types fields
+                result[field] = getattr(self, field)
         return result

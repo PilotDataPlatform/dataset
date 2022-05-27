@@ -37,3 +37,11 @@ async def test_get_dataset_list_should_return_200(client, dataset):
         'total': 1,
     }
     assert res.status_code == 200
+    assert res.json() == {
+        'code': 200,
+        'error_msg': '',
+        'num_of_pages': 1,
+        'page': 1,
+        'result': [dataset.to_dict()],
+        'total': 1,
+    }
