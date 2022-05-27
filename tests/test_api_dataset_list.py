@@ -32,7 +32,7 @@ async def test_get_dataset_list_should_return_200(client, dataset):
         'code': 200,
         'error_msg': '',
         'num_of_pages': 1,
-        'page': 1,
+        'page': 0,
         'result': [dataset.to_dict()],
         'total': 1,
     }
@@ -41,7 +41,7 @@ async def test_get_dataset_list_should_return_200(client, dataset):
         'code': 200,
         'error_msg': '',
         'num_of_pages': 1,
-        'page': 1,
+        'page': 0,
         'result': [dataset.to_dict()],
         'total': 1,
     }

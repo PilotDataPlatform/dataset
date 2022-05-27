@@ -48,12 +48,12 @@ class DatasetList:
     async def list_dataset(self, creator, request_payload: DatasetListForm, db=Depends(get_db_session)):
         """dataset creation api."""
         res = APIResponse()
-        page = request_payload.page if request_payload.page else 1
+        page = request_payload.page
         page_size = request_payload.page_size
 
         try:
             srv_dataset = SrvDatasetMgr()
-            pagination = await srv_dataset.get_dataset_by_creator(db, creator, page, page_size)
+            pagination = await srv_dataset.get_dataset_by_creator(db, creator, page + 1, page_size)
         except Exception as e:
             res.code = EAPIResponseCode.internal_error
             res.error_msg = 'error: ' + str(e)
@@ -61,7 +61,7 @@ class DatasetList:
 
         res.code = EAPIResponseCode.success
         res.total = pagination.total
-        res.page = pagination.page
+        res.page = page
         res.num_of_pages = math.ceil(pagination.total / page_size)
         res.result = [item.to_dict() for item in pagination.items]
         return res.json_response()
