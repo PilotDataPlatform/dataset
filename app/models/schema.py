@@ -69,7 +69,7 @@ class DatasetSchemaTemplate(DBModel):
             'update_timestamp',
         ]:
             if field in ['create_timestamp', 'update_timestamp']:
-                result[field] = str(getattr(self, field).isoformat()[:-3] + 'Z')
+                result[field] = str(getattr(self, field).strftime('%Y-%m-%dT%H:%M:%S'))
             elif field in ['content', 'system_defined', 'is_draft']:
                 result[field] = getattr(self, field)
             else:
@@ -122,7 +122,7 @@ class DatasetSchema(DBModel):
             'update_timestamp',
         ]:
             if field in ['create_timestamp', 'update_timestamp']:
-                result[field] = str(getattr(self, field).isoformat()[:-3] + 'Z')
+                result[field] = str(getattr(self, field).strftime('%Y-%m-%dT%H:%M:%S'))
             elif field in ['content', 'system_defined', 'is_draft']:
                 result[field] = getattr(self, field)
             else:

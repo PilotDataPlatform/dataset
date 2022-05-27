@@ -44,7 +44,7 @@ class BIDSResult(DBModel):
         result = {}
         for field in ['id', 'dataset_geid', 'created_time', 'updated_time', 'validate_output']:
             if field == 'created_time' or field == 'updated_time':
-                result[field] = str(getattr(self, field).isoformat()[:-3] + 'Z')
+                result[field] = str(getattr(self, field).strftime('%Y-%m-%dT%H:%M:%S'))
             elif field == 'validate_output':
                 result[field] = getattr(self, field)
             else:

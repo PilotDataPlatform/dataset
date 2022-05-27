@@ -27,6 +27,7 @@ from fastapi_pagination import Params
 from fastapi_pagination.ext.async_sqlalchemy import paginate
 from minio.sseconfig import Rule
 from minio.sseconfig import SSEConfig
+from sqlalchemy import desc
 from sqlalchemy import update
 from sqlalchemy.future import select
 from sqlalchemy.orm import Session
@@ -160,7 +161,7 @@ class SrvDatasetMgr:
     async def get_dataset_by_creator(self, db, creator, page, page_size):
         return await paginate(
             db,
-            select(Dataset).where(Dataset.creator == creator).order_by(Dataset.created_at),
+            select(Dataset).where(Dataset.creator == creator).order_by(desc(Dataset.created_at)),
             Params(page=page, size=page_size),
         )
 

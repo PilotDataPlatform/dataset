@@ -48,7 +48,7 @@ class DatasetVersion(DBModel):
         result = {}
         for field in ['id', 'dataset_code', 'dataset_geid', 'version', 'created_by', 'created_at', 'location', 'notes']:
             if field == 'created_at':
-                result[field] = str(getattr(self, field).isoformat()[:-3] + 'Z')
+                result[field] = str(getattr(self, field).strftime('%Y-%m-%dT%H:%M:%S'))
             else:
                 result[field] = str(getattr(self, field))
         return result
