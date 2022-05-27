@@ -18,18 +18,15 @@ import math
 from common import LoggerFactory
 from fastapi import APIRouter
 from fastapi import Depends
-from fastapi_pagination import Params
-from fastapi_pagination.ext.async_sqlalchemy import paginate
 from fastapi_utils import cbv
-from sqlalchemy.future import select
 
 from app.core.db import get_db_session
-from app.models.dataset import Dataset
 from app.resources.error_handler import catch_internal
 from app.schemas.base import APIResponse
 from app.schemas.base import EAPIResponseCode
 from app.schemas.reqres_dataset import DatasetListForm
 from app.schemas.reqres_dataset import DatasetListResponse
+from app.services.dataset import SrvDatasetMgr
 
 router = APIRouter()
 
@@ -45,21 +42,18 @@ class DatasetList:
         self.__logger = LoggerFactory(_API_NAMESPACE).get_logger()
 
     @router.post(
-        '/v1/users/{username}/datasets', tags=[_API_TAG], response_model=DatasetListResponse, summary='list datasets.'
+        '/v1/users/{creator}/datasets', tags=[_API_TAG], response_model=DatasetListResponse, summary='list datasets.'
     )
     @catch_internal(_API_NAMESPACE)
-    async def list_dataset(self, username, request_payload: DatasetListForm, db=Depends(get_db_session)):
+    async def list_dataset(self, creator, request_payload: DatasetListForm, db=Depends(get_db_session)):
         """dataset creation api."""
         res = APIResponse()
         page = request_payload.page if request_payload.page else 1
         page_size = request_payload.page_size
 
         try:
-            pagination = await paginate(
-                db,
-                select(Dataset).where(Dataset.creator == username).order_by(Dataset.created_at),
-                Params(page=page, size=page_size),
-            )
+            srv_dataset = SrvDatasetMgr()
+            pagination = await srv_dataset.get_dataset_by_creator(db, creator, page, page_size)
         except Exception as e:
             res.code = EAPIResponseCode.internal_error
             res.error_msg = 'error: ' + str(e)
