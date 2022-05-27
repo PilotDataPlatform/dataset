@@ -15,12 +15,16 @@
 
 import math
 
-import httpx
 from common import LoggerFactory
 from fastapi import APIRouter
+from fastapi import Depends
+from fastapi_pagination import Params
+from fastapi_pagination.ext.async_sqlalchemy import paginate
 from fastapi_utils import cbv
+from sqlalchemy.future import select
 
-from app.config import ConfigClass
+from app.core.db import get_db_session
+from app.models.dataset import Dataset
 from app.resources.error_handler import catch_internal
 from app.schemas.base import APIResponse
 from app.schemas.base import EAPIResponseCode
@@ -44,37 +48,26 @@ class DatasetList:
         '/v1/users/{username}/datasets', tags=[_API_TAG], response_model=DatasetListResponse, summary='list datasets.'
     )
     @catch_internal(_API_NAMESPACE)
-    async def list_dataset(self, username, request_payload: DatasetListForm):
+    async def list_dataset(self, username, request_payload: DatasetListForm, db=Depends(get_db_session)):
         """dataset creation api."""
         res = APIResponse()
-        page = request_payload.page
+        page = request_payload.page if request_payload.page else 1
         page_size = request_payload.page_size
 
-        page_kwargs = {
-            'order_by': request_payload.order_by,
-            'order_type': request_payload.order_type,
-            'skip': page * page_size,
-            'limit': page_size,
-        }
-
-        query_payload = {**page_kwargs, 'query': {'creator': username, 'labels': ['Dataset']}}
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(ConfigClass.NEO4J_SERVICE_V2 + 'nodes/query', json=query_payload)
-            if response.status_code != 200:
-                error_msg = response.json()
-                res.code = EAPIResponseCode.internal_error
-                res.error_msg = f'Neo4j error: {error_msg}'
-                return res.json_response()
-            nodes = response.json()['result']
+            pagination = await paginate(
+                db,
+                select(Dataset).where(Dataset.creator == username).order_by(Dataset.created_at),
+                Params(page=page, size=page_size),
+            )
         except Exception as e:
             res.code = EAPIResponseCode.internal_error
-            res.error_msg = 'Neo4j error: ' + str(e)
+            res.error_msg = 'error: ' + str(e)
             return res.json_response()
 
         res.code = EAPIResponseCode.success
-        res.total = response.json()['total']
-        res.page = page
-        res.num_of_pages = math.ceil(res.total / page_size)
-        res.result = nodes
+        res.total = pagination.total
+        res.page = pagination.page
+        res.num_of_pages = math.ceil(pagination.total / page_size)
+        res.result = [item.to_dict() for item in pagination.items]
         return res.json_response()
