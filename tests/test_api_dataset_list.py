@@ -18,31 +18,22 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
-async def test_get_dataset_list_when_error_should_return_500(client, httpx_mock):
+async def test_get_dataset_list_when_error_should_return_500(client):
     username = 'admin'
     res = await client.post(f'/v1/users/{username}/datasets', json={'order_by': 'desc'})
     assert res.status_code == 500
+    assert 'error' in res.json()['error_msg']
+
+
+async def test_get_dataset_list_should_return_200(client, dataset):
+    username = 'admin'
+    res = await client.post(f'/v1/users/{username}/datasets', json={'order_by': 'desc'})
     assert res.json() == {
-        'code': 500,
-        'error_msg': 'Neo4j error: No response can be found for POST request on '
-        'http://neo4j_service/v2/neo4j/nodes/query',
+        'code': 200,
+        'error_msg': '',
         'num_of_pages': 1,
-        'page': 0,
-        'result': [],
+        'page': 1,
+        'result': [dataset.to_dict()],
         'total': 1,
     }
-
-
-async def test_get_dataset_list_should_return_200(client, httpx_mock):
-    username = 'admin'
-    httpx_mock.add_response(
-        method='POST',
-        url='http://neo4j_service/v2/neo4j/nodes/query',
-        json={
-            'result': [],
-            'total': 1,
-        },
-    )
-    res = await client.post(f'/v1/users/{username}/datasets', json={'order_by': 'desc'})
     assert res.status_code == 200
-    assert res.json() == {'code': 200, 'error_msg': '', 'num_of_pages': 1, 'page': 0, 'result': [], 'total': 1}

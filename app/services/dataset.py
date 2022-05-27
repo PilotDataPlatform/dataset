@@ -23,6 +23,8 @@ from uuid import uuid4
 import httpx
 from common import GEIDClient
 from common import LoggerFactory
+from fastapi_pagination import Params
+from fastapi_pagination.ext.async_sqlalchemy import paginate
 from minio.sseconfig import Rule
 from minio.sseconfig import SSEConfig
 from sqlalchemy import update
@@ -154,6 +156,13 @@ class SrvDatasetMgr:
             return result
         except NoResultFound:
             return
+
+    async def get_dataset_by_creator(self, db, creator, page, page_size):
+        return await paginate(
+            db,
+            select(Dataset).where(Dataset.creator == creator).order_by(Dataset.created_at),
+            Params(page=page, size=page_size),
+        )
 
     async def __create_atlas_node(self, geid, username):
         res = await create_atlas_dataset(geid, username)

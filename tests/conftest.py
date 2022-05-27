@@ -185,7 +185,7 @@ async def dataset(db_session):
         **{
             'source': '',
             'title': 'fake_dataset',
-            'authors': 'test',
+            'authors': ['test'],
             'code': 'fakedataset',
             'type': 'general',
             'modality': ['any', 'many'],
@@ -195,7 +195,7 @@ async def dataset(db_session):
             'description': 'fake dataset created by test',
             'size': 0,
             'total_files': 0,
-            'creator': 'pytest',
+            'creator': 'admin',
             'project_id': str(uuid4()),
         }
     )
