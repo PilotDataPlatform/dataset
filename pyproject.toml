@@ -36,6 +36,7 @@ SQLAlchemy = "^1.4.36"
 asyncpg = "^0.25.0"
 greenlet = "^1.1.2"
 fastapi-pagination = "^0.9.3"
+async-lru = "^1.0.3"
 
 
 [tool.poetry.dev-dependencies]

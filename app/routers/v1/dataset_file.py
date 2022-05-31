@@ -294,7 +294,7 @@ class APIImportData:
             target_minio_path = ''
             root_label = 'Dataset'
         else:
-            target_folder = await get_node_by_geid(request_payload.target_geid, 'Folder')
+            target_folder = await get_node_by_geid(request_payload.target_geid)
             if len(target_folder) == 0:
                 api_response.code = EAPIResponseCode.not_found
                 api_response.error_msg = 'The target folder does not exist'

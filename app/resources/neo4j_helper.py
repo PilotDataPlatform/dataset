@@ -13,10 +13,12 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+
 import httpx
 from common import GEIDClient
 from common import LoggerFactory
 
+from app.clients.metadata import MetadataClient
 from app.commons.service_connection.minio_client import Minio_Client_
 from app.config import ConfigClass
 from app.resources.error_handler import APIException
@@ -40,20 +42,14 @@ async def create_relation(label, payload):
     return response.json()
 
 
-async def create_node(label, payload):
+async def create_node(payload):
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(ConfigClass.NEO4J_SERVICE + f'nodes/{label}', json=payload)
-        if response.status_code != 200:
-            raise APIException(
-                error_msg=f'Error calling neo4j node API: {response.json()}', status_code=response.status_code
-            )
-        created_node = response.json()[0]
+        created_obj = await MetadataClient.create_object(payload)
     except Exception as e:
         raise APIException(
             error_msg=f'Error calling neo4j node API: {str(e)}', status_code=EAPIResponseCode.internal_error.value
         )
-    return created_node
+    return created_obj
 
 
 async def query_relation(relation_label, start_label, end_label, start_params=None, end_params=None):
@@ -83,32 +79,17 @@ async def query_relation(relation_label, start_label, end_label, start_params=No
     return response.json()
 
 
-async def get_node_by_geid(geid, label: str = None):
+async def get_node_by_geid(obj_id: str):
     try:
-        response = None
-        # since we have new api to directly fetch by label
-        if label:
-            payload = {
-                'global_entity_id': geid,
-            }
-            node_query_url = ConfigClass.NEO4J_SERVICE + 'nodes/%s/query' % (label)
-            async with httpx.AsyncClient() as client:
-                response = await client.post(node_query_url, json=payload)
-        else:
-            node_query_url = ConfigClass.NEO4J_SERVICE + 'nodes/geid/%s' % (geid)
-            async with httpx.AsyncClient() as client:
-                response = await client.get(node_query_url)
-
-        # here if we dont find any node then return None
-        if len(response.json()) == 0:
-            return None
-
-        return response.json()[0]
+        return await MetadataClient.get_by_id(obj_id)
     except Exception as e:
-        raise APIException(f'Error calling neo4j API: {str(e)}', EAPIResponseCode.internal_error.value)
+        raise APIException(f'Error calling metadata API: {str(e)}', EAPIResponseCode.internal_error.value)
 
 
 async def get_parent_node(current_node):
+    # objects = await metadata_client.get_objects_by_code(code)
+    # for key, value in objects.items():
+    #     if key == 'parent_id'
     # here we have to find the parent node and delete the relationship
     relation_query_url = ConfigClass.NEO4J_SERVICE + 'relations/query'
     query_payload = {

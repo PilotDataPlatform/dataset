@@ -21,13 +21,11 @@ from fastapi import APIRouter
 from fastapi import Depends
 from fastapi_utils import cbv
 
+from app.clients.metadata import MetadataClient
 from app.core.db import get_db_session
-from app.models.dataset import Dataset
 from app.resources.error_handler import APIException
 from app.resources.neo4j_helper import create_node
-from app.resources.neo4j_helper import create_relation
 from app.resources.neo4j_helper import get_node_by_geid
-from app.resources.neo4j_helper import query_relation
 from app.schemas.base import EAPIResponseCode
 from app.schemas.folder import FolderRequest
 from app.schemas.folder import FolderResponse
@@ -56,9 +54,6 @@ class DatasetFolder:
         api_response = FolderResponse()
         srv_dataset = SrvDatasetMgr()
 
-        dataset = await srv_dataset.get_bygeid(db, dataset_geid)
-        # dataset_node  = await get_node_by_geid(dataset_geid, label='Dataset')
-
         # length 1-20, exclude invalid character, ensure start & end aren't a space
         folder_pattern = re.compile(r'^(?=.{1,20}$)([^\s\/:?*<>|”]{1})+([^\/:?*<>|”])+([^\s\/:?*<>|”]{1})$')
         match = re.search(folder_pattern, data.folder_name)
@@ -68,64 +63,43 @@ class DatasetFolder:
             logger.info(api_response.error_msg)
             return api_response.json_response()
 
+        dataset = await srv_dataset.get_bygeid(db, dataset_geid)
         if not dataset:
             logger.error(f'Dataset not found: {dataset_geid}')
             raise APIException(error_msg='Dataset not found', status_code=EAPIResponseCode.not_found.value)
 
+        # Folder is being added to the root of the dataset
+        parent_path = None
+        parent_id = None
         if data.parent_folder_geid:
             # Folder is being added as a subfolder
-            start_label = 'Folder'
-            folder_node = await get_node_by_geid(data.parent_folder_geid, label='Folder')
-            if not folder_node:
+            try:
+                folder_node = await get_node_by_geid(data.parent_folder_geid)
+            except Exception:
                 logger.error(f'Folder not found: {data.parent_folder_geid}')
                 raise APIException(error_msg='Folder not found', status_code=EAPIResponseCode.not_found.value)
-            folder_relative_path = folder_node['folder_relative_path'] + '/' + folder_node['name']
-            parent_node = folder_node
-        else:
-            # Folder is being added to the root of the dataset
-            folder_relative_path = 'data'
-            start_label = 'Dataset'
-            parent_node = dataset
+            parent_path = folder_node['name']
+            if folder_node['parent_path']:
+                parent_path = folder_node['parent_path'] + '.' + folder_node['name']
+            parent_id = folder_node['id']
 
-        # Duplicate name check
-        if isinstance(parent_node, Dataset):
-            parent_node_id = str(parent_node.id)
-            folder_level = 0
-        else:
-            parent_node_id = parent_node.get('global_entity_id')
-            folder_level = parent_node.get('folder_level', -1) + 1
-
-        result = await query_relation(
-            'own',
-            start_label,
-            'Folder',
-            start_params={'global_entity_id': parent_node_id},
-            end_params={'name': data.folder_name},
-        )
-        if result:
+        does_name_exist = await MetadataClient.check_duplicate_name(dataset.code, data.folder_name, parent_id)
+        if does_name_exist:
             api_response.code = EAPIResponseCode.conflict
             api_response.error_msg = 'folder with that name already exists'
             logger.error(api_response.error_msg)
             return api_response.json_response()
 
-        # create node in neo4j
+        # create node in metadata
         payload = {
+            'parent': parent_id,
+            'parent_path': parent_path,
+            'type': 'folder',
             'name': data.folder_name,
-            'create_by': data.username,
-            'global_entity_id': self.geid_client.get_GEID(),
-            'dataset_code': dataset.code,
-            'folder_relative_path': folder_relative_path,
-            'folder_level': folder_level,
-            'display_path': folder_relative_path + '/' + data.folder_name,
-            'archived': False,
+            'owner': data.username,
+            'container_code': dataset.code,
+            'container_type': 'dataset',
         }
-        folder_node = await create_node('Folder', payload)
-
-        # Create relation between folder and parent
-        relation_payload = {
-            'start_id': parent_node_id,
-            'end_id': folder_node['id'],
-        }
-        result = await create_relation('own', relation_payload)
+        folder_node = await create_node(payload)
         api_response.result = folder_node
         return api_response.json_response()

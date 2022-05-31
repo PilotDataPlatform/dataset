@@ -73,6 +73,7 @@ class Settings(BaseSettings):
     gm_password: str
     DATA_OPS_UTIL: str
     SEND_MESSAGE_URL: str
+    METADATA_SERVICE: str
 
     RDS_ECHO_SQL_QUERIES: bool = False
 
