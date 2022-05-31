@@ -19,8 +19,8 @@ pytestmark = pytest.mark.asyncio
 
 
 async def test_create_root_folder_should_return_200_and_folder_data(client, httpx_mock, dataset):
-    dataset_geid = str(dataset.id)
-    folder_geid = 'cfa31c8c-ba29-4cdf-b6f2-feef05ec9c12-1648138461'
+    dataset_id = str(dataset.id)
+    folder_id = 'cfa31c8c-ba29-4cdf-b6f2-feef05ec9c12-1648138461'
 
     httpx_mock.add_response(
         method='GET',
@@ -37,7 +37,7 @@ async def test_create_root_folder_should_return_200_and_folder_data(client, http
         json={
             'result': {
                 'id': 'bb72b4a6-d2bb-41fa-acaf-19cb7d4fce0f',
-                'parent': folder_geid,
+                'parent': folder_id,
                 'parent_path': 'test_folder.unitest_folder2',
                 'name': 'unitest_folder',
                 'container_code': dataset.code,
@@ -49,15 +49,15 @@ async def test_create_root_folder_should_return_200_and_folder_data(client, http
         'folder_name': 'unitest_folder',
         'username': 'admin',
     }
-    res = await client.post(f'/v1/dataset/{dataset_geid}/folder', json=payload)
+    res = await client.post(f'/v1/dataset/{dataset_id}/folder', json=payload)
     assert res.status_code == 200
     assert res.json()['result']['name'] == 'unitest_folder'
     assert res.json()['result']['container_code'] == dataset.code
 
 
 async def test_create_duplicate_root_folder_should_return_409(client, httpx_mock, dataset):
-    dataset_geid = str(dataset.id)
-
+    dataset_id = str(dataset.id)
+    new_folder_name = 'unitest_folder'
     httpx_mock.add_response(
         method='GET',
         url=(
@@ -70,7 +70,7 @@ async def test_create_duplicate_root_folder_should_return_409(client, httpx_mock
                     'id': 'bb72b4a6-d2bb-41fa-acaf-19cb7d4fce0f',
                     'parent': None,
                     'parent_path': None,
-                    'name': 'unitest_folder',
+                    'name': new_folder_name,
                     'container_code': dataset.code,
                     'container_type': 'dataset',
                 }
@@ -79,28 +79,28 @@ async def test_create_duplicate_root_folder_should_return_409(client, httpx_mock
     )
 
     payload = {
-        'folder_name': 'unitest_folder',
+        'folder_name': new_folder_name,
         'username': 'admin',
     }
-    res = await client.post(f'/v1/dataset/{dataset_geid}/folder', json=payload)
+    res = await client.post(f'/v1/dataset/{dataset_id}/folder', json=payload)
     assert res.status_code == 409
     assert res.json()['error_msg'] == 'folder with that name already exists'
 
 
 async def test_create_sub_folder_should_return_200(client, httpx_mock, dataset):
-    dataset_geid = str(dataset.id)
-    folder_geid = 'cfa31c8c-ba29-4cdf-b6f2-feef05ec9c12'
+    dataset_id = str(dataset.id)
+    folder_id = 'cfa31c8c-ba29-4cdf-b6f2-feef05ec9c12'
 
     httpx_mock.add_response(
         method='GET',
-        url=f'http://metadata_service/v1/item/{folder_geid}',
+        url=f'http://metadata_service/v1/item/{folder_id}',
         json={
             'result': {
-                'id': folder_geid,
-                'parent': None,
-                'parent_path': None,
+                'id': folder_id,
+                'parent': '657694cd-6a1c-4854-bdff-5e5b1d2a999b',
+                'parent_path': 'any.test_folder',
                 'name': 'test_folder',
-                'container_code': 'folder_1',
+                'container_code': dataset.code,
                 'container_type': 'dataset',
             }
         },
@@ -114,13 +114,21 @@ async def test_create_sub_folder_should_return_200(client, httpx_mock, dataset):
         json={
             'result': [
                 {
-                    'id': folder_geid,
+                    'id': folder_id,
+                    'parent': '657694cd-6a1c-4854-bdff-5e5b1d2a999b',
+                    'parent_path': 'any.test_folder',
+                    'name': 'test_folder',
+                    'container_code': dataset.code,
+                    'container_type': 'dataset',
+                },
+                {
+                    'id': '657694cd-6a1c-4854-bdff-5e5b1d2a999b',
                     'parent': None,
                     'parent_path': None,
-                    'name': 'test_folder',
-                    'container_code': 'folder_1',
+                    'name': 'any',
+                    'container_code': dataset.code,
                     'container_type': 'dataset',
-                }
+                },
             ]
         },
     )
@@ -131,8 +139,8 @@ async def test_create_sub_folder_should_return_200(client, httpx_mock, dataset):
         json={
             'result': {
                 'id': 'bb72b4a6-d2bb-41fa-acaf-19cb7d4fce0f',
-                'parent': folder_geid,
-                'parent_path': 'test_folder.unitest_folder2',
+                'parent': folder_id,
+                'parent_path': 'any.test_folder.unitest_folder2',
                 'name': 'unitest_folder2',
                 'container_code': dataset.code,
                 'container_type': 'dataset',
@@ -142,14 +150,14 @@ async def test_create_sub_folder_should_return_200(client, httpx_mock, dataset):
     payload = {
         'folder_name': 'unitest_folder2',
         'username': 'admin',
-        'parent_folder_geid': folder_geid,
+        'parent_folder_geid': folder_id,
     }
-    res = await client.post(f'/v1/dataset/{dataset_geid}/folder', json=payload)
+    res = await client.post(f'/v1/dataset/{dataset_id}/folder', json=payload)
     assert res.status_code == 200
     assert res.json()['result'] == {
         'id': 'bb72b4a6-d2bb-41fa-acaf-19cb7d4fce0f',
-        'parent': folder_geid,
-        'parent_path': 'test_folder.unitest_folder2',
+        'parent': folder_id,
+        'parent_path': 'any.test_folder.unitest_folder2',
         'name': 'unitest_folder2',
         'container_code': dataset.code,
         'container_type': 'dataset',
@@ -157,43 +165,43 @@ async def test_create_sub_folder_should_return_200(client, httpx_mock, dataset):
 
 
 async def test_create_folder_with_invalid_name_should_return_400(client, dataset):
-    dataset_geid = str(dataset.id)
+    dataset_id = str(dataset.id)
 
     payload = {
         'folder_name': ' unittest_/dataset_folder',
         'username': 'admin',
     }
-    res = await client.post(f'/v1/dataset/{dataset_geid}/folder', json=payload)
+    res = await client.post(f'/v1/dataset/{dataset_id}/folder', json=payload)
     assert res.status_code == 400
     assert res.json()['error_msg'], 'Invalid folder name'
 
 
 async def test_create_folder_when_dataset_not_found_should_return_404(client, test_db):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3'
+    dataset_id = '5baeb6a1-559b-4483-aadf-ef60519584f3'
     payload = {
         'folder_name': 'unitest_folder',
         'username': 'admin',
     }
-    res = await client.post(f'/v1/dataset/{dataset_geid}/folder', json=payload)
+    res = await client.post(f'/v1/dataset/{dataset_id}/folder', json=payload)
     assert res.status_code == 404
     assert res.json()['error_msg'] == 'Dataset not found'
 
 
 async def test_create_sub_folder_when_parent_folder_not_found_should_return_404(client, httpx_mock, dataset):
-    dataset_geid = str(dataset.id)
-    folder_geid = 'cfa31c8c-ba29-4cdf-b6f2-feef05ec9c12-1648138461'
+    dataset_id = str(dataset.id)
+    folder_id = 'cfa31c8c-ba29-4cdf-b6f2-feef05ec9c12-1648138461'
 
     httpx_mock.add_response(
         method='GET',
-        url=f'http://metadata_service/v1/item/{folder_geid}',
+        url=f'http://metadata_service/v1/item/{folder_id}',
         json={'result': {}},
         status_code=404,
     )
     payload = {
         'folder_name': 'unitest_folder',
         'username': 'admin',
-        'parent_folder_geid': folder_geid,
+        'parent_folder_geid': folder_id,
     }
-    res = await client.post(f'/v1/dataset/{dataset_geid}/folder', json=payload)
+    res = await client.post(f'/v1/dataset/{dataset_id}/folder', json=payload)
     assert res.status_code == 404
     assert res.json()['error_msg'] == 'Folder not found'
