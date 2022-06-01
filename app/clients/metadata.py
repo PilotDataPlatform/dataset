@@ -34,9 +34,9 @@ class MetadataClient:
         return response.json()['result']
 
     @classmethod
-    async def get_dataset_objects(cls, dataset_code: str) -> Dict[str, Any]:
+    async def get_objects(cls, code: str) -> Dict[str, Any]:
         url = f'{cls.BASE_URL}/v1/items/search'
-        params = {'zone': 1, 'container_type': 'dataset', 'container_code': dataset_code, 'page_size': 100000}
+        params = {'recursive': True, 'zone': 1, 'container_code': code, 'page_size': 100000}
         return await cls.get(url, params)
 
     @classmethod
@@ -46,7 +46,7 @@ class MetadataClient:
 
     @classmethod
     async def check_duplicate_name(cls, code: str, name: str, parent_id: str) -> bool:
-        objects = await cls.get_dataset_objects(code)
+        objects = await cls.get_objects(code)
         for obj in objects:
             if obj['name'] == name and obj['parent'] == parent_id:
                 return True

@@ -180,7 +180,6 @@ async def recursive_lock_import(dataset_code, nodes, root_path):
     - if lock = true then perform the lock
     - if lock = false then perform the unlock
     """
-
     # this is for crash recovery, if something trigger the exception
     # we will unlock the locked node only. NOT the whole tree. The example
     # case will be copy the same node, if we unlock the whole tree in exception
@@ -198,14 +197,14 @@ async def recursive_lock_import(dataset_code, nodes, root_path):
             # conner case here, we DONT lock the name folder
             # for the copy we will lock the both source as read operation,
             # and the target will be write operation
-            if ff_object.get('display_path') != ff_object.get('uploader'):
+            if ff_object.get('parent_path') != ff_object.get('owner'):
                 bucket, minio_obj_path = None, None
-                if 'File' in ff_object.get('labels'):
-                    minio_path = ff_object.get('location').split('//')[-1]
+                if ff_object.get('type').lower() == 'file':
+                    minio_path = ff_object.get('storage').get('location_uri').split('//')[-1]
                     _, bucket, minio_obj_path = tuple(minio_path.split('/', 2))
                 else:
-                    bucket = 'core-' + ff_object.get('project_code')
-                    minio_obj_path = '%s/%s' % (ff_object.get('folder_relative_path'), ff_object.get('name'))
+                    bucket = 'core-' + ff_object.get('code')
+                    minio_obj_path = '%s/%s' % (ff_object.get('parent_path'), ff_object.get('name'))
                 # source is from project
                 source_key = '{}/{}'.format(bucket, minio_obj_path)
                 await lock_resource(source_key, 'read')
@@ -219,9 +218,9 @@ async def recursive_lock_import(dataset_code, nodes, root_path):
                 locked_node.append((target_key, 'write'))
 
             # open the next recursive loop if it is folder
-            if 'Folder' in ff_object.get('labels'):
+            if ff_object.get('type').lower() == 'folder':
                 next_root = current_root_path + '/' + (new_name if new_name else ff_object.get('name'))
-                children_nodes = await get_children_nodes(ff_object.get('global_entity_id', None))
+                children_nodes = await get_children_nodes(ff_object.get('id', None))
                 await recur_walker(children_nodes, next_root)
 
         return

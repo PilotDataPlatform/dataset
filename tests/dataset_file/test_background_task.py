@@ -53,8 +53,14 @@ async def test_copy_file_worker_should_import_file_succeed(
 
     httpx_mock.add_response(
         method='GET',
-        url=f'http://neo4j_service/v1/neo4j/nodes/geid/{source_project_geid}',
-        json=[{'code': 'source_project_code'}],
+        url=f'http://metadata_service/v1/item/{source_project_geid}',
+        json={
+            'result': {
+                'id': source_project_geid,
+                'name': 'source_project',
+                'container_code': 'source_project_code',
+            }
+        },
     )
     mock_recursive_lock_import.return_value = [], False
     import_list = [

@@ -26,6 +26,7 @@ from fastapi import Depends
 from fastapi import Header
 from fastapi_utils import cbv
 
+from app.clients.metadata import MetadataClient
 from app.config import ConfigClass
 from app.core.db import get_db_session
 from app.models.dataset import Dataset
@@ -67,7 +68,7 @@ class APIImportData:
         self.file_act_notifier = SrvDatasetFileMgr()
 
     @router.put(
-        '/dataset/{dataset_geid}/files',
+        '/dataset/{dataset_id}/files',
         tags=[_API_TAG],  # , response_model=PreUploadResponse,
         summary='API will recieve the file list from a project and \n\
                  Copy them under the dataset.',
@@ -75,7 +76,7 @@ class APIImportData:
     @catch_internal(_API_NAMESPACE)
     async def import_dataset(
         self,
-        dataset_geid,
+        dataset_id,
         request_payload: ImportDataPost,
         background_tasks: BackgroundTasks,
         sessionId: Optional[str] = Cookie(None),
@@ -85,7 +86,7 @@ class APIImportData:
     ):
         import_list = request_payload.source_list
         oper = request_payload.operator
-        source_project = request_payload.project_geid
+        project_id = request_payload.project_geid
         session_id = sessionId
         minio_access_token = Authorization
         minio_refresh_token = refresh_token
@@ -93,7 +94,7 @@ class APIImportData:
 
         # if dataset not found return 404
         srv_dataset = SrvDatasetMgr()
-        dataset_obj = await srv_dataset.get_bygeid(db, dataset_geid)
+        dataset_obj = await srv_dataset.get_bygeid(db, dataset_id)
         if dataset_obj is None:
             api_response.code = EAPIResponseCode.not_found
             api_response.error_msg = 'Invalid geid for dataset'
@@ -102,19 +103,19 @@ class APIImportData:
         # here we only allow user to import from one project
         # if user try to import from another project block the action
         imported_project = str(dataset_obj.project_id)
-        if imported_project and imported_project != source_project:
+        if imported_project and imported_project != project_id:
             api_response.code = EAPIResponseCode.forbidden
             api_response.error_msg = 'Cannot import from another project'
             return api_response.json_response()
 
         # check if file is from source project or exist
-        # and check if file has been under the dataset
-        import_list, wrong_file = await self.validate_files_folders(import_list, source_project, 'Container')
-        duplicate, import_list = await self.remove_duplicate_file(import_list, dataset_geid, 'Dataset')
-        import_list, not_core_file = self.check_core_file(import_list)
+        project = await MetadataClient.get_by_id(project_id)
+        import_list, wrong_file = await self.validate_files_folders(import_list, project['code'])
 
+        # and check if file has been under the dataset
+        duplicate, import_list = await self.remove_duplicate_file(import_list, dataset_obj.code)
         # fomutate the result
-        api_response.result = {'processing': import_list, 'ignored': wrong_file + duplicate + not_core_file}
+        api_response.result = {'processing': import_list, 'ignored': wrong_file + duplicate}
 
         # start the background job to copy the file one by one
 
@@ -125,7 +126,7 @@ class APIImportData:
                 import_list,
                 dataset_obj,
                 oper,
-                source_project,
+                project_id,
                 session_id,
                 minio_access_token,
                 minio_refresh_token,
@@ -412,40 +413,30 @@ class APIImportData:
     # function will return two list:
     # - passed_file is the validated file
     # - not_passed_file is not under the target node
-    async def validate_files_folders(self, ff_list, root_geid, root_label):
-
+    async def validate_files_folders(self, file_id_list, root_code):
+        root_objects = await MetadataClient.get_objects(root_code)
         passed_file = []
         not_passed_file = []
         duplicate_in_batch_dict = {}
+
+        # creates dict where key is obj.id and value is root_objects index
+        object_ids = {obj['id']: root_objects.index(obj) for obj in root_objects}
         # this is to keep track the object in passed_file array
         # and in the duplicate_in_batch_dict it will be {"geid": array_index}
         # and this can help to trace back when duplicate occur
         array_index = 0
-        for ff in ff_list:
-            # fetch the current node
-            current_node = await get_node_by_geid(ff)
-            # if not exist skip the node
-            if not current_node:
-                not_passed_file.append({'global_entity_id': ff, 'feedback': 'not exists'})
-                continue
 
-            relation_payload = {
-                'label': 'own*',
-                'start_label': root_label,
-                'end_label': current_node.get('labels', []),
-                'start_params': {'global_entity_id': root_geid},
-                'end_params': {'global_entity_id': current_node.get('global_entity_id', None)},
-            }
-            async with httpx.AsyncClient() as client:
-                response = await client.post(ConfigClass.NEO4J_SERVICE + 'relations/query', json=relation_payload)
-            file_folder_nodes = response.json()
+        for file_id in file_id_list:
+            # get index from dict in root_objects
+            root_object_index = object_ids.get(file_id, None)
 
             # if there is no connect then the node is not correct
             # else it is correct
-            if len(file_folder_nodes) == 0:
-                not_passed_file.append({'global_entity_id': ff, 'feedback': 'unauthorized'})
+            if root_object_index is None:
+                not_passed_file.append({'id': file_id, 'feedback': 'unauthorized'})
 
             else:
+                current_node = root_objects[root_object_index]
                 exist_index = duplicate_in_batch_dict.get(current_node.get('name'), None)
                 # if we have process the file with same name in the same BATCH
                 # we will try to update name for ALL duplicate file into display_path
@@ -453,7 +444,7 @@ class APIImportData:
                     current_node.update(
                         {
                             'feedback': 'duplicate in same batch, update the name',
-                            'name': current_node.get('display_path').replace('/', '_'),
+                            'name': current_node.get('parent_path').replace('.', '_') + current_node.get_name(),
                         }
                     )
 
@@ -461,13 +452,14 @@ class APIImportData:
                     if exist_index != -1:
                         passed_file[exist_index].update(
                             {
-                                'name': passed_file[exist_index].get('display_path').replace('/', '_'),
+                                'name': passed_file[exist_index].get('parent_path').replace('.', '_')
+                                + current_node.get_name(),
                                 'feedback': 'duplicate in same batch, update the name',
                             }
                         )
 
                         # and mark the first one
-                        first_geid = passed_file[exist_index].get('global_entity_id')
+                        first_geid = passed_file[exist_index].get('id')
                         duplicate_in_batch_dict.update({first_geid: -1})
 
                 # else we just record the file for next checking
@@ -477,7 +469,6 @@ class APIImportData:
 
                 passed_file.append(current_node)
                 array_index += 1
-
         return passed_file, not_passed_file
 
     # the function will check if the file IS from core
@@ -497,36 +488,25 @@ class APIImportData:
     # the function will reuse the <validate_files_folders> to check
     # if the file already exist directly under the root node
     # return True if duplicate else false
-    async def remove_duplicate_file(self, ff_list, root_geid, root_label):
-
+    async def remove_duplicate_file(self, import_files_list, root_code):
+        root_objects = await MetadataClient.get_objects(root_code)
         duplic_file = []
         not_duplic_file = []
-        for current_node in ff_list:
+        # creates dict where key is obj.id and value is root_objects index
+        object_ids = {obj['id']: root_objects.index(obj) for obj in root_objects}
+        for file in import_files_list:
             # here we dont check if node is None since
             # the previous function already check it
 
-            relation_payload = {
-                'label': 'own',
-                'start_label': root_label,
-                'start_params': {'global_entity_id': root_geid},
-                'end_params': {'name': current_node.get('name', None)},
-            }
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    ConfigClass.NEO4J_SERVICE + 'relations/query',
-                    data=json.dumps(relation_payload).encode('utf-8'),
-                    headers={'Content-Type': 'application/json'},
-                )
-            file_folder_nodes = response.json()
+            root_object_index = object_ids.get(file['id'])
 
             # if there is no connect then the node is correct
             # else it is not correct
-            if len(file_folder_nodes) == 0:
-                not_duplic_file.append(current_node)
+            if root_object_index is None:
+                not_duplic_file.append(file)
             else:
-                current_node.update({'feedback': 'duplicate or unauthorized'})
-                duplic_file.append(current_node)
-
+                file.update({'feedback': 'duplicate or unauthorized'})
+                duplic_file.append(file)
         return duplic_file, not_duplic_file
 
     # TODO make it into the helper function
@@ -575,7 +555,7 @@ class APIImportData:
         await self.send_notification(session_id, source_file, action, status, dataset_geid, operator, task_id)
 
         # also save to redis for display
-        source_geid = source_file.get('global_entity_id')
+        source_geid = source_file.get('id')
         job_id = action + '-' + source_geid + '-' + str(int(time.time()))
         task_url = ConfigClass.DATA_UTILITY_SERVICE + 'tasks/'
         post_json = {
@@ -872,9 +852,9 @@ class APIImportData:
             # also update the log
             dataset_geid = str(dataset_obj.id)
             source_project = await get_node_by_geid(source_project_geid)
-            import_logs = [source_project.get('code') + '/' + x.get('display_path') for x in import_list]
+            import_logs = [source_project.get('container_code') + '/' + x.get('display_path') for x in import_list]
             project = source_project.get('name', '')
-            project_code = source_project.get('code', '')
+            project_code = source_project.get('container_code', '')
             await self.file_act_notifier.on_import_event(dataset_geid, oper, import_logs, project, project_code)
 
         except Exception as e:

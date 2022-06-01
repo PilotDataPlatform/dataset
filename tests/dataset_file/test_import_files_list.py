@@ -13,7 +13,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import json
 from uuid import uuid4
 
 import pytest
@@ -24,53 +23,46 @@ pytestmark = pytest.mark.asyncio
 async def test_import_files_from_source_list_should_return_200(client, httpx_mock, dataset):
     dataset_geid = str(dataset.id)
     source_project = str(dataset.project_id)
+    file_id = 'b1064aa6-edbe-4eb6-b560-a8552f2f6162'
+    file_dict = {
+        'id': file_id,
+        'parent': '81b70730-2bc3-4ffc-9e98-3d0cdeec867b',
+        'parent_path': 'admin.test_sub_6 - Copy.test_sub_delete_6',
+        'name': '.hidden_file.txt',
+        'container_code': 'test202203241',
+        'container_type': 'project',
+        'type': 'file',
+        'storage': {
+            'id': 'f2397e68-4e94-4419-bb72-3be532a789b2',
+            'location_uri': (
+                'minio://http://minio.minio:9000/core-test202203241/admin/test_sub_6'
+                ' - Copy/test_sub_delete_6/.hidden_file.txt'
+            ),
+            'version': None,
+        },
+    }
     httpx_mock.add_response(
         method='GET',
-        url='http://neo4j_service/v1/neo4j/nodes/geid/b1064aa6-edbe-4eb6-b560-a8552f2f6162-1626719078',
-        json=[
-            {
-                'labels': ['Core', 'File'],
-                'global_entity_id': 'geid_2',
-                'location': 'http://anything.com/bucket/obj/path',
-                'display_path': 'display_path',
-                'uploader': 'test',
-            }
-        ],
+        url=f'http://metadata_service/v1/item/{source_project}',
+        json={'result': {'code': 'project_code'}},
     )
     httpx_mock.add_response(
-        method='POST',
-        url='http://neo4j_service/v1/neo4j/relations/query',
-        json=[
-            {
-                'end_node': {
-                    'labels': ['Core', 'File'],
-                    'global_entity_id': 'fake_geid',
-                }
-            }
-        ],
-        match_content=json.dumps(
-            {
-                'label': 'own*',
-                'start_label': 'Container',
-                'end_label': ['Core', 'File'],
-                'start_params': {'global_entity_id': source_project},
-                'end_params': {'global_entity_id': 'geid_2'},
-            }
-        ).encode('utf-8'),
+        method='GET',
+        url=(
+            'http://metadata_service/v1/items/search?'
+            'recursive=true&zone=1&container_code=project_code&page_size=100000'
+        ),
+        json={'result': [file_dict]},
     )
     httpx_mock.add_response(
-        method='POST',
-        url='http://neo4j_service/v1/neo4j/relations/query',
-        json=[],
-        match_content=json.dumps(
-            {
-                'label': 'own',
-                'start_label': 'Dataset',
-                'start_params': {'global_entity_id': dataset_geid},
-                'end_params': {'name': None},
-            }
-        ).encode('utf-8'),
+        method='GET',
+        url=(
+            'http://metadata_service/v1/items/search?'
+            f'recursive=true&zone=1&container_code={dataset.code}&page_size=100000'
+        ),
+        json={'result': []},
     )
+
     # because of the background task
     httpx_mock.add_response(
         method='POST',
@@ -100,7 +92,7 @@ async def test_import_files_from_source_list_should_return_200(client, httpx_moc
 
     payload = {
         'source_list': [
-            'b1064aa6-edbe-4eb6-b560-a8552f2f6162-1626719078',
+            file_id,
         ],
         'operator': 'admin',
         'project_geid': source_project,
@@ -113,16 +105,7 @@ async def test_import_files_from_source_list_should_return_200(client, httpx_moc
     result = res.json()['result']
     assert res.status_code == 200
     assert result.get('ignored') == []
-    assert result.get('processing') == [
-        {
-            'labels': ['Core', 'File'],
-            'global_entity_id': 'geid_2',
-            'location': 'http://anything.com/bucket/obj/path',
-            'display_path': 'display_path',
-            'uploader': 'test',
-            'feedback': 'exist',
-        }
-    ]
+    assert result.get('processing') == [{**file_dict, 'feedback': 'exist'}]
 
 
 async def test_import_files_from_different_project_return_403(client, dataset):
@@ -150,35 +133,49 @@ async def test_import_files_from_non_existing_project_return_404(client, test_db
 async def test_05_test_import_duplicate(client, httpx_mock, dataset):
     dataset_geid = str(dataset.id)
     source_project = str(dataset.project_id)
+    file_id = 'b1064aa6-edbe-4eb6-b560-a8552f2f6162'
+    file_dict = {
+        'id': file_id,
+        'parent': '81b70730-2bc3-4ffc-9e98-3d0cdeec867b',
+        'parent_path': 'admin.test_sub_6 - Copy.test_sub_delete_6',
+        'name': '.hidden_file.txt',
+        'container_code': 'test202203241',
+        'container_type': 'project',
+        'type': 'file',
+        'storage': {
+            'id': 'f2397e68-4e94-4419-bb72-3be532a789b2',
+            'location_uri': (
+                'minio://http://minio.minio:9000/core-test202203241/admin/test_sub_6'
+                ' - Copy/test_sub_delete_6/.hidden_file.txt'
+            ),
+            'version': None,
+        },
+    }
     httpx_mock.add_response(
         method='GET',
-        url='http://neo4j_service/v1/neo4j/nodes/geid/b1064aa6-edbe-4eb6-b560-a8552f2f6162-1626719078',
-        json=[
-            {
-                'labels': ['Core', 'File'],
-                'global_entity_id': 'geid_2',
-                'location': 'http://anything.com/bucket/obj/path',
-                'display_path': 'display_path',
-                'uploader': 'test',
-            }
-        ],
+        url=f'http://metadata_service/v1/item/{source_project}',
+        json={'result': {'code': 'project_code'}},
     )
     httpx_mock.add_response(
-        method='POST',
-        url='http://neo4j_service/v1/neo4j/relations/query',
-        json=[
-            {
-                'end_node': {
-                    'labels': ['Core', 'File'],
-                    'global_entity_id': 'fake_geid',
-                }
-            }
-        ],
+        method='GET',
+        url=(
+            'http://metadata_service/v1/items/search?'
+            'recursive=true&zone=1&container_code=project_code&page_size=100000'
+        ),
+        json={'result': [file_dict]},
+    )
+    httpx_mock.add_response(
+        method='GET',
+        url=(
+            'http://metadata_service/v1/items/search?'
+            f'recursive=true&zone=1&container_code={dataset.code}&page_size=100000'
+        ),
+        json={'result': [file_dict]},
     )
 
     payload = {
         'source_list': [
-            'b1064aa6-edbe-4eb6-b560-a8552f2f6162-1626719078',
+            file_id,
         ],
         'operator': 'admin',
         'project_geid': source_project,
@@ -187,13 +184,4 @@ async def test_05_test_import_duplicate(client, httpx_mock, dataset):
     result = res.json()['result']
     assert res.status_code == 200
     assert result.get('processing') == []
-    assert result.get('ignored') == [
-        {
-            'labels': ['Core', 'File'],
-            'global_entity_id': 'geid_2',
-            'location': 'http://anything.com/bucket/obj/path',
-            'display_path': 'display_path',
-            'uploader': 'test',
-            'feedback': 'duplicate or unauthorized',
-        }
-    ]
+    assert result.get('ignored') == [{**file_dict, 'feedback': 'duplicate or unauthorized'}]
