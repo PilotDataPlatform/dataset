@@ -76,7 +76,7 @@ class lock_factory:  # pragma no cover
         # locked_node = []
         # err = None
 
-        # if "File" in ff_object.get('labels'):
+        # if "File" in ff_object.get('type'):
         #     minio_path = ff_object.get('location').split("//")[-1]
         #     _, bucket, minio_obj_path = tuple(minio_path.split("/", 2))
         # else:
@@ -103,7 +103,7 @@ class lock_factory:  # pragma no cover
 
     def lock_delete(self, source_node):
         # bucket, minio_obj_path = None, None
-        # if "File" in ff_object.get('labels'):
+        # if "File" in ff_object.get('type'):
         #     minio_path = ff_object.get('location').split("//")[-1]
         #     _, bucket, minio_obj_path = tuple(minio_path.split("/", 2))
         # else:
@@ -124,7 +124,7 @@ class lock_factory:  # pragma no cover
     def lock_move_rename(self, source_node, current_root_path, new_name=None):
         # bucket, minio_obj_path = None, None
 
-        # if "File" in ff_object.get('labels'):
+        # if "File" in ff_object.get('type'):
         #     minio_path = ff_object.get('location').split("//")[-1]
         #     _, bucket, minio_obj_path = tuple(minio_path.split("/", 2))
         # else:
@@ -153,7 +153,7 @@ class lock_factory:  # pragma no cover
         locked_node = []
         err = None
 
-        # if "File" in ff_object.get('labels'):
+        # if "File" in ff_object.get('type'):
         #     minio_path = ff_object.get('location').split("//")[-1]
         #     _, bucket, minio_obj_path = tuple(minio_path.split("/", 2))
         # else:
@@ -186,10 +186,10 @@ async def recursive_lock_import(dataset_code, nodes, root_path):
     # then it will affect the processing one.
     locked_node, err = [], None
 
-    async def recur_walker(currenct_nodes, current_root_path, new_name=None):
+    async def recur_walker(current_nodes, current_root_path, new_name=None):
         """recursively trace down the node tree and run the lock function."""
 
-        for ff_object in currenct_nodes:
+        for ff_object in current_nodes:
             # update here if the folder/file is archieved then skip
             if ff_object.get('archived', False):
                 continue
@@ -242,10 +242,9 @@ async def recursive_lock_delete(nodes, new_name=None):
     # then it will affect the processing one.
     locked_node, err = [], None
 
-    async def recur_walker(currenct_nodes, new_name=None):
+    async def recur_walker(current_nodes, new_name=None):
         """recursively trace down the node tree and run the lock function."""
-
-        for ff_object in currenct_nodes:
+        for ff_object in current_nodes:
             # update here if the folder/file is archieved then skip
             if ff_object.get('archived', False):
                 continue
@@ -253,23 +252,22 @@ async def recursive_lock_delete(nodes, new_name=None):
             # conner case here, we DONT lock the name folder
             # for the copy we will lock the both source as read operation,
             # and the target will be write operation
-            if ff_object.get('display_path') != ff_object.get('uploader'):
+            if ff_object.get('parent_path') != ff_object.get('owner'):
                 bucket, minio_obj_path = None, None
-                if 'File' in ff_object.get('labels'):
-                    minio_path = ff_object.get('location').split('//')[-1]
+                if ff_object.get('type').lower() == 'file':
+                    minio_path = ff_object.get('storage').get('location_uri').split('//')[-1]
                     _, bucket, minio_obj_path = tuple(minio_path.split('/', 2))
                 else:
-                    bucket = ff_object.get('dataset_code')
-                    minio_obj_path = '%s/%s' % (ff_object.get('folder_relative_path'), ff_object.get('name'))
+                    bucket = ff_object.get('code')
+                    minio_obj_path = '%s/%s' % (ff_object.get('parent_path'), ff_object.get('name'))
 
                 source_key = '{}/{}'.format(bucket, minio_obj_path)
                 await lock_resource(source_key, 'write')
                 locked_node.append((source_key, 'write'))
 
             # open the next recursive loop if it is folder
-            if 'Folder' in ff_object.get('labels'):
-                # next_root = current_root_path+"/"+(new_name if new_name else ff_object.get("name"))
-                children_nodes = await get_children_nodes(ff_object.get('global_entity_id', None))
+            if ff_object.get('type').lower() == 'folder':
+                children_nodes = await get_children_nodes(ff_object.get('id', None))
                 await recur_walker(children_nodes)
 
         return
@@ -293,10 +291,10 @@ async def recursive_lock_move_rename(nodes, root_path, new_name=None):
 
     # TODO lock
 
-    async def recur_walker(currenct_nodes, current_root_path, new_name=None):
+    async def recur_walker(current_nodes, current_root_path, new_name=None):
         """recursively trace down the node tree and run the lock function."""
 
-        for ff_object in currenct_nodes:
+        for ff_object in current_nodes:
             # update here if the folder/file is archieved then skip
             if ff_object.get('archived', False):
                 continue
@@ -304,14 +302,14 @@ async def recursive_lock_move_rename(nodes, root_path, new_name=None):
             # conner case here, we DONT lock the name folder
             # for the copy we will lock the both source as read operation,
             # and the target will be write operation
-            if ff_object.get('display_path') != ff_object.get('uploader'):
+            if ff_object.get('parent_path') != ff_object.get('owner'):
                 bucket, minio_obj_path = None, None
-                if 'File' in ff_object.get('labels'):
-                    minio_path = ff_object.get('location').split('//')[-1]
+                if ff_object.get('type').lower == 'file':
+                    minio_path = ff_object.get('storage').get('location_uri').split('//')[-1]
                     _, bucket, minio_obj_path = tuple(minio_path.split('/', 2))
                 else:
-                    bucket = ff_object.get('dataset_code')
-                    minio_obj_path = '%s/%s' % (ff_object.get('folder_relative_path'), ff_object.get('name'))
+                    bucket = ff_object.get('code')
+                    minio_obj_path = '%s/%s' % (ff_object.get('parent_path'), ff_object.get('name'))
                 source_key = '{}/{}'.format(bucket, minio_obj_path)
                 await lock_resource(source_key, 'write')
                 locked_node.append((source_key, 'write'))
@@ -323,9 +321,9 @@ async def recursive_lock_move_rename(nodes, root_path, new_name=None):
                 locked_node.append((target_key, 'write'))
 
             # open the next recursive loop if it is folder
-            if 'Folder' in ff_object.get('labels'):
+            if ff_object.get('type').lower() == 'folder':
                 next_root = current_root_path + '/' + (new_name if new_name else ff_object.get('name'))
-                children_nodes = await get_children_nodes(ff_object.get('global_entity_id', None))
+                children_nodes = await get_children_nodes(ff_object.get('id', None))
                 await recur_walker(children_nodes, next_root)
 
         return
@@ -347,10 +345,10 @@ async def recursive_lock_publish(nodes):
     # then it will affect the processing one.
     locked_node, err = [], None
 
-    async def recur_walker(currenct_nodes):
+    async def recur_walker(current_nodes):
         """recursively trace down the node tree and run the lock function."""
 
-        for ff_object in currenct_nodes:
+        for ff_object in current_nodes:
             # update here if the folder/file is archieved then skip
             if ff_object.get('archived', False):
                 continue
@@ -360,7 +358,7 @@ async def recursive_lock_publish(nodes):
             # and the target will be write operation
             if ff_object.get('display_path') != ff_object.get('uploader'):
                 bucket, minio_obj_path = None, None
-                if 'File' in ff_object.get('labels'):
+                if 'Folder' in ff_object.get('labels') == 'file':
                     minio_path = ff_object.get('location').split('//')[-1]
                     _, bucket, minio_obj_path = tuple(minio_path.split('/', 2))
                 else:
@@ -372,7 +370,7 @@ async def recursive_lock_publish(nodes):
                 locked_node.append((source_key, 'read'))
 
             # open the next recursive loop if it is folder
-            if 'Folder' in ff_object.get('labels'):
+            if 'Folder' in ff_object.get('labels') == 'folder':
                 # next_root = current_root_path+"/"+(new_name if new_name else ff_object.get("name"))
                 children_nodes = await get_children_nodes(ff_object.get('global_entity_id', None))
                 await recur_walker(children_nodes)

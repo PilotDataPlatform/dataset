@@ -94,15 +94,15 @@ class APIImportData:
 
         # if dataset not found return 404
         srv_dataset = SrvDatasetMgr()
-        dataset_obj = await srv_dataset.get_bygeid(db, dataset_id)
-        if dataset_obj is None:
+        dataset = await srv_dataset.get_bygeid(db, dataset_id)
+        if dataset is None:
             api_response.code = EAPIResponseCode.not_found
             api_response.error_msg = 'Invalid geid for dataset'
             return api_response.json_response()
 
         # here we only allow user to import from one project
         # if user try to import from another project block the action
-        imported_project = str(dataset_obj.project_id)
+        imported_project = str(dataset.project_id)
         if imported_project and imported_project != project_id:
             api_response.code = EAPIResponseCode.forbidden
             api_response.error_msg = 'Cannot import from another project'
@@ -113,10 +113,9 @@ class APIImportData:
         import_list, wrong_file = await self.validate_files_folders(import_list, project['code'])
 
         # and check if file has been under the dataset
-        duplicate, import_list = await self.remove_duplicate_file(import_list, dataset_obj.code)
+        duplicate, import_list = await self.remove_duplicate_file(import_list, dataset.code)
         # fomutate the result
         api_response.result = {'processing': import_list, 'ignored': wrong_file + duplicate}
-
         # start the background job to copy the file one by one
 
         if len(import_list) > 0:
@@ -124,7 +123,7 @@ class APIImportData:
                 self.copy_files_worker,
                 db,
                 import_list,
-                dataset_obj,
+                dataset,
                 oper,
                 project_id,
                 session_id,
@@ -150,7 +149,6 @@ class APIImportData:
         refresh_token: Optional[str] = Header(None),
         db=Depends(get_db_session),
     ):
-
         api_response = APIResponse()
         session_id = sessionId
         minio_access_token = Authorization
@@ -167,7 +165,7 @@ class APIImportData:
 
         # validate the file IS from the dataset
         delete_list = request_payload.source_list
-        delete_list, wrong_file = await self.validate_files_folders(delete_list, dataset_geid, 'Dataset')
+        delete_list, wrong_file = await self.validate_files_folders(delete_list, dataset_obj.code)
         # fomutate the result
         api_response.result = {'processing': delete_list, 'ignored': wrong_file}
 
@@ -258,14 +256,14 @@ class APIImportData:
         return api_response.json_response()
 
     @router.post(
-        '/dataset/{dataset_geid}/files',
+        '/dataset/{dataset_id}/files',
         tags=[_API_TAG],  # , response_model=PreUploadResponse,
         summary='API will move files within the dataset',
     )
     @catch_internal(_API_NAMESPACE)
     async def move_files(
         self,
-        dataset_geid,
+        dataset_id,
         request_payload: DatasetFileMove,
         background_tasks: BackgroundTasks,
         sessionId: Optional[str] = Cookie(None),
@@ -280,20 +278,23 @@ class APIImportData:
 
         # validate the dataset if exists
         srv_dataset = SrvDatasetMgr()
-        dataset_obj = await srv_dataset.get_bygeid(db, dataset_geid)
+        dataset = await srv_dataset.get_bygeid(db, dataset_id)
 
-        if dataset_obj is None:
+        if dataset is None:
             api_response.code = EAPIResponseCode.not_found
             api_response.error_msg = 'Invalid geid for dataset'
             return api_response.json_response()
 
         # first get the target -> the target must be a folder or dataset root
         target_minio_path = None
-        root_label = 'Folder'
-        if request_payload.target_geid == dataset_geid:
-            target_folder = dataset_obj
+        if request_payload.target_geid == dataset_id:
+            target_folder = {
+                'id': dataset.id,
+                'parent': None,
+                'parent_path': None,
+                'code': dataset.code,
+            }
             target_minio_path = ''
-            root_label = 'Dataset'
         else:
             target_folder = await get_node_by_geid(request_payload.target_geid)
             if len(target_folder) == 0:
@@ -301,21 +302,27 @@ class APIImportData:
                 api_response.error_msg = 'The target folder does not exist'
                 return api_response.json_response()
             # also the folder MUST under the same dataset
-            if target_folder.get('dataset_code') != dataset_obj.code:
+            if target_folder.get('code') != dataset.code:
                 api_response.code = EAPIResponseCode.not_found
                 api_response.error_msg = 'The target folder does not exist'
                 return api_response.json_response()
-
             # formate the target location
-            if target_folder.get('folder_relative_path') == '':
+            if not target_folder.get('parent_path'):
                 target_minio_path = target_folder.get('name') + '/'
             else:
-                target_minio_path = target_folder.get('folder_relative_path') + '/' + target_folder.get('name') + '/'
+                target_minio_path = (
+                    target_folder.get('parent_path').replace('.', '/') + '/' + target_folder.get('name') + '/'
+                )
 
         # validate the file if it is under the dataset
         move_list = request_payload.source_list
-        move_list, wrong_file = await self.validate_files_folders(move_list, dataset_geid, 'Dataset')
-        duplicate, move_list = await self.remove_duplicate_file(move_list, request_payload.target_geid, root_label)
+        move_list, wrong_file = await self.validate_files_folders(move_list, dataset.code)
+        for file in move_list:
+            file['parent'] = target_folder['id']
+            file['parent_path'] = (target_folder['name'] if target_folder['name'] else '') + (
+                '.' + file['parent_path'] if file['parent_path'] else ''
+            )
+        duplicate, move_list = await self.remove_duplicate_file(move_list, dataset.code)
         # fomutate the result
         api_response.result = {'processing': move_list, 'ignored': wrong_file + duplicate}
 
@@ -325,7 +332,7 @@ class APIImportData:
                 self.move_file_worker,
                 db,
                 move_list,
-                dataset_obj,
+                dataset,
                 request_payload.operator,
                 target_folder,
                 target_minio_path,
@@ -413,14 +420,13 @@ class APIImportData:
     # function will return two list:
     # - passed_file is the validated file
     # - not_passed_file is not under the target node
-    async def validate_files_folders(self, file_id_list, root_code):
-        root_objects = await MetadataClient.get_objects(root_code)
+    async def validate_files_folders(self, file_id_list, code):
         passed_file = []
         not_passed_file = []
         duplicate_in_batch_dict = {}
-
+        obj_list = await MetadataClient.get_objects(code)
         # creates dict where key is obj.id and value is root_objects index
-        object_ids = {obj['id']: root_objects.index(obj) for obj in root_objects}
+        object_ids = {obj['id']: obj_list.index(obj) for obj in obj_list}
         # this is to keep track the object in passed_file array
         # and in the duplicate_in_batch_dict it will be {"geid": array_index}
         # and this can help to trace back when duplicate occur
@@ -436,7 +442,7 @@ class APIImportData:
                 not_passed_file.append({'id': file_id, 'feedback': 'unauthorized'})
 
             else:
-                current_node = root_objects[root_object_index]
+                current_node = obj_list[root_object_index]
                 exist_index = duplicate_in_batch_dict.get(current_node.get('name'), None)
                 # if we have process the file with same name in the same BATCH
                 # we will try to update name for ALL duplicate file into display_path
@@ -488,25 +494,19 @@ class APIImportData:
     # the function will reuse the <validate_files_folders> to check
     # if the file already exist directly under the root node
     # return True if duplicate else false
-    async def remove_duplicate_file(self, import_files_list, root_code):
-        root_objects = await MetadataClient.get_objects(root_code)
+    async def remove_duplicate_file(self, files_list, dataset_code):
+        dataset_objects = await MetadataClient.get_objects(dataset_code)
         duplic_file = []
         not_duplic_file = []
-        # creates dict where key is obj.id and value is root_objects index
-        object_ids = {obj['id']: root_objects.index(obj) for obj in root_objects}
-        for file in import_files_list:
-            # here we dont check if node is None since
-            # the previous function already check it
-
-            root_object_index = object_ids.get(file['id'])
-
-            # if there is no connect then the node is correct
-            # else it is not correct
-            if root_object_index is None:
-                not_duplic_file.append(file)
-            else:
+        name_parent_dict = {obj['name']: obj['parent_path'] for obj in dataset_objects}
+        for file in files_list:
+            same_name = name_parent_dict.get(file.get('name'))
+            if same_name == file.get('parent_path'):
                 file.update({'feedback': 'duplicate or unauthorized'})
                 duplic_file.append(file)
+            else:
+                not_duplic_file.append(file)
+
         return duplic_file, not_duplic_file
 
     # TODO make it into the helper function
@@ -553,7 +553,6 @@ class APIImportData:
         dataset_geid = str(dataset.id)
         dataset_code = dataset.code
         await self.send_notification(session_id, source_file, action, status, dataset_geid, operator, task_id)
-
         # also save to redis for display
         source_geid = source_file.get('id')
         job_id = action + '-' + source_geid + '-' + str(int(time.time()))
@@ -636,7 +635,6 @@ class APIImportData:
         job_tracker=None,
         new_name=None,
     ):
-
         num_of_files = 0
         total_file_size = 0
         # this variable DOESNOT contain the child nodes
@@ -737,7 +735,6 @@ class APIImportData:
     async def recursive_delete(
         self, currenct_nodes, dataset, oper, parent_node, access_token, refresh_token, job_tracker=None
     ):
-
         num_of_files = 0
         total_file_size = 0
         # copy the files under the project neo4j node to dataset node
@@ -893,7 +890,6 @@ class APIImportData:
         access_token,
         refresh_token,
     ):
-
         dataset_geid = str(dataset_obj.id)
         action = 'dataset_file_move'
         job_tracker = await self.initialize_file_jobs(session_id, action, move_list, dataset_obj, oper)
@@ -901,7 +897,7 @@ class APIImportData:
         # minio move update the arribute
         # find the parent node for path
         parent_node = target_folder
-        parent_path = parent_node.get('folder_relative_path', None)
+        parent_path = parent_node.get('parent_path', None)
         parent_path = parent_path + '/' + parent_node.get('name') if parent_path else ConfigClass.DATASET_FILE_FOLDER
 
         try:
@@ -970,7 +966,6 @@ class APIImportData:
         return
 
     async def delete_files_work(self, db, delete_list, dataset_obj, oper, session_id, access_token, refresh_token):
-
         deleted_files = []  # for logging action
         action = 'dataset_file_delete'
         job_tracker = await self.initialize_file_jobs(session_id, action, delete_list, dataset_obj, oper)
@@ -988,9 +983,9 @@ class APIImportData:
             # TODO try to embed with the notification&job status
             # generate log path
             for ff_geid in delete_list:
-                if 'File' in ff_geid.get('labels'):
+                if ff_geid.get('type').lower() == 'file':
                     # minio location is minio://http://<end_point>/bucket/user/object_path
-                    minio_path = ff_geid.get('location').split('//')[-1]
+                    minio_path = ff_geid.get('storage').get('location_uri').split('//')[-1]
                     _, bucket, obj_path = tuple(minio_path.split('/', 2))
 
                     # update metadata
@@ -1002,7 +997,7 @@ class APIImportData:
                 else:
                     # update the relative path by remove `data` at begining
                     dff = ConfigClass.DATASET_FILE_FOLDER
-                    temp = ff_geid.get('folder_relative_path')
+                    temp = ff_geid.get('parent_path')
 
                     # consider the root level delete will need to remove the data path at begining
                     frp = ''
@@ -1028,7 +1023,7 @@ class APIImportData:
             error_message = {'err_message': str(e)}
             # loop over all existing job and send error
             for ff_object in delete_list:
-                job_id = job_tracker['job_id'].get(ff_object.get('global_entity_id'))
+                job_id = job_tracker['job_id'].get(ff_object.get('id'))
                 await self.update_job_status(
                     job_tracker['session_id'],
                     ff_object,
