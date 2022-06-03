@@ -15,7 +15,6 @@
 
 from typing import Any
 from typing import Dict
-from typing import List
 
 import httpx
 
@@ -46,11 +45,6 @@ class MetadataClient:
         return await cls.get(url)
 
     @classmethod
-    async def get_list_by_id(cls, ids_list: List[str]) -> Dict[str, Any]:
-        url = f'{cls.BASE_URL}/v1/items/batch'
-        return await cls.get(url, params={'ids': ids_list})
-
-    @classmethod
     async def create_object(cls, payload: Dict[str, Any]) -> Dict[str, Any]:
         url = f'{cls.BASE_URL}/v1/item'
         async with httpx.AsyncClient() as client:
@@ -59,9 +53,8 @@ class MetadataClient:
         return response.json()['result']
 
     @classmethod
-    async def check_duplicate_name(cls, code: str, name: str, parent_id: str) -> bool:
-        objects = await cls.get_objects(code)
-        for obj in objects:
-            if obj['name'] == name and obj['parent'] == parent_id:
-                return True
-        return False
+    async def delete_object(cls, id_: str) -> None:
+        url = f'{cls.BASE_URL}/v1/item'
+        async with httpx.AsyncClient() as client:
+            response = await client.request(url=url, method='DELETE', params={'id': id_})
+        response.raise_for_status()

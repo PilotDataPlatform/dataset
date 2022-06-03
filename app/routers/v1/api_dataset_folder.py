@@ -83,7 +83,13 @@ class DatasetFolder:
                 parent_path = folder_node['parent_path'] + '.' + folder_node['name']
             parent_id = folder_node['id']
 
-        does_name_exist = await MetadataClient.check_duplicate_name(dataset.code, data.folder_name, parent_id)
+        does_name_exist = False
+        items = await MetadataClient.get_objects(dataset.code)
+        for item in items:
+            if item['name'] == data.folder_name and item['parent'] == parent_id:
+                does_name_exist = True
+
+        does_name_exist
         if does_name_exist:
             api_response.code = EAPIResponseCode.conflict
             api_response.error_msg = 'folder with that name already exists'

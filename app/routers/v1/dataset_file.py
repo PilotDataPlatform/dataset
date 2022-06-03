@@ -38,7 +38,6 @@ from app.resources.locks import unlock_resource
 from app.resources.neo4j_helper import create_file_node
 from app.resources.neo4j_helper import create_folder_node
 from app.resources.neo4j_helper import delete_node
-from app.resources.neo4j_helper import delete_relation_bw_nodes
 from app.resources.neo4j_helper import get_children_nodes
 from app.resources.neo4j_helper import get_node_by_geid
 from app.resources.neo4j_helper import get_parent_node
@@ -761,12 +760,6 @@ class APIImportData:
                 )
 
             ################################################################################################
-            # recursive logic below
-            if isinstance(parent_node, Dataset):
-                parent_node_id = str(parent_node.id)
-            else:
-                parent_node_id = parent_node.get('id')
-
             if ff_object.get('type').lower() == 'file':
 
                 # lock the resource
@@ -776,7 +769,7 @@ class APIImportData:
 
                 # for file we can just disconnect and delete
                 # TODO MOVE OUTSIDE <=============================================================
-                await delete_relation_bw_nodes(parent_node_id, ff_object.get('id'))
+                await MetadataClient.delete_object(ff_object.get('id'))
                 await delete_node(ff_object, access_token, refresh_token)
 
                 # update for number and size
@@ -794,7 +787,7 @@ class APIImportData:
                 )
 
                 # after the child has been deleted then we disconnect current node
-                await delete_relation_bw_nodes(parent_node_id, ff_object.get('id'))
+                await MetadataClient.delete_object(ff_object.get('id'))
                 await delete_node(ff_object, access_token, refresh_token)
 
                 # append the log together
