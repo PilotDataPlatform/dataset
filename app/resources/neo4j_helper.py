@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# from uuid import uuid4
+from uuid import uuid4
 
 import httpx
 from common import GEIDClient
@@ -93,7 +93,7 @@ async def get_parent_node(parent_id):
     #     if key == 'parent_id'
     # here we have to find the parent node and delete the relationship
     if parent_id:
-        return MetadataClient.get_by_id(parent_id)
+        return await MetadataClient.get_by_id(parent_id)
     else:
         return {'parent': None, 'parent_path': None}
 
@@ -116,22 +116,21 @@ async def get_children_nodes(start_geid, start_label='Folder'):
 
 async def delete_relation_bw_nodes(start_id, end_id):
     # then delete the relationship between all the fils
-    # relation_delete_url = ConfigClass.NEO4J_SERVICE + 'relations'
-    # delete_params = {
-    #     'start_id': start_id,
-    #     'end_id': end_id,
-    # }
-    # async with httpx.AsyncClient() as client:
-    #     response = await client.request(url=relation_delete_url, params=delete_params, method='DELETE')
-    # return response
-    pass
+    relation_delete_url = ConfigClass.NEO4J_SERVICE + 'relations'
+    delete_params = {
+        'start_id': start_id,
+        'end_id': end_id,
+    }
+    async with httpx.AsyncClient() as client:
+        response = await client.request(url=relation_delete_url, params=delete_params, method='DELETE')
+    return response
 
 
 async def delete_node(target_node, access_token, refresh_token):
-    # node_id = target_node.get('id')
-    # node_delete_url = ConfigClass.NEO4J_SERVICE + 'nodes/%s/node/%s' % (obj_type, node_id)
-    # async with httpx.AsyncClient() as client:
-    #     client.delete(node_delete_url)
+    node_id = target_node.get('id')
+    node_delete_url = ConfigClass.NEO4J_SERVICE + 'nodes/node/%s' % (node_id)
+    async with httpx.AsyncClient() as client:
+        client.delete(node_delete_url)
 
     # delete the file in minio if it is the file
     if target_node.get('type') == 'File':
@@ -153,26 +152,26 @@ async def create_file_node(
     dataset_code, source_file, operator, parent_id, relative_path, access_token, refresh_token, new_name=None
 ):
     # fecth the geid from common service
-    # id_ = uuid4()
+    id_ = uuid4()
     file_name = new_name if new_name else source_file.get('name')
     # generate minio object path
     fuf_path = relative_path + '/' + file_name
 
-    # minio_http = ('https://' if ConfigClass.MINIO_HTTPS else 'http://') + ConfigClass.MINIO_ENDPOINT
-    # location = 'minio://%s/%s/%s' % (minio_http, dataset_code, fuf_path)
+    minio_http = ('https://' if ConfigClass.MINIO_HTTPS else 'http://') + ConfigClass.MINIO_ENDPOINT
+    location = 'minio://%s/%s/%s' % (minio_http, dataset_code, fuf_path)
 
     # then copy the node under the dataset
-    # file_attribute = {
-    #     'file_size': source_file.get('file_size', -1),  # if the folder then it is -1
-    #     'operator': operator,
-    #     'name': file_name,
-    #     'global_entity_id': id_,
-    #     'location': location,
-    #     'dataset_code': dataset_code,
-    #     'display_path': fuf_path,
-    # }
+    file_attribute = {
+        'file_size': source_file.get('file_size', -1),  # if the folder then it is -1
+        'operator': operator,
+        'name': file_name,
+        'global_entity_id': id_,
+        'location': location,
+        'dataset_code': dataset_code,
+        'display_path': fuf_path,
+    }
 
-    # new_file_node, new_relation = await create_node_with_parent('File', file_attribute, parent_id)
+    new_file_node, new_relation = await create_node_with_parent('File', file_attribute, parent_id)
 
     # make minio copy
     try:

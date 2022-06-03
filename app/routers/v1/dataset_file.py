@@ -920,9 +920,9 @@ class APIImportData:
             # generate the activity log
             dff = ConfigClass.DATASET_FILE_FOLDER + '/'
             for ff_geid in move_list:
-                if 'File' in ff_geid.get('labels'):
+                if ff_geid.get('type').lower() == 'file':
                     # minio location is minio://http://<end_point>/bucket/user/object_path
-                    minio_path = ff_geid.get('location').split('//')[-1]
+                    minio_path = ff_geid.get('storage').get('location_uri').split('//')[-1]
                     _, bucket, old_path = tuple(minio_path.split('/', 2))
                     old_path = old_path.replace(dff, '', 1)
 
@@ -932,7 +932,7 @@ class APIImportData:
                 # else we mark the folder as deleted
                 else:
                     # update the relative path by remove `data` at begining
-                    old_path = ff_geid.get('folder_relative_path') + '/' + ff_geid.get('name')
+                    old_path = ff_geid.get('parent_path') + '/' + ff_geid.get('name')
                     old_path = old_path.replace(dff, '', 1)
 
                     new_path = target_minio_path + ff_geid.get('name')
@@ -946,7 +946,7 @@ class APIImportData:
             error_message = {'err_message': str(e)}
             # loop over all existing job and send error
             for ff_object in move_list:
-                job_id = job_tracker['job_id'].get(ff_object.get('global_entity_id'))
+                job_id = job_tracker['job_id'].get(ff_object.get('id'))
                 await self.update_job_status(
                     job_tracker['session_id'],
                     ff_object,
