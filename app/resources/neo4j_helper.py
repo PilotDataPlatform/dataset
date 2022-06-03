@@ -28,21 +28,6 @@ from app.schemas.base import EAPIResponseCode
 logger = LoggerFactory('api_dataset_import').get_logger()
 
 
-async def create_relation(label, payload):
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(ConfigClass.NEO4J_SERVICE + 'relations/own', json=payload)
-        if response.status_code != 200:
-            raise APIException(
-                error_msg=f'Error calling neo4j node API: {response.json()}', status_code=response.status_code
-            )
-    except Exception as e:
-        raise APIException(
-            error_msg=f'Error calling neo4j node API: {str(e)}', status_code=EAPIResponseCode.internal_error.value
-        )
-    return response.json()
-
-
 async def create_node(payload):
     try:
         created_obj = await MetadataClient.create_object(payload)
@@ -51,33 +36,6 @@ async def create_node(payload):
             error_msg=f'Error calling neo4j node API: {str(e)}', status_code=EAPIResponseCode.internal_error.value
         )
     return created_obj
-
-
-async def query_relation(relation_label, start_label, end_label, start_params=None, end_params=None):
-    if not start_params:
-        start_params = {}
-    if not end_params:
-        start_params = {}
-    payload = {
-        'label': relation_label,
-        'start_label': start_label,
-        'start_params': start_params,
-        'end_label': end_label,
-        'end_params': end_params,
-    }
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(ConfigClass.NEO4J_SERVICE + 'relations/query', json=payload)
-        if response.status_code != 200:
-            raise APIException(
-                error_msg=f'Error calling neo4j relation query API: {response.json()}', status_code=response.status_code
-            )
-    except Exception as e:
-        raise APIException(
-            error_msg=f'Error calling neo4j relation query API: {str(e)}',
-            status_code=EAPIResponseCode.internal_error.value,
-        )
-    return response.json()
 
 
 async def get_node_by_geid(obj_id: str):
@@ -98,20 +56,15 @@ async def get_parent_node(parent_id):
         return {'parent': None, 'parent_path': None}
 
 
-async def get_children_nodes(start_geid, start_label='Folder'):
+async def get_children_nodes(code: str, father_id: str):
+    items = await MetadataClient.get_objects(code)
+    children_items = []
 
-    payload = {
-        'label': 'own',
-        'start_label': start_label,
-        'start_params': {'global_entity_id': start_geid},
-    }
+    for item in items:
+        if item['parent'] == father_id:
+            children_items.append(item)
 
-    node_query_url = ConfigClass.NEO4J_SERVICE + 'relations/query'
-    async with httpx.AsyncClient() as client:
-        response = await client.post(node_query_url, json=payload)
-    ffs = [x.get('end_node') for x in response.json()]
-
-    return ffs
+    return children_items
 
 
 async def delete_relation_bw_nodes(start_id, end_id):

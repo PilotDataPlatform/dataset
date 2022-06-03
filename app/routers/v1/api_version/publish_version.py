@@ -67,16 +67,13 @@ class PublishVersion(object):
 
     async def publish(self, db):
         try:
-            # TODO some merge needed here since get_children_nodes and
-            # get_dataset_files_recursive both get the nodes under the dataset
-
             # lock file here
-            level1_nodes = await get_children_nodes(self.dataset_geid, start_label='Dataset')
+            level1_nodes = await get_children_nodes(self.dataset_node['code'], self.dataset_geid)
             locked_node, err = await recursive_lock_publish(level1_nodes)
             if err:
                 raise err
 
-            await self.get_dataset_files_recursive(self.dataset_geid)
+            await self.get_dataset_files(level1_nodes)
             self.download_dataset_files()
             await self.add_schemas(db)
             await run_in_threadpool(self.zip_files)
@@ -144,34 +141,18 @@ class PublishVersion(object):
         )
         await self.redis_client.set(self.status_id, redis_status, ex=1 * 60 * 60)
 
-    async def get_dataset_files_recursive(self, geid, start_label='Dataset'):
+    async def get_dataset_files(self, nodes):
         """get all files from dataset."""
-        query = {
-            'start_label': start_label,
-            'end_labels': ['File', 'Folder'],
-            'query': {
-                'start_params': {
-                    'global_entity_id': geid,
-                },
-                'end_params': {
-                    'archived': False,
-                },
-            },
-        }
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(ConfigClass.NEO4J_SERVICE_V2 + 'relations/query', json=query)
-        for node in resp.json()['results']:
-            if 'File' in node['labels']:
-                self.dataset_files.append(node)
-            else:
-                await self.get_dataset_files_recursive(node['global_entity_id'], start_label='Folder')
+        for item in nodes:
+            if item['type'] == 'file':
+                self.dataset_files.append(item)
         return self.dataset_files
 
     def download_dataset_files(self):
         """Download files from minio."""
         file_paths = []
         for file in self.dataset_files:
-            location_data = parse_minio_location(file['location'])
+            location_data = parse_minio_location(file['storage']['location_uri'])
             try:
                 self.mc.client.fget_object(
                     location_data['bucket'], location_data['path'], self.tmp_folder + '/' + location_data['path']
