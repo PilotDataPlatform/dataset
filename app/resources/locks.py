@@ -17,7 +17,7 @@ import httpx
 from common import LoggerFactory
 
 from app.config import ConfigClass
-from app.resources.neo4j_helper import get_children_nodes
+from app.resources.utils import get_children_nodes
 
 logger = LoggerFactory(__name__).get_logger()
 

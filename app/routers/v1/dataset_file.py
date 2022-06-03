@@ -12,8 +12,8 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import copy
-import json
 import time
 from typing import Optional
 
@@ -35,12 +35,12 @@ from app.resources.locks import recursive_lock_delete
 from app.resources.locks import recursive_lock_import
 from app.resources.locks import recursive_lock_move_rename
 from app.resources.locks import unlock_resource
-from app.resources.neo4j_helper import create_file_node
-from app.resources.neo4j_helper import create_folder_node
-from app.resources.neo4j_helper import delete_node
-from app.resources.neo4j_helper import get_children_nodes
-from app.resources.neo4j_helper import get_node_by_geid
-from app.resources.neo4j_helper import get_parent_node
+from app.resources.utils import create_file_node
+from app.resources.utils import create_folder_node
+from app.resources.utils import delete_node
+from app.resources.utils import get_children_nodes
+from app.resources.utils import get_node_by_geid
+from app.resources.utils import get_parent_node
 from app.schemas.base import APIResponse
 from app.schemas.base import EAPIResponseCode
 from app.schemas.import_data import DatasetFileDelete
@@ -208,43 +208,24 @@ class APIImportData:
 
         # validate the dataset if exists
         srv_dataset = SrvDatasetMgr()
-        dataset_obj = await srv_dataset.get_bygeid(db, dataset_geid)
+        dataset = await srv_dataset.get_bygeid(db, dataset_geid)
 
-        if dataset_obj is None:
+        if dataset is None:
             api_response.code = EAPIResponseCode.not_found
             api_response.error_msg = 'Invalid geid for dataset'
             return api_response.json_response()
 
         # find the root folder node
-        root_geid = folder_geid if folder_geid else dataset_geid
-        root_node_label = 'Folder' if folder_geid else 'Dataset'
+        root_geid = folder_geid if folder_geid else None
 
         # then get the first level nodes
-        query = json.loads(query)
-        relation_payload = {
-            'page': page,
-            'page_size': page_size,
-            'order_by': order_by,
-            'order_type': order_type,
-            'start_label': root_node_label,
-            'end_labels': ['File', 'Folder'],
-            'query': {
-                'start_params': {'global_entity_id': root_geid},
-            },
-        }
-
-        async with httpx.AsyncClient() as client:
-            response = await client.post(ConfigClass.NEO4J_SERVICE_V2 + 'relations/query', json=relation_payload)
-        file_folder_nodes = response.json().get('results', [])
-        # print(file_folder_nodes)
+        file_folder_nodes = await get_children_nodes(dataset.code, root_geid)
 
         # then get the routing this will return as parent level
         # like admin->folder1->file1 in UI
-        node_query_url = ConfigClass.NEO4J_SERVICE + 'relations/connected/' + root_geid
-        async with httpx.AsyncClient() as client:
-            response = await client.get(node_query_url, params={'direction': 'input'})
-        file_routing = response.json().get('result', [])
-        ret_routing = [x for x in file_routing if 'User' not in x.get('labels')]
+        if file_folder_nodes:
+            parent_path = file_folder_nodes[0]['parent_path']
+            ret_routing = parent_path.split('.') if parent_path else []
 
         ret = {
             'data': file_folder_nodes,

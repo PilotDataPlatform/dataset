@@ -24,8 +24,8 @@ from fastapi_utils import cbv
 from app.clients.metadata import MetadataClient
 from app.core.db import get_db_session
 from app.resources.error_handler import APIException
-from app.resources.neo4j_helper import create_node
-from app.resources.neo4j_helper import get_node_by_geid
+from app.resources.utils import create_node
+from app.resources.utils import get_node_by_geid
 from app.schemas.base import EAPIResponseCode
 from app.schemas.folder import FolderRequest
 from app.schemas.folder import FolderResponse

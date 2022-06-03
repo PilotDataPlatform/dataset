@@ -79,9 +79,11 @@ async def test_preview_should_respect_file_type(mock_minio, client, httpx_mock, 
     file_geid = '6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067-164.8138467'
     mock_minio.return_value = file_obj
     httpx_mock.add_response(
-        method='POST',
-        url='http://neo4j_service/v1/neo4j/nodes/File/query',
-        json=[{'global_entity_id': file_geid, 'location': 'minio://any/any', 'name': file_name, 'file_size': 1}],
+        method='GET',
+        url='http://metadata_service/v1/item/6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067-164.8138467',
+        json={
+            'result': {'id': file_geid, 'storage': {'location_uri': 'minio://any/any'}, 'name': file_name, 'size': 1}
+        },
     )
     res = await client.get(f'/v1/{file_geid}/preview')
     assert res.status_code == 200
@@ -91,9 +93,9 @@ async def test_preview_should_respect_file_type(mock_minio, client, httpx_mock, 
 
 async def test_preview_should_return_404_when_not_found(client, httpx_mock):
     httpx_mock.add_response(
-        method='POST',
-        url='http://neo4j_service/v1/neo4j/nodes/File/query',
-        json=[],
+        method='GET',
+        url='http://metadata_service/v1/item/any',
+        json={'result': {}},
     )
     res = await client.get('/v1/any/preview')
     assert res.status_code == 404
@@ -107,16 +109,16 @@ async def test_preview_should_concatenate_true_when_file_size_bigger_than_conf(m
     file_geid = '6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067-164.8138467'
     mock_minio.return_value = CSVLongMockClient().get_object()
     httpx_mock.add_response(
-        method='POST',
-        url='http://neo4j_service/v1/neo4j/nodes/File/query',
-        json=[
-            {
-                'global_entity_id': file_geid,
-                'location': 'minio://any/any',
+        method='GET',
+        url='http://metadata_service/v1/item/6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067-164.8138467',
+        json={
+            'result': {
+                'id': file_geid,
+                'storage': {'location_uri': 'minio://any/any'},
                 'name': 'test_folder.csv',
-                'file_size': ConfigClass.MAX_PREVIEW_SIZE + 1,
+                'size': ConfigClass.MAX_PREVIEW_SIZE + 1,
             }
-        ],
+        },
     )
     res = await client.get(f'/v1/{file_geid}/preview')
     assert res.status_code == 200

@@ -34,7 +34,6 @@ from urllib3 import HTTPResponse
 
 environ['CONFIG_CENTER_ENABLED'] = 'false'
 
-environ['NEO4J_SERVICE'] = 'http://NEO4J_SERVICE'
 environ['QUEUE_SERVICE'] = 'http://QUEUE_SERVICE'
 environ['DATA_OPS_UTIL'] = 'http://DATA_OPS_UTIL'
 environ['CATALOGUING_SERVICE'] = 'http://CATALOGUING_SERVICE'

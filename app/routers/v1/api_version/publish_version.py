@@ -32,7 +32,7 @@ from app.models.schema import DatasetSchema
 from app.models.version import DatasetVersion
 from app.resources.locks import recursive_lock_publish
 from app.resources.locks import unlock_resource
-from app.resources.neo4j_helper import get_children_nodes
+from app.resources.utils import get_children_nodes
 
 logger = LoggerFactory('api_version').get_logger()
 

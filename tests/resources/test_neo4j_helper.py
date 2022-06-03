@@ -15,7 +15,7 @@
 
 import pytest
 
-from app.resources.neo4j_helper import get_children_nodes
+from app.resources.utils import get_children_nodes
 
 pytestmark = pytest.mark.asyncio
 

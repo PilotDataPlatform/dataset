@@ -17,7 +17,6 @@ import csv
 from io import StringIO
 from typing import Optional
 
-import httpx
 from common import LoggerFactory
 from fastapi import APIRouter
 from fastapi import Header
@@ -29,6 +28,7 @@ from app.commons.service_connection.minio_client import Minio_Client
 from app.commons.service_connection.minio_client import Minio_Client_
 from app.config import ConfigClass
 from app.resources.error_handler import catch_internal
+from app.resources.utils import get_node_by_geid
 from app.schemas.base import APIResponse
 from app.schemas.base import EAPIResponseCode
 from app.schemas.preview import PreviewResponse
@@ -53,7 +53,7 @@ class Preview:
         api_response = APIResponse()
 
         # Get neo4j file node
-        file_node = await self.get_file_by_geid(file_geid)
+        file_node = await get_node_by_geid(file_geid)
         if not file_node:
             api_response.error_msg = 'File not found'
             api_response.code = EAPIResponseCode.not_found
@@ -61,7 +61,7 @@ class Preview:
 
         result = {}
         mc = Minio_Client_(Authorization, refresh_token)
-        file_data = self.parse_location(file_node['location'])
+        file_data = self.parse_location(file_node['storage']['location_uri'])
         file_type = file_node['name'].split('.')[1]
 
         response = await run_in_threadpool(
@@ -72,7 +72,7 @@ class Preview:
         else:
             result['content'] = response.data.decode('utf-8-sig')
 
-        if file_node['file_size'] >= ConfigClass.MAX_PREVIEW_SIZE:
+        if file_node['size'] >= ConfigClass.MAX_PREVIEW_SIZE:
             result['is_concatinated'] = True
         else:
             result['is_concatinated'] = False
@@ -94,14 +94,14 @@ class Preview:
             return api_response.to_dict, api_response.code
 
         # Get neo4j file node
-        file_node = await self.get_file_by_geid(file_geid)
+        file_node = await get_node_by_geid(file_geid)
         if not file_node:
             api_response.set_error_msg('File not found')
             api_response.set_code(EAPIResponseCode.not_found)
             return api_response.to_dict, api_response.code
 
         mc = Minio_Client()
-        file_data = self.parse_location(file_node['location'])
+        file_data = self.parse_location(file_node['storage']['location_uri'])
         file_type = file_node['name'][file_node['name'].rfind('.') :].replace('.', '')
 
         response = await run_in_threadpool(mc.client.get_object, file_data['bucket'], file_data['path'])
@@ -137,13 +137,3 @@ class Preview:
         bucket = path[1]
         path = '/'.join(path[2:])
         return {'bucket': bucket, 'path': path}
-
-    async def get_file_by_geid(self, file_geid):
-        payload = {
-            'global_entity_id': file_geid,
-        }
-        async with httpx.AsyncClient() as client:
-            response = await client.post(ConfigClass.NEO4J_SERVICE + 'nodes/File/query', json=payload)
-        if not response.json():
-            return None
-        return response.json()[0]
