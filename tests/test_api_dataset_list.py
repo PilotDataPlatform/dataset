@@ -27,7 +27,7 @@ async def test_get_dataset_list_when_error_should_return_500(client):
 
 async def test_get_dataset_list_should_return_200(client, dataset):
     username = 'admin'
-    res = await client.post(f'/v1/users/{username}/datasets', json={'order_by': 'desc'})
+    res = await client.post(f'/v1/users/{username}/datasets', json={'order_by': 'desc', 'page_size': 200})
     assert res.json() == {
         'code': 200,
         'error_msg': '',

@@ -23,7 +23,8 @@ from uuid import uuid4
 import httpx
 from common import GEIDClient
 from common import LoggerFactory
-from fastapi_pagination import Params
+from fastapi import Query
+from fastapi_pagination import Params as BaseParams
 from fastapi_pagination.ext.async_sqlalchemy import paginate
 from minio.sseconfig import Rule
 from minio.sseconfig import SSEConfig
@@ -44,6 +45,10 @@ from app.models.schema import DatasetSchemaTemplate
 
 ESSENTIALS_TPL_NAME = ConfigClass.ESSENTIALS_TPL_NAME
 ESSENTIALS_NAME = ConfigClass.ESSENTIALS_NAME
+
+
+class Params(BaseParams):
+    size: int = Query(10, ge=1, le=999, description='Page size')
 
 
 class SrvDatasetMgr:
