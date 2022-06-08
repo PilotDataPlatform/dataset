@@ -100,6 +100,7 @@ async def create_node(payload):
         )
     return created_obj
 
+
 # FIXME: Refactor to get rid of final references to nodes and geid that are left over from Neo4J
 async def get_node_by_geid(obj_id: str):
     try:
