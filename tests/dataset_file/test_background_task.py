@@ -53,7 +53,7 @@ async def test_copy_file_worker_should_import_file_succeed(
 
     httpx_mock.add_response(
         method='GET',
-        url=f'http://metadata_service/v1/item/{source_project_geid}',
+        url=f'http://metadata_service/v1/item/{source_project_geid}/',
         json={
             'result': {
                 'id': source_project_geid,
@@ -218,7 +218,7 @@ async def test_rename_file_worker_should_move_file_succeed(
 
     httpx_mock.add_response(
         method='GET',
-        url='http://metadata_service/v1/item/077fe46b-3bff-4da3-a4fb-4d6cbf9ce470',
+        url='http://metadata_service/v1/item/077fe46b-3bff-4da3-a4fb-4d6cbf9ce470/',
         json={
             'result': {
                 'id': '077fe46b-3bff-4da3-a4fb-4d6cbf9ce470',

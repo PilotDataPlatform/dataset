@@ -46,7 +46,7 @@ async def test_rename_file_should_add_file_to_processing_and_return_200(client, 
     httpx_mock.add_response(
         method='GET',
         url=(
-            'http://metadata_service/v1/items/search?'
+            'http://metadata_service/v1/items/search/?'
             f'recursive=true&zone=1&container_code={dataset.code}&page_size=100000'
         ),
         json={'result': [file_dict]},
@@ -96,7 +96,7 @@ async def test_rename_file_should_add_file_to_ignoring_when_file_wrong_and_retur
     httpx_mock.add_response(
         method='GET',
         url=(
-            'http://metadata_service/v1/items/search?'
+            'http://metadata_service/v1/items/search/?'
             f'recursive=true&zone=1&container_code={dataset.code}&page_size=100000'
         ),
         json={'result': []},
@@ -146,7 +146,7 @@ async def test_rename_file_should_add_file_to_ignoring_when_file_duplicated_and_
     httpx_mock.add_response(
         method='GET',
         url=(
-            'http://metadata_service/v1/items/search?'
+            'http://metadata_service/v1/items/search/?'
             f'recursive=true&zone=1&container_code={dataset.code}&page_size=100000'
         ),
         json={

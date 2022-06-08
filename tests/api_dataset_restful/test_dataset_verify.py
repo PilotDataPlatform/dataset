@@ -28,7 +28,7 @@ async def test_dataset_verify_when_bids_verification_fails_should_return_500(cli
     httpx_mock.add_response(
         method='GET',
         url=(
-            'http://metadata_service/v1/items/search'
+            'http://metadata_service/v1/items/search/'
             f'?recursive=true&zone=1&container_code={dataset_code}&page_size=100000'
         ),
         json={
@@ -70,7 +70,7 @@ async def test_dataset_verify_when_bids_valid_should_return_200(mock_subproc_run
     httpx_mock.add_response(
         method='GET',
         url=(
-            'http://metadata_service/v1/items/search'
+            'http://metadata_service/v1/items/search/'
             f'?recursive=true&zone=1&container_code={dataset_code}&page_size=100000'
         ),
         json={

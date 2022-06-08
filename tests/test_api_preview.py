@@ -80,7 +80,7 @@ async def test_preview_should_respect_file_type(mock_minio, client, httpx_mock, 
     mock_minio.return_value = file_obj
     httpx_mock.add_response(
         method='GET',
-        url='http://metadata_service/v1/item/6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067-164.8138467',
+        url='http://metadata_service/v1/item/6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067-164.8138467/',
         json={
             'result': {'id': file_geid, 'storage': {'location_uri': 'minio://any/any'}, 'name': file_name, 'size': 1}
         },
@@ -94,7 +94,7 @@ async def test_preview_should_respect_file_type(mock_minio, client, httpx_mock, 
 async def test_preview_should_return_404_when_not_found(client, httpx_mock):
     httpx_mock.add_response(
         method='GET',
-        url='http://metadata_service/v1/item/any',
+        url='http://metadata_service/v1/item/any/',
         json={'result': {}},
     )
     res = await client.get('/v1/any/preview')
@@ -110,7 +110,7 @@ async def test_preview_should_concatenate_true_when_file_size_bigger_than_conf(m
     mock_minio.return_value = CSVLongMockClient().get_object()
     httpx_mock.add_response(
         method='GET',
-        url='http://metadata_service/v1/item/6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067-164.8138467',
+        url='http://metadata_service/v1/item/6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067-164.8138467/',
         json={
             'result': {
                 'id': file_geid,
