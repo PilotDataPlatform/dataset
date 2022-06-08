@@ -46,6 +46,7 @@ class MetadataClient:
 
     @classmethod
     async def create_object(cls, payload: Dict[str, Any]) -> Dict[str, Any]:
+        payload.update({'zone': 1})
         url = f'{cls.BASE_URL}/v1/item/'
         async with httpx.AsyncClient() as client:
             response = await client.post(url, json=payload)
@@ -56,5 +57,5 @@ class MetadataClient:
     async def delete_object(cls, id_: str) -> None:
         url = f'{cls.BASE_URL}/v1/item/'
         async with httpx.AsyncClient() as client:
-            response = await client.request(url=url, method='DELETE', params={'id': id_})
+            response = await client.delete(url=url, params={'id': id_})
         response.raise_for_status()
