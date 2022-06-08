@@ -27,7 +27,7 @@ async def test_move_file_should_call_background_task_and_add_file_to_processing(
 
     httpx_mock.add_response(
         method='GET',
-        url=f'http://metadata_service/v1/item/{folder_id}',
+        url=f'http://metadata_service/v1/item/{folder_id}/',
         json={
             'result': {
                 'id': folder_id,
@@ -62,7 +62,7 @@ async def test_move_file_should_call_background_task_and_add_file_to_processing(
     httpx_mock.add_response(
         method='GET',
         url=(
-            'http://metadata_service/v1/items/search?'
+            'http://metadata_service/v1/items/search/?'
             f'recursive=true&zone=1&container_code={dataset.code}&page_size=100000'
         ),
         json={'result': [file_dict]},
@@ -108,7 +108,7 @@ async def test_move_wrong_file_ignored_when_relation_doesnt_exist(client, httpx_
     httpx_mock.add_response(
         method='GET',
         url=(
-            'http://metadata_service/v1/items/search?'
+            'http://metadata_service/v1/items/search/?'
             f'recursive=true&zone=1&container_code={dataset.code}&page_size=100000'
         ),
         json={'result': []},

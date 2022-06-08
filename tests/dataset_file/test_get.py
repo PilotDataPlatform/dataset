@@ -49,7 +49,7 @@ async def test_get_dataset_files(client, httpx_mock, dataset):
     httpx_mock.add_response(
         method='GET',
         url=(
-            'http://metadata_service/v1/items/search'
+            'http://metadata_service/v1/items/search/'
             f'?recursive=true&zone=1&container_code={dataset.code}&page_size=100000'
         ),
         json={'result': [file]},

@@ -25,7 +25,7 @@ async def test_create_root_folder_should_return_200_and_folder_data(client, http
     httpx_mock.add_response(
         method='GET',
         url=(
-            'http://metadata_service/v1/items/search'
+            'http://metadata_service/v1/items/search/'
             f'?recursive=true&zone=1&container_code={dataset.code}&page_size=100000'
         ),
         json={'result': []},
@@ -33,7 +33,7 @@ async def test_create_root_folder_should_return_200_and_folder_data(client, http
 
     httpx_mock.add_response(
         method='POST',
-        url='http://metadata_service/v1/item',
+        url='http://metadata_service/v1/item/',
         json={
             'result': {
                 'id': 'bb72b4a6-d2bb-41fa-acaf-19cb7d4fce0f',
@@ -61,7 +61,7 @@ async def test_create_duplicate_root_folder_should_return_409(client, httpx_mock
     httpx_mock.add_response(
         method='GET',
         url=(
-            'http://metadata_service/v1/items/search'
+            'http://metadata_service/v1/items/search/'
             f'?recursive=true&zone=1&container_code={dataset.code}&page_size=100000'
         ),
         json={
@@ -93,7 +93,7 @@ async def test_create_sub_folder_should_return_200(client, httpx_mock, dataset):
 
     httpx_mock.add_response(
         method='GET',
-        url=f'http://metadata_service/v1/item/{folder_id}',
+        url=f'http://metadata_service/v1/item/{folder_id}/',
         json={
             'result': {
                 'id': folder_id,
@@ -108,7 +108,7 @@ async def test_create_sub_folder_should_return_200(client, httpx_mock, dataset):
     httpx_mock.add_response(
         method='GET',
         url=(
-            'http://metadata_service/v1/items/search'
+            'http://metadata_service/v1/items/search/'
             f'?recursive=true&zone=1&container_code={dataset.code}&page_size=100000'
         ),
         json={
@@ -135,7 +135,7 @@ async def test_create_sub_folder_should_return_200(client, httpx_mock, dataset):
 
     httpx_mock.add_response(
         method='POST',
-        url='http://metadata_service/v1/item',
+        url='http://metadata_service/v1/item/',
         json={
             'result': {
                 'id': 'bb72b4a6-d2bb-41fa-acaf-19cb7d4fce0f',
@@ -193,7 +193,7 @@ async def test_create_sub_folder_when_parent_folder_not_found_should_return_404(
 
     httpx_mock.add_response(
         method='GET',
-        url=f'http://metadata_service/v1/item/{folder_id}',
+        url=f'http://metadata_service/v1/item/{folder_id}/',
         json={'result': {}},
         status_code=404,
     )

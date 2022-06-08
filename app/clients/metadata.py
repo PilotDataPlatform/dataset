@@ -35,18 +35,18 @@ class MetadataClient:
 
     @classmethod
     async def get_objects(cls, code: str) -> Dict[str, Any]:
-        url = f'{cls.BASE_URL}/v1/items/search'
+        url = f'{cls.BASE_URL}/v1/items/search/'
         params = {'recursive': True, 'zone': 1, 'container_code': code, 'page_size': 100000}
         return await cls.get(url, params)
 
     @classmethod
     async def get_by_id(cls, id_: str) -> Dict[str, Any]:
-        url = f'{cls.BASE_URL}/v1/item/{id_}'
+        url = f'{cls.BASE_URL}/v1/item/{id_}/'
         return await cls.get(url)
 
     @classmethod
     async def create_object(cls, payload: Dict[str, Any]) -> Dict[str, Any]:
-        url = f'{cls.BASE_URL}/v1/item'
+        url = f'{cls.BASE_URL}/v1/item/'
         async with httpx.AsyncClient() as client:
             response = await client.post(url, json=payload)
         response.raise_for_status()
@@ -54,7 +54,7 @@ class MetadataClient:
 
     @classmethod
     async def delete_object(cls, id_: str) -> None:
-        url = f'{cls.BASE_URL}/v1/item'
+        url = f'{cls.BASE_URL}/v1/item/'
         async with httpx.AsyncClient() as client:
             response = await client.request(url=url, method='DELETE', params={'id': id_})
         response.raise_for_status()

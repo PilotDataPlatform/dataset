@@ -43,13 +43,13 @@ async def test_import_files_from_source_list_should_return_200(client, httpx_moc
     }
     httpx_mock.add_response(
         method='GET',
-        url=f'http://metadata_service/v1/item/{source_project}',
+        url=f'http://metadata_service/v1/item/{source_project}/',
         json={'result': {'code': 'project_code'}},
     )
     httpx_mock.add_response(
         method='GET',
         url=(
-            'http://metadata_service/v1/items/search?'
+            'http://metadata_service/v1/items/search/?'
             'recursive=true&zone=1&container_code=project_code&page_size=100000'
         ),
         json={'result': [file_dict]},
@@ -57,7 +57,7 @@ async def test_import_files_from_source_list_should_return_200(client, httpx_moc
     httpx_mock.add_response(
         method='GET',
         url=(
-            'http://metadata_service/v1/items/search?'
+            'http://metadata_service/v1/items/search/?'
             f'recursive=true&zone=1&container_code={dataset.code}&page_size=100000'
         ),
         json={'result': []},
@@ -153,13 +153,13 @@ async def test_05_test_import_duplicate(client, httpx_mock, dataset):
     }
     httpx_mock.add_response(
         method='GET',
-        url=f'http://metadata_service/v1/item/{source_project}',
+        url=f'http://metadata_service/v1/item/{source_project}/',
         json={'result': {'code': 'project_code'}},
     )
     httpx_mock.add_response(
         method='GET',
         url=(
-            'http://metadata_service/v1/items/search?'
+            'http://metadata_service/v1/items/search/?'
             'recursive=true&zone=1&container_code=project_code&page_size=100000'
         ),
         json={'result': [file_dict]},
@@ -167,7 +167,7 @@ async def test_05_test_import_duplicate(client, httpx_mock, dataset):
     httpx_mock.add_response(
         method='GET',
         url=(
-            'http://metadata_service/v1/items/search?'
+            'http://metadata_service/v1/items/search/?'
             f'recursive=true&zone=1&container_code={dataset.code}&page_size=100000'
         ),
         json={'result': [file_dict]},
