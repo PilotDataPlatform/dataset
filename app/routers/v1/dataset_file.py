@@ -205,7 +205,7 @@ class APIImportData:
         If folder_geid is not None, then it will treat the folder_geid as root and find the relative level 1 file/folder
         """
         api_response = APIResponse()
-
+        ret_routing = []
         # validate the dataset if exists
         srv_dataset = SrvDatasetMgr()
         dataset = await srv_dataset.get_bygeid(db, dataset_geid)
