@@ -63,7 +63,6 @@ class Settings(BaseSettings):
     MINIO_SECRET_KEY: str
     KEYCLOAK_MINIO_SECRET: str
 
-    NEO4J_SERVICE: str
     QUEUE_SERVICE: str
     CATALOGUING_SERVICE: str
     ENTITYINFO_SERVICE: str
@@ -73,6 +72,7 @@ class Settings(BaseSettings):
     gm_password: str
     DATA_OPS_UTIL: str
     SEND_MESSAGE_URL: str
+    METADATA_SERVICE: str
 
     RDS_ECHO_SQL_QUERIES: bool = False
 
@@ -128,8 +128,6 @@ class Settings(BaseSettings):
 
         self.MINIO_TMP_PATH = self.ROOT_PATH + '/tmp/'
 
-        self.NEO4J_SERVICE_V2 = self.NEO4J_SERVICE + '/v2/neo4j/'
-        self.NEO4J_SERVICE += '/v1/neo4j/'
         self.QUEUE_SERVICE += '/v1/'
         self.CATALOGUING_SERVICE_V1 = self.CATALOGUING_SERVICE + '/v1/'
         self.CATALOGUING_SERVICE_V2 = self.CATALOGUING_SERVICE + '/v2/'

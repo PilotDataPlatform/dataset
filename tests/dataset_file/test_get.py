@@ -37,35 +37,22 @@ async def test_get_dataset_files_should_return_404_when_dataset_not_found(client
 async def test_get_dataset_files(client, httpx_mock, dataset):
     dataset_geid = str(dataset.id)
     file_geid = '6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067-1648138467'
-
-    httpx_mock.add_response(
-        method='POST',
-        url='http://neo4j_service/v2/neo4j/relations/query',
-        json={
-            'results': [
-                {
-                    'code': 'any_code',
-                    'labels': 'File',
-                    'location': 'http://anything.com/bucket/obj/path',
-                    'global_entity_id': file_geid,
-                    'project_code': '',
-                    'operator': 'me',
-                    'parent_folder': '',
-                    'dataset_code': 'fake_dataset_code',
-                }
-            ]
-        },
-    )
+    file = {
+        'type': 'file',
+        'storage': {'location_uri': 'http://anything.com/bucket/obj/path'},
+        'id': file_geid,
+        'owner': 'me',
+        'parent_path': None,
+        'parent': None,
+        'dataset_code': dataset.code,
+    }
     httpx_mock.add_response(
         method='GET',
-        url=f'http://neo4j_service/v1/neo4j/relations/connected/{dataset_geid}?direction=input',
-        json={
-            'results': [
-                {
-                    'labels': 'Core',
-                }
-            ]
-        },
+        url=(
+            'http://metadata_service/v1/items/search'
+            f'?recursive=true&zone=1&container_code={dataset.code}&page_size=100000'
+        ),
+        json={'result': [file]},
     )
 
     res = await client.get(f'/v1/dataset/{dataset_geid}/files')
@@ -76,18 +63,7 @@ async def test_get_dataset_files(client, httpx_mock, dataset):
         'num_of_pages': 1,
         'page': 0,
         'result': {
-            'data': [
-                {
-                    'code': 'any_code',
-                    'dataset_code': 'fake_dataset_code',
-                    'global_entity_id': file_geid,
-                    'labels': 'File',
-                    'location': 'http://anything.com/bucket/obj/path',
-                    'operator': 'me',
-                    'parent_folder': '',
-                    'project_code': '',
-                }
-            ],
+            'data': [file],
             'route': [],
         },
         'total': 1,

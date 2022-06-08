@@ -34,13 +34,13 @@ from urllib3 import HTTPResponse
 
 environ['CONFIG_CENTER_ENABLED'] = 'false'
 
-environ['NEO4J_SERVICE'] = 'http://NEO4J_SERVICE'
 environ['QUEUE_SERVICE'] = 'http://QUEUE_SERVICE'
 environ['DATA_OPS_UTIL'] = 'http://DATA_OPS_UTIL'
 environ['CATALOGUING_SERVICE'] = 'http://CATALOGUING_SERVICE'
 environ['ENTITYINFO_SERVICE'] = 'http://ENTITYINFO_SERVICE'
 environ['ELASTIC_SEARCH_SERVICE'] = 'http://ELASTIC_SEARCH_SERVICE'
 environ['SEND_MESSAGE_URL'] = 'http://SEND_MESSAGE_URL'
+environ['METADATA_SERVICE'] = 'http://METADATA_SERVICE'
 
 environ['gm_queue_endpoint'] = 'http://gm_queue_endpoint'
 environ['gm_username'] = 'gm_username'

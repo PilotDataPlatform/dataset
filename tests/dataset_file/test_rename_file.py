@@ -14,70 +14,45 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-import json
-
 import pytest
 
 pytestmark = pytest.mark.asyncio
 
 
-async def test_rename_file_should_add_file_to_processing_and_return_200(client, httpx_mock, dataset):
+async def test_rename_file_should_add_file_to_processing_and_return_200(client, httpx_mock, mock_minio, dataset):
     dataset_geid = str(dataset.id)
-    file_geid = '6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067-1648138467'
-
+    file_id = '6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067-1648138467'
+    file_dict = {
+        'id': file_id,
+        'parent': None,
+        'parent_path': None,
+        'restore_path': None,
+        'archived': None,
+        'type': 'file',
+        'zone': 1,
+        'name': '164132046.png',
+        'size': 2801,
+        'owner': 'admin',
+        'container_code': 'testdataset202201111',
+        'container_type': 'dataset',
+        'created_time': '2022-03-04 20:31:11.040611',
+        'last_updated_time': '2022-03-04 20:31:11.040872',
+        'storage': {
+            'id': '1d6a6897-ff0a-4bb3-96ae-e54ee9d379c3',
+            'location_uri': 'minio://http://minio.minio:9000/testdataset202201111/data/164132046.png',
+            'version': None,
+        },
+    }
     httpx_mock.add_response(
         method='GET',
-        url=f'http://neo4j_service/v1/neo4j/nodes/geid/{file_geid}',
-        json=[
-            {
-                'labels': ['Core', 'File'],
-                'global_entity_id': 'geid_2',
-                'location': 'http://anything.com/bucket/obj/path',
-                'display_path': 'display_path',
-                'uploader': 'test',
-            }
-        ],
+        url=(
+            'http://metadata_service/v1/items/search?'
+            f'recursive=true&zone=1&container_code={dataset.code}&page_size=100000'
+        ),
+        json={'result': [file_dict]},
     )
-    httpx_mock.add_response(
-        method='POST',
-        url='http://neo4j_service/v1/neo4j/relations/query',
-        json=[
-            {
-                'start_node': {
-                    'labels': ['Core', 'File'],
-                    'global_entity_id': file_geid,
-                }
-            }
-        ],
-        match_content=json.dumps({'label': 'own', 'end_label': 'Core', 'end_params': {'id': None}}).encode('utf-8'),
-    )
-    httpx_mock.add_response(
-        method='POST',
-        url='http://neo4j_service/v1/neo4j/relations/query',
-        json=[{}],
-        match_content=json.dumps(
-            {
-                'label': 'own*',
-                'start_label': 'Dataset',
-                'end_label': ['Core', 'File'],
-                'start_params': {'global_entity_id': dataset_geid},
-                'end_params': {'global_entity_id': 'geid_2'},
-            }
-        ).encode('utf-8'),
-    )
-    httpx_mock.add_response(
-        method='POST',
-        url='http://neo4j_service/v1/neo4j/relations/query',
-        json=[],
-        match_content=json.dumps(
-            {
-                'label': 'own',
-                'start_label': 'Core',
-                'start_params': {'global_entity_id': file_geid},
-                'end_params': {'name': 'new_name'},
-            }
-        ).encode('utf-8'),
-    )
+
+    # background http calls
     httpx_mock.add_response(
         method='POST',
         url='http://queue_service/v1/broker/pub',
@@ -105,169 +80,95 @@ async def test_rename_file_should_add_file_to_processing_and_return_200(client, 
     )
     payload = {'new_name': 'new_name', 'operator': 'admin'}
     res = await client.post(
-        f'/v1/dataset/{dataset_geid}/files/{file_geid}',
+        f'/v1/dataset/{dataset_geid}/files/{file_id}',
         headers={'Authorization': 'Barear token', 'Refresh-Token': 'refresh_token'},
         json=payload,
     )
     result = res.json()['result']
     assert result['ignored'] == []
-    assert result['processing'] == [
-        {
-            'display_path': 'display_path',
-            'feedback': 'exist',
-            'global_entity_id': 'geid_2',
-            'labels': ['Core', 'File'],
-            'location': 'http://anything.com/bucket/obj/path',
-            'uploader': 'test',
-        }
-    ]
+    assert result['processing'] == [{**file_dict, 'feedback': 'exist'}]
     assert res.status_code == 200
 
 
 async def test_rename_file_should_add_file_to_ignoring_when_file_wrong_and_return_200(client, httpx_mock, dataset):
     dataset_geid = str(dataset.id)
-    file_geid = '6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067-1648138467'
-
+    file_id = '6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067-1648138467'
     httpx_mock.add_response(
         method='GET',
-        url=f'http://neo4j_service/v1/neo4j/nodes/geid/{file_geid}',
-        json=[
-            {
-                'labels': ['Core', 'File'],
-                'global_entity_id': 'geid_2',
-                'location': 'http://anything.com/bucket/obj/path',
-                'display_path': 'display_path',
-                'uploader': 'test',
-            }
-        ],
-    )
-    httpx_mock.add_response(
-        method='POST',
-        url='http://neo4j_service/v1/neo4j/relations/query',
-        json=[
-            {
-                'start_node': {
-                    'labels': ['Core', 'File'],
-                    'global_entity_id': file_geid,
-                }
-            }
-        ],
-        match_content=json.dumps({'label': 'own', 'end_label': 'Core', 'end_params': {'id': None}}).encode('utf-8'),
-    )
-    httpx_mock.add_response(
-        method='POST',
-        url='http://neo4j_service/v1/neo4j/relations/query',
-        json=[],
-        match_content=json.dumps(
-            {
-                'label': 'own*',
-                'start_label': 'Dataset',
-                'end_label': ['Core', 'File'],
-                'start_params': {'global_entity_id': dataset_geid},
-                'end_params': {'global_entity_id': 'geid_2'},
-            }
-        ).encode('utf-8'),
-    )
-    httpx_mock.add_response(
-        method='POST',
-        url='http://neo4j_service/v1/neo4j/relations/query',
-        json=[],
-        match_content=json.dumps(
-            {
-                'label': 'own',
-                'start_label': 'Core',
-                'start_params': {'global_entity_id': file_geid},
-                'end_params': {'name': 'new_name'},
-            }
-        ).encode('utf-8'),
+        url=(
+            'http://metadata_service/v1/items/search?'
+            f'recursive=true&zone=1&container_code={dataset.code}&page_size=100000'
+        ),
+        json={'result': []},
     )
 
     payload = {'new_name': 'new_name', 'operator': 'admin'}
     res = await client.post(
-        f'/v1/dataset/{dataset_geid}/files/{file_geid}',
-        headers={'Authorization': 'Barear token', 'Refresh-Token': 'refresh_token'},
-        json=payload,
-    )
-    result = res.json()['result']
-    assert result['ignored'] == [{'feedback': 'unauthorized', 'global_entity_id': file_geid}]
-    assert result['processing'] == []
-    assert res.status_code == 200
-
-
-async def test_rename_file_should_add_file_to_ignoring_when_file_duplicated_and_return_200(client, httpx_mock, dataset):
-    dataset_geid = str(dataset.id)
-    file_geid = '6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067-1648138467'
-
-    httpx_mock.add_response(
-        method='GET',
-        url=f'http://neo4j_service/v1/neo4j/nodes/geid/{file_geid}',
-        json=[
-            {
-                'labels': ['Core', 'File'],
-                'global_entity_id': 'geid_2',
-                'location': 'http://anything.com/bucket/obj/path',
-                'display_path': 'display_path',
-                'uploader': 'test',
-            }
-        ],
-    )
-    httpx_mock.add_response(
-        method='POST',
-        url='http://neo4j_service/v1/neo4j/relations/query',
-        json=[
-            {
-                'start_node': {
-                    'labels': ['Core', 'File'],
-                    'global_entity_id': file_geid,
-                }
-            }
-        ],
-        match_content=json.dumps({'label': 'own', 'end_label': 'Core', 'end_params': {'id': None}}).encode('utf-8'),
-    )
-    httpx_mock.add_response(
-        method='POST',
-        url='http://neo4j_service/v1/neo4j/relations/query',
-        json=[{}],
-        match_content=json.dumps(
-            {
-                'label': 'own*',
-                'start_label': 'Dataset',
-                'end_label': ['Core', 'File'],
-                'start_params': {'global_entity_id': dataset_geid},
-                'end_params': {'global_entity_id': 'geid_2'},
-            }
-        ).encode('utf-8'),
-    )
-    httpx_mock.add_response(
-        method='POST',
-        url='http://neo4j_service/v1/neo4j/relations/query',
-        json=[{}],
-        match_content=json.dumps(
-            {
-                'label': 'own',
-                'start_label': 'Core',
-                'start_params': {'global_entity_id': file_geid},
-                'end_params': {'name': 'new_name'},
-            }
-        ).encode('utf-8'),
-    )
-
-    payload = {'new_name': 'new_name', 'operator': 'admin'}
-    res = await client.post(
-        f'/v1/dataset/{dataset_geid}/files/{file_geid}',
+        f'/v1/dataset/{dataset_geid}/files/{file_id}',
         headers={'Authorization': 'Barear token', 'Refresh-Token': 'refresh_token'},
         json=payload,
     )
     result = res.json()['result']
     assert result['ignored'] == [
         {
-            'display_path': 'display_path',
-            'feedback': 'exist',
-            'global_entity_id': 'geid_2',
-            'labels': ['Core', 'File'],
-            'location': 'http://anything.com/bucket/obj/path',
-            'uploader': 'test',
+            'id': file_id,
+            'feedback': 'unauthorized',
         }
     ]
+    assert result['processing'] == []
+    assert res.status_code == 200
+
+
+async def test_rename_file_should_add_file_to_ignoring_when_file_duplicated_and_return_200(client, httpx_mock, dataset):
+    dataset_geid = str(dataset.id)
+    file_id = '6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067-1648138467'
+    file_dict = {
+        'id': file_id,
+        'parent': None,
+        'parent_path': None,
+        'restore_path': None,
+        'archived': None,
+        'type': 'file',
+        'zone': 1,
+        'name': '164132046.png',
+        'size': 2801,
+        'owner': 'admin',
+        'container_code': 'testdataset202201111',
+        'container_type': 'dataset',
+        'created_time': '2022-03-04 20:31:11.040611',
+        'last_updated_time': '2022-03-04 20:31:11.040872',
+        'storage': {
+            'id': '1d6a6897-ff0a-4bb3-96ae-e54ee9d379c3',
+            'location_uri': 'minio://http://minio.minio:9000/testdataset202201111/data/164132046.png',
+            'version': None,
+        },
+    }
+    httpx_mock.add_response(
+        method='GET',
+        url=(
+            'http://metadata_service/v1/items/search?'
+            f'recursive=true&zone=1&container_code={dataset.code}&page_size=100000'
+        ),
+        json={
+            'result': [
+                file_dict,
+                {
+                    'id': 'f496d010-cb41-4353-bc5b-88f8e03c434d',
+                    'name': 'new_name',
+                    'parent': None,
+                    'parent_path': None,
+                },
+            ]
+        },
+    )
+
+    payload = {'new_name': 'new_name', 'operator': 'admin'}
+    res = await client.post(
+        f'/v1/dataset/{dataset_geid}/files/{file_id}',
+        headers={'Authorization': 'Barear token', 'Refresh-Token': 'refresh_token'},
+        json=payload,
+    )
+    result = res.json()['result']
+    assert result['ignored'] == [{**file_dict, 'feedback': 'exist'}]
     assert result['processing'] == []
     assert res.status_code == 200

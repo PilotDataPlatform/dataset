@@ -13,8 +13,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import json
-
 import pytest
 
 pytestmark = pytest.mark.asyncio
@@ -22,44 +20,33 @@ pytestmark = pytest.mark.asyncio
 
 async def test_file_delete_from_dataset_should_start_background_task_and_return_200(client, httpx_mock, dataset):
     dataset_geid = str(dataset.id)
-    file_geid = '6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067-1648138467'
-
+    file_id = '6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067'
+    file_dict = {
+        'id': file_id,
+        'parent': '81b70730-2bc3-4ffc-9e98-3d0cdeec867b',
+        'parent_path': 'admin.test_sub_6 - Copy.test_sub_delete_6',
+        'name': '.hidden_file.txt',
+        'container_code': 'test202203241',
+        'container_type': 'project',
+        'type': 'file',
+        'storage': {
+            'id': 'f2397e68-4e94-4419-bb72-3be532a789b2',
+            'location_uri': (
+                'minio://http://minio.minio:9000/core-test202203241/admin/test_sub_6'
+                ' - Copy/test_sub_delete_6/.hidden_file.txt'
+            ),
+            'version': None,
+        },
+    }
     httpx_mock.add_response(
         method='GET',
-        url=f'http://neo4j_service/v1/neo4j/nodes/geid/{file_geid}',
-        json=[
-            {
-                'labels': ['File'],
-                'global_entity_id': file_geid,
-                'id': 'file_id',
-                'location': 'http://anything.com/bucket/obj/path',
-                'display_path': 'display_path',
-                'uploader': 'test',
-                'name': 'sample.log',
-            }
-        ],
+        url=(
+            'http://metadata_service/v1/items/search?'
+            f'recursive=true&zone=1&container_code={dataset.code}&page_size=100000'
+        ),
+        json={'result': [file_dict]},
     )
-    httpx_mock.add_response(
-        method='POST',
-        url='http://neo4j_service/v1/neo4j/relations/query',
-        json=[
-            {
-                'end_node': {
-                    'labels': ['File'],
-                    'global_entity_id': 'fake_geid',
-                }
-            }
-        ],
-        match_content=json.dumps(
-            {
-                'label': 'own*',
-                'start_label': 'Dataset',
-                'end_label': ['File'],
-                'start_params': {'global_entity_id': dataset_geid},
-                'end_params': {'global_entity_id': file_geid},
-            }
-        ).encode('utf-8'),
-    )
+
     httpx_mock.add_response(
         method='POST',
         url='http://queue_service/v1/broker/pub',
@@ -85,12 +72,12 @@ async def test_file_delete_from_dataset_should_start_background_task_and_return_
         url='http://data_ops_util/v2/resource/lock/',
         json={},
     )
-    payload = {'source_list': [file_geid], 'operator': 'admin'}
+    payload = {'source_list': [file_id], 'operator': 'admin'}
     res = await client.delete(f'/v1/dataset/{dataset_geid}/files', json=payload)
 
     assert res.status_code == 200
-    processing_file = [x.get('global_entity_id') for x in res.json().get('result').get('processing')]
-    assert processing_file == [file_geid]
+    processing_file = [x.get('id') for x in res.json().get('result').get('processing')]
+    assert processing_file == [file_id]
 
 
 async def test_delete_from_not_in_dataset_should_not_reaise_error(client, httpx_mock, dataset):
@@ -99,26 +86,15 @@ async def test_delete_from_not_in_dataset_should_not_reaise_error(client, httpx_
 
     httpx_mock.add_response(
         method='GET',
-        url=f'http://neo4j_service/v1/neo4j/nodes/geid/{file_geid}',
-        json=[
-            {
-                'labels': ['File'],
-                'global_entity_id': file_geid,
-                'location': 'http://anything.com/bucket/obj/path',
-                'display_path': 'display_path',
-                'uploader': 'test',
-                'name': 'sample.log',
-            }
-        ],
-    )
-    httpx_mock.add_response(
-        method='POST',
-        url='http://neo4j_service/v1/neo4j/relations/query',
-        json=[],
+        url=(
+            'http://metadata_service/v1/items/search?'
+            f'recursive=true&zone=1&container_code={dataset.code}&page_size=100000'
+        ),
+        json={'result': [{'id': '6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067'}]},
     )
 
     payload = {'source_list': [file_geid], 'operator': 'admin'}
     res = await client.delete(f'/v1/dataset/{dataset_geid}/files', json=payload)
     assert res.status_code == 200
-    ignored_file = [x.get('global_entity_id') for x in res.json().get('result').get('ignored')]
+    ignored_file = [x.get('id') for x in res.json().get('result').get('ignored')]
     assert ignored_file == [file_geid]

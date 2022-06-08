@@ -26,20 +26,21 @@ async def test_dataset_verify_when_bids_verification_fails_should_return_500(cli
     dataset_code = dataset.code
     payload = {'dataset_geid': dataset_geid, 'type': 'any'}
     httpx_mock.add_response(
-        method='POST',
-        url='http://neo4j_service/v2/neo4j/relations/query',
+        method='GET',
+        url=(
+            'http://metadata_service/v1/items/search'
+            f'?recursive=true&zone=1&container_code={dataset_code}&page_size=100000'
+        ),
         json={
-            'results': [
+            'result': [
                 {
-                    'code': 'any_code',
-                    'labels': 'File',
-                    'location': f'http://anything.com/bucket/{dataset_code}/path.nii.gz',
-                    'global_entity_id': file_geid,
-                    'project_code': '',
+                    'type': 'file',
+                    'storage': {'location_uri': f'http://anything.com/bucket/{dataset_code}/path.nii.gz'},
+                    'id': file_geid,
                     'operator': 'me',
-                    'parent_folder': '',
-                    'dataset_code': dataset_geid,
-                    'file_size': 1,
+                    'parent': '',
+                    'code': dataset_geid,
+                    'size': 1,
                 }
             ]
         },
@@ -67,20 +68,22 @@ async def test_dataset_verify_when_bids_valid_should_return_200(mock_subproc_run
     obj.stdout = '{"bids": "verified"}'
     mock_subproc_run.return_value = obj
     httpx_mock.add_response(
-        method='POST',
-        url='http://neo4j_service/v2/neo4j/relations/query',
+        method='GET',
+        url=(
+            'http://metadata_service/v1/items/search'
+            f'?recursive=true&zone=1&container_code={dataset_code}&page_size=100000'
+        ),
         json={
-            'results': [
+            'result': [
                 {
-                    'code': 'any_code',
-                    'labels': 'File',
-                    'location': f'http://anything.com/bucket/{dataset_code}/path.nii.gz',
-                    'global_entity_id': file_geid,
-                    'project_code': '',
+                    'code': 'dataset_geid',
+                    'type': 'file',
+                    'storage': {'location_uri': f'http://anything.com/bucket/{dataset_code}/path.nii.gz'},
+                    'id': file_geid,
                     'operator': 'me',
-                    'parent_folder': '',
+                    'parent': '',
                     'dataset_code': dataset_geid,
-                    'file_size': 1,
+                    'size': 1,
                 }
             ]
         },

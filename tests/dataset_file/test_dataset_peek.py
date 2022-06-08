@@ -22,6 +22,7 @@ async def test_get_dataset_peek_should_return_200(client, dataset):
     dataset_code = dataset.code
     res = await client.get(f'/v1/dataset-peek/{dataset_code}')
     assert res.status_code == 200
+    assert res.json()['result'] == dataset.to_dict()
 
 
 async def test_get_dataset_peek_not_found_should_return_404(client, test_db):

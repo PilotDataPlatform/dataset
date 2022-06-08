@@ -28,13 +28,13 @@ from fastapi_utils import cbv
 from sqlalchemy.future import select
 from starlette.concurrency import run_in_threadpool
 
+from app.clients.metadata import MetadataClient
 from app.config import ConfigClass
 from app.core.db import get_db_session
 from app.models.bids import BIDSResult
 from app.resources.error_handler import catch_internal
 from app.resources.utils import get_files_recursive
 from app.resources.utils import get_node_relative_path
-from app.resources.utils import get_related_nodes
 from app.resources.utils import make_temp_folder
 from app.schemas.base import APIResponse
 from app.schemas.base import EAPIResponseCode
@@ -163,22 +163,20 @@ class DatasetRestful:
             res.code = EAPIResponseCode.bad_request
             res.result = {'result': 'dataset not exist'}
             return res.json_response()
-        nodes = await get_related_nodes(dataset.id)
+        items = await MetadataClient.get_objects(dataset.code)
 
         files_info = []
         TEMP_FOLDER = 'temp/'
-        for node in nodes:
-            if 'File' in node['labels']:
-                file_path = get_node_relative_path(dataset.code, node['location'])
-                files_info.append({'file_path': TEMP_FOLDER + dataset.code + file_path, 'file_size': node['file_size']})
+        for item in items:
+            if item['type'].lower() == 'file':
+                file_path = get_node_relative_path(dataset.code, item['storage']['location_uri'])
+                files_info.append({'file_path': TEMP_FOLDER + dataset.code + file_path, 'file_size': item['size']})
 
-            if 'Folder' in node['labels']:
-                files = await get_files_recursive(node['global_entity_id'])
+            if item['type'].lower() == 'folder':
+                files = await get_files_recursive(item['id'], items)
                 for file in files:
-                    file_path = get_node_relative_path(dataset.code, file['location'])
-                    files_info.append(
-                        {'file_path': TEMP_FOLDER + dataset.code + file_path, 'file_size': file['file_size']}
-                    )
+                    file_path = get_node_relative_path(dataset.code, item['storage']['location_uri'])
+                    files_info.append({'file_path': TEMP_FOLDER + dataset.code + file_path, 'file_size': file['size']})
 
         try:
             await run_in_threadpool(make_temp_folder, files_info)
