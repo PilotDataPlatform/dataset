@@ -36,7 +36,13 @@ class MetadataClient:
     @classmethod
     async def get_objects(cls, code: str) -> Dict[str, Any]:
         url = f'{cls.BASE_URL}/v1/items/search/'
-        params = {'recursive': True, 'zone': 1, 'container_code': code, 'page_size': 100000}
+        params = {
+            'recursive': True,
+            'zone': 1,
+            'container_type': 'dataset',
+            'page_size': 100000,
+            'container_code': code,
+        }
         return await cls.get(url, params)
 
     @classmethod

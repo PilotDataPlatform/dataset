@@ -29,7 +29,7 @@ async def test_dataset_verify_when_bids_verification_fails_should_return_500(cli
         method='GET',
         url=(
             'http://metadata_service/v1/items/search/'
-            f'?recursive=true&zone=1&container_code={dataset_code}&page_size=100000'
+            f'?recursive=true&zone=1&container_code={dataset_code}&container_type=dataset&page_size=100000'
         ),
         json={
             'result': [
@@ -71,7 +71,7 @@ async def test_dataset_verify_when_bids_valid_should_return_200(mock_subproc_run
         method='GET',
         url=(
             'http://metadata_service/v1/items/search/'
-            f'?recursive=true&zone=1&container_code={dataset_code}&page_size=100000'
+            f'?recursive=true&zone=1&container_code={dataset_code}&container_type=dataset&page_size=100000'
         ),
         json={
             'result': [

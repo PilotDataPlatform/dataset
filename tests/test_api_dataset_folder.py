@@ -26,7 +26,7 @@ async def test_create_root_folder_should_return_200_and_folder_data(client, http
         method='GET',
         url=(
             'http://metadata_service/v1/items/search/'
-            f'?recursive=true&zone=1&container_code={dataset.code}&page_size=100000'
+            f'?recursive=true&zone=1&container_code={dataset.code}&container_type=dataset&page_size=100000'
         ),
         json={'result': []},
     )
@@ -62,7 +62,7 @@ async def test_create_duplicate_root_folder_should_return_409(client, httpx_mock
         method='GET',
         url=(
             'http://metadata_service/v1/items/search/'
-            f'?recursive=true&zone=1&container_code={dataset.code}&page_size=100000'
+            f'?recursive=true&zone=1&container_code={dataset.code}&container_type=dataset&page_size=100000'
         ),
         json={
             'result': [
@@ -109,7 +109,7 @@ async def test_create_sub_folder_should_return_200(client, httpx_mock, dataset):
         method='GET',
         url=(
             'http://metadata_service/v1/items/search/'
-            f'?recursive=true&zone=1&container_code={dataset.code}&page_size=100000'
+            f'?recursive=true&zone=1&container_code={dataset.code}&container_type=dataset&page_size=100000'
         ),
         json={
             'result': [

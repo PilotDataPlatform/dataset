@@ -34,7 +34,7 @@ async def test_publish_version_should_start_background_task_and_return_200(clien
         method='GET',
         url=(
             'http://metadata_service/v1/items/search/?'
-            f'recursive=true&zone=1&container_code={dataset.code}&page_size=100000'
+            f'recursive=true&zone=1&container_code={dataset.code}&container_type=dataset&page_size=100000'
         ),
         json={
             'result': [

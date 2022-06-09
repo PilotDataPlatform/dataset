@@ -42,7 +42,7 @@ async def test_file_delete_from_dataset_should_start_background_task_and_return_
         method='GET',
         url=(
             'http://metadata_service/v1/items/search/?'
-            f'recursive=true&zone=1&container_code={dataset.code}&page_size=100000'
+            f'recursive=true&zone=1&container_code={dataset.code}&container_type=dataset&page_size=100000'
         ),
         json={'result': [file_dict]},
     )
@@ -88,7 +88,7 @@ async def test_delete_from_not_in_dataset_should_not_reaise_error(client, httpx_
         method='GET',
         url=(
             'http://metadata_service/v1/items/search/?'
-            f'recursive=true&zone=1&container_code={dataset.code}&page_size=100000'
+            f'recursive=true&zone=1&container_code={dataset.code}&container_type=dataset&page_size=100000'
         ),
         json={'result': [{'id': '6c99e8bb-ecff-44c8-8fdc-a3d0ed7ac067'}]},
     )
