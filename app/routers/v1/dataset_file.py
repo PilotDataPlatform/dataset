@@ -101,8 +101,7 @@ class APIImportData:
 
         # here we only allow user to import from one project
         # if user try to import from another project block the action
-        imported_project = str(dataset.project_id)
-        if imported_project and imported_project != project_id:
+        if dataset.project_id and str(dataset.project_id) != project_id:
             api_response.code = EAPIResponseCode.forbidden
             api_response.error_msg = 'Cannot import from another project'
             return api_response.json_response()

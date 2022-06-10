@@ -71,13 +71,15 @@ class Dataset(DBModel):
             'updated_at',
         ]
         for field in fields:
-            if field == 'created_at' or field == 'updated_at':
-                # date fields
-                result[field] = str(getattr(self, field).strftime('%Y-%m-%dT%H:%M:%S'))
-            elif field == 'id' or field == 'project_id':
-                # uuid fields
-                result[field] = str(getattr(self, field))
-            else:
-                # other types fields
-                result[field] = getattr(self, field)
+            value = getattr(self, field)
+            if value:
+                if field == 'created_at' or field == 'updated_at':
+                    # date fields
+                    result[field] = str(value.strftime('%Y-%m-%dT%H:%M:%S'))
+                    continue
+                elif field == 'id' or field == 'project_id':
+                    # uuid fields
+                    result[field] = str(value)
+                    continue
+            result[field] = value
         return result
