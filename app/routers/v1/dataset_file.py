@@ -26,7 +26,8 @@ from fastapi import Depends
 from fastapi import Header
 from fastapi_utils import cbv
 
-from app.clients.metadata import MetadataClient
+from app.clients import MetadataClient
+from app.clients import ProjectClient
 from app.config import ConfigClass
 from app.core.db import get_db_session
 from app.models.dataset import Dataset
@@ -107,7 +108,7 @@ class APIImportData:
             return api_response.json_response()
 
         # check if file is from source project or exist
-        project = await MetadataClient.get_by_id(project_id)
+        project = await ProjectClient.get_by_id(project_id)
         import_list, wrong_file = await self.validate_files_folders(import_list, project['code'])
 
         # and check if file has been under the dataset
@@ -821,10 +822,10 @@ class APIImportData:
             await srv_dataset.update(db, dataset_obj, update_attribute)
             # also update the log
             dataset_geid = str(dataset_obj.id)
-            source_project = await get_node_by_geid(source_project_geid)
-            import_logs = [source_project.get('container_code') + '/' + x.get('parent_path') for x in import_list]
+            source_project = await ProjectClient.get_by_id(source_project_geid)
+            import_logs = [source_project.get('code') + '/' + x.get('parent_path') for x in import_list]
             project = source_project.get('name', '')
-            project_code = source_project.get('container_code', '')
+            project_code = source_project.get('code', '')
             await self.file_act_notifier.on_import_event(dataset_geid, oper, import_logs, project, project_code)
 
         except Exception as e:

@@ -21,7 +21,7 @@ from fastapi import APIRouter
 from fastapi import Depends
 from fastapi_utils import cbv
 
-from app.clients.metadata import MetadataClient
+from app.clients import MetadataClient
 from app.core.db import get_db_session
 from app.resources.error_handler import APIException
 from app.resources.utils import create_node

@@ -73,6 +73,7 @@ class Settings(BaseSettings):
     DATA_OPS_UTIL: str
     SEND_MESSAGE_URL: str
     METADATA_SERVICE: str
+    PROJECT_SERVICE: str
 
     RDS_ECHO_SQL_QUERIES: bool = False
 

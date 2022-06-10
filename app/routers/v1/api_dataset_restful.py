@@ -28,7 +28,7 @@ from fastapi_utils import cbv
 from sqlalchemy.future import select
 from starlette.concurrency import run_in_threadpool
 
-from app.clients.metadata import MetadataClient
+from app.clients import MetadataClient
 from app.config import ConfigClass
 from app.core.db import get_db_session
 from app.models.bids import BIDSResult

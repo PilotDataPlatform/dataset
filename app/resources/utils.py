@@ -18,7 +18,7 @@ import os
 
 from common import LoggerFactory
 
-from app.clients.metadata import MetadataClient
+from app.clients import MetadataClient
 from app.commons.service_connection.minio_client import Minio_Client_
 from app.config import ConfigClass
 from app.resources.error_handler import APIException
