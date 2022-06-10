@@ -16,8 +16,6 @@
 FROM python:3.7-buster
 
 ENV TZ=America/Toronto
-ENV MINIO_USERNAME=minioadmin
-ENV MINIO_PASSWORD=minioadmin
 
 WORKDIR /usr/src/app
 
@@ -36,5 +34,8 @@ RUN poetry config virtualenvs.create false
 RUN poetry install --no-root --no-interaction
 COPY . ./
 
+ENV MINIO_USERNAME=minioadmin
+ENV MINIO_PASSWORD=minioadmin
+ENV MINIO_URL=http://minio.minio:9000
 RUN chmod +x gunicorn_starter.sh
-CMD ["sh", "-c", "mc alias set minio http://minio.minio:9000 $MINIO_USERNAME $MINIO_PASSWORD && ./gunicorn_starter.sh"]
+CMD ["sh", "-c", "mc alias set minio $MINIO_URL $MINIO_USERNAME $MINIO_PASSWORD && ./gunicorn_starter.sh"]
