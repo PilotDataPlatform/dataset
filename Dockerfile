@@ -14,12 +14,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 FROM python:3.7-buster
-ARG MINIO_USERNAME
-ARG MINIO_PASSWORD
 
 ENV TZ=America/Toronto
-ENV MINIO_USERNAME=$MINIO_USERNAME
-ENV MINIO_PASSWORD=$MINIO_PASSWORD
+ENV MINIO_USERNAME=minioadmin
+ENV MINIO_PASSWORD=minioadmin
 
 WORKDIR /usr/src/app
 
