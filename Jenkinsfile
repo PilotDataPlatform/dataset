@@ -43,11 +43,9 @@ pipeline {
       when {branch "develop"}
       steps {
         script {
-           {
             docker.withRegistry('https://ghcr.io', registryCredential) {
                 customImage = docker.build("$imagename:$commit", ".")
                 customImage.push()
-            }
           }
         }
       }
