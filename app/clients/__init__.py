@@ -1,2 +1,4 @@
-from .metadata import MetadataClient  # noqa
-from .project import ProjectClient  # noqa
+from .metadata import MetadataClient
+from .project import ProjectClient
+
+__all__ = [MetadataClient, ProjectClient]
