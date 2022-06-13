@@ -47,6 +47,8 @@ class MetadataClient(BaseClient):
     @classmethod
     async def create_object(cls, payload: Dict[str, Any]) -> Dict[str, Any]:
         payload.update({'zone': 1})
+        if not payload['parent_id']:
+            payload['parent_path'] = None
         url = f'{cls.BASE_URL}/v1/item/'
         async with httpx.AsyncClient() as client:
             response = await client.post(url, json=payload)
