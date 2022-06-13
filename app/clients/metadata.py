@@ -28,12 +28,12 @@ class MetadataClient(BaseClient):
     BASE_URL = ConfigClass.METADATA_SERVICE
 
     @classmethod
-    async def get_objects(cls, code: str) -> Dict[str, Any]:
+    async def get_objects(cls, code: str, items_type: str = 'dataset') -> Dict[str, Any]:
         url = f'{cls.BASE_URL}/v1/items/search/'
         params = {
             'recursive': True,
             'zone': 1,
-            'container_type': 'dataset',
+            'container_type': items_type,
             'page_size': 100000,
             'container_code': code,
         }

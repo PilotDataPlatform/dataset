@@ -109,7 +109,7 @@ class APIImportData:
 
         # check if file is from source project or exist
         project = await ProjectClient.get_by_id(project_id)
-        import_list, wrong_file = await self.validate_files_folders(import_list, project['code'])
+        import_list, wrong_file = await self.validate_files_folders(import_list, project['code'], items_type='project')
 
         # and check if file has been under the dataset
         duplicate, import_list = await self.remove_duplicate_file(import_list, dataset.code)
@@ -399,11 +399,11 @@ class APIImportData:
     # function will return two list:
     # - passed_file is the validated file
     # - not_passed_file is not under the target node
-    async def validate_files_folders(self, file_id_list, code):
+    async def validate_files_folders(self, file_id_list, code, items_type='dataset'):
         passed_file = []
         not_passed_file = []
         duplicate_in_batch_dict = {}
-        obj_list = await MetadataClient.get_objects(code)
+        obj_list = await MetadataClient.get_objects(code, items_type=items_type)
         # creates dict where key is obj.id and value is root_objects index
         object_ids = {obj['id']: obj_list.index(obj) for obj in obj_list}
         # this is to keep track the object in passed_file array
@@ -798,6 +798,11 @@ class APIImportData:
     async def copy_files_worker(
         self, db, import_list, dataset_obj, oper, source_project_geid, session_id, access_token, refresh_token
     ):
+        '''
+        ToDo:
+            replace source_project_geid with the result from that query already requested. This avoid
+            an unnecessary request.
+        '''
         action = 'dataset_file_import'
         job_tracker = await self.initialize_file_jobs(session_id, action, import_list, dataset_obj, oper)
         root_path = ConfigClass.DATASET_FILE_FOLDER
