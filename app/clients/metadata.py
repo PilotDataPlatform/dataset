@@ -37,12 +37,12 @@ class MetadataClient(BaseClient):
             'page_size': 100000,
             'container_code': code,
         }
-        return await cls.get(url, params)
+        return (await cls.get(url, params))['result']
 
     @classmethod
     async def get_by_id(cls, id_: str) -> Dict[str, Any]:
         url = f'{cls.BASE_URL}/v1/item/{id_}/'
-        return await cls.get(url)
+        return (await cls.get(url))['result']
 
     @classmethod
     async def create_object(cls, payload: Dict[str, Any]) -> Dict[str, Any]:

@@ -620,7 +620,6 @@ class APIImportData:
         total_file_size = 0
         # this variable DOESNOT contain the child nodes
         new_lv1_nodes = []
-
         # copy the files under the project neo4j node to dataset node
         for ff_object in currenct_nodes:
             ff_geid = ff_object.get('id')
@@ -813,7 +812,7 @@ class APIImportData:
 
             # recursively go throught the folder level by level
             num_of_files, total_file_size, _ = await self.recursive_copy(
-                import_list, dataset_obj, oper, root_path, dataset_obj, access_token, refresh_token, job_tracker
+                import_list, dataset_obj, oper, root_path, {}, access_token, refresh_token, job_tracker
             )
 
             # after all update the file number/total size/project geid

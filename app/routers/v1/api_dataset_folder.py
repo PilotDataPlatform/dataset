@@ -53,7 +53,6 @@ class DatasetFolder:
     async def create_folder(self, dataset_geid: str, data: FolderRequest, db=Depends(get_db_session)):
         api_response = FolderResponse()
         srv_dataset = SrvDatasetMgr()
-
         # length 1-20, exclude invalid character, ensure start & end aren't a space
         folder_pattern = re.compile(r'^(?=.{1,20}$)([^\s\/:?*<>|”]{1})+([^\/:?*<>|”])+([^\s\/:?*<>|”]{1})$')
         match = re.search(folder_pattern, data.folder_name)

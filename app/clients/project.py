@@ -27,5 +27,5 @@ class ProjectClient(BaseClient):
 
     @classmethod
     async def get_by_id(cls, id_: str) -> Dict[str, Any]:
-        url = f'{cls.BASE_URL}/v1/projects/{id_}/'
+        url = f'{cls.BASE_URL}/v1/projects/{id_}'
         return await cls.get(url)

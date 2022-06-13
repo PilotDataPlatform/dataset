@@ -31,4 +31,4 @@ class BaseClient:
             response = await client.get(url, params=params)
         response.raise_for_status()
 
-        return response.json()['result']
+        return response.json()

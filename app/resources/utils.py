@@ -161,7 +161,7 @@ async def create_file_node(
         'parent': parent_id,
         'parent_path': relative_path,
         'type': 'file',
-        'size': source_file.get('file_size', -1),
+        'size': source_file.get('size', -1),
         'name': file_name,
         'owner': operator,
         'container_code': dataset_code,
@@ -169,7 +169,6 @@ async def create_file_node(
         'storage': {'location_uri': location},
     }
     folder_node = await create_node(payload)
-    folder_node, folder_node['parent']
 
     # make minio copy
     try:
