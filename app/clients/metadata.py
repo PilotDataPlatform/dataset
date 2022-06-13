@@ -20,26 +20,20 @@ import httpx
 
 from app.config import ConfigClass
 
+from .base import BaseClient
 
-class MetadataClient:
+
+class MetadataClient(BaseClient):
 
     BASE_URL = ConfigClass.METADATA_SERVICE
 
     @classmethod
-    async def get(cls, url: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, params=params)
-        response.raise_for_status()
-
-        return response.json()['result']
-
-    @classmethod
-    async def get_objects(cls, code: str) -> Dict[str, Any]:
+    async def get_objects(cls, code: str, items_type: str = 'dataset') -> Dict[str, Any]:
         url = f'{cls.BASE_URL}/v1/items/search/'
         params = {
             'recursive': True,
             'zone': 1,
-            'container_type': 'dataset',
+            'container_type': items_type,
             'page_size': 100000,
             'container_code': code,
         }

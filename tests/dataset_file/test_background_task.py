@@ -53,12 +53,12 @@ async def test_copy_file_worker_should_import_file_succeed(
 
     httpx_mock.add_response(
         method='GET',
-        url=f'http://metadata_service/v1/item/{source_project_geid}/',
+        url=f'http://project_service/v1/projects/{source_project_geid}/',
         json={
             'result': {
                 'id': source_project_geid,
                 'name': 'source_project',
-                'container_code': 'source_project_code',
+                'code': 'source_project_code',
             }
         },
     )

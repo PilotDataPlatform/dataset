@@ -26,7 +26,8 @@ from fastapi import Depends
 from fastapi import Header
 from fastapi_utils import cbv
 
-from app.clients.metadata import MetadataClient
+from app.clients import MetadataClient
+from app.clients import ProjectClient
 from app.config import ConfigClass
 from app.core.db import get_db_session
 from app.models.dataset import Dataset
@@ -107,8 +108,8 @@ class APIImportData:
             return api_response.json_response()
 
         # check if file is from source project or exist
-        project = await MetadataClient.get_by_id(project_id)
-        import_list, wrong_file = await self.validate_files_folders(import_list, project['code'])
+        project = await ProjectClient.get_by_id(project_id)
+        import_list, wrong_file = await self.validate_files_folders(import_list, project['code'], items_type='project')
 
         # and check if file has been under the dataset
         duplicate, import_list = await self.remove_duplicate_file(import_list, dataset.code)
@@ -398,11 +399,11 @@ class APIImportData:
     # function will return two list:
     # - passed_file is the validated file
     # - not_passed_file is not under the target node
-    async def validate_files_folders(self, file_id_list, code):
+    async def validate_files_folders(self, file_id_list, code, items_type='dataset'):
         passed_file = []
         not_passed_file = []
         duplicate_in_batch_dict = {}
-        obj_list = await MetadataClient.get_objects(code)
+        obj_list = await MetadataClient.get_objects(code, items_type=items_type)
         # creates dict where key is obj.id and value is root_objects index
         object_ids = {obj['id']: obj_list.index(obj) for obj in obj_list}
         # this is to keep track the object in passed_file array
@@ -797,6 +798,10 @@ class APIImportData:
     async def copy_files_worker(
         self, db, import_list, dataset_obj, oper, source_project_geid, session_id, access_token, refresh_token
     ):
+
+        # TODO:
+        # replace source_project_geid with the result from that query already requested.
+        # This avoid an unnecessary request.
         action = 'dataset_file_import'
         job_tracker = await self.initialize_file_jobs(session_id, action, import_list, dataset_obj, oper)
         root_path = ConfigClass.DATASET_FILE_FOLDER
@@ -821,10 +826,10 @@ class APIImportData:
             await srv_dataset.update(db, dataset_obj, update_attribute)
             # also update the log
             dataset_geid = str(dataset_obj.id)
-            source_project = await get_node_by_geid(source_project_geid)
-            import_logs = [source_project.get('container_code') + '/' + x.get('parent_path') for x in import_list]
+            source_project = await ProjectClient.get_by_id(source_project_geid)
+            import_logs = [source_project.get('code') + '/' + x.get('parent_path') for x in import_list]
             project = source_project.get('name', '')
-            project_code = source_project.get('container_code', '')
+            project_code = source_project.get('code', '')
             await self.file_act_notifier.on_import_event(dataset_geid, oper, import_logs, project, project_code)
 
         except Exception as e:
