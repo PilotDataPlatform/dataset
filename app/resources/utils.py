@@ -161,12 +161,12 @@ async def create_file_node(
         'parent': parent_id,
         'parent_path': relative_path,
         'type': 'file',
-        'size': source_file.get('size', -1),
+        'size': source_file.get('size', 0),
         'name': file_name,
         'owner': operator,
         'container_code': dataset_code,
         'container_type': 'dataset',
-        'storage': {'location_uri': location},
+        'location_uri': location,
     }
     folder_node = await create_node(payload)
 
