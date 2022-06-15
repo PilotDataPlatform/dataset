@@ -134,7 +134,6 @@ async def test_move_file_worker_should_move_file_succeed(
         }
     ]
     target_folder = {'folder_relative_path': None, 'name': 'any_folder'}
-    target_minio_path = 'mini://anypath/any'
 
     with mock.patch.object(APIImportData, 'recursive_copy') as mock_recursive_copy:
         mock_recursive_copy.return_value = 1, 1, None
@@ -146,7 +145,6 @@ async def test_move_file_worker_should_move_file_succeed(
                     dataset,
                     OPER,
                     target_folder,
-                    target_minio_path,
                     SESSION_ID,
                     ACCESS_TOKEN,
                     REFRESH_TOKEN,

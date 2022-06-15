@@ -26,10 +26,12 @@ from .base import BaseClient
 class MetadataClient(BaseClient):
 
     BASE_URL = ConfigClass.METADATA_SERVICE
+    ITEM_URL = f'{BASE_URL}/v1/item/'
+    SEARCH_URL = f'{BASE_URL}/v1/items/search/'
 
     @classmethod
     async def get_objects(cls, code: str, items_type: str = 'dataset') -> Dict[str, Any]:
-        url = f'{cls.BASE_URL}/v1/items/search/'
+
         params = {
             'recursive': True,
             'zone': 1,
@@ -37,27 +39,26 @@ class MetadataClient(BaseClient):
             'page_size': 100000,
             'container_code': code,
         }
-        return (await cls.get(url, params))['result']
+        return (await cls.get(cls.SEARCH_URL, params))['result']
 
     @classmethod
     async def get_by_id(cls, id_: str) -> Dict[str, Any]:
-        url = f'{cls.BASE_URL}/v1/item/{id_}/'
+        url = f'{cls.ITEM_URL}{id_}/'
         return (await cls.get(url))['result']
 
     @classmethod
     async def create_object(cls, payload: Dict[str, Any]) -> Dict[str, Any]:
         payload.update({'zone': 1})
-        if not payload['parent_id']:
+        if not payload.get('parent'):
             payload['parent_path'] = None
-        url = f'{cls.BASE_URL}/v1/item/'
+
         async with httpx.AsyncClient() as client:
-            response = await client.post(url, json=payload)
+            response = await client.post(cls.ITEM_URL, json=payload)
         response.raise_for_status()
         return response.json()['result']
 
     @classmethod
     async def delete_object(cls, id_: str) -> None:
-        url = f'{cls.BASE_URL}/v1/item/'
         async with httpx.AsyncClient() as client:
-            response = await client.delete(url=url, params={'id': id_})
+            response = await client.delete(url=cls.ITEM_URL, params={'id': id_})
         response.raise_for_status()

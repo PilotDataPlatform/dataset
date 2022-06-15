@@ -227,12 +227,13 @@ class APIImportData:
             parent_path = file_folder_nodes[0]['parent_path']
             ret_routing = parent_path.split('.') if parent_path else []
 
+        total = len(file_folder_nodes)
         ret = {
             'data': file_folder_nodes,
             'route': ret_routing,
         }
         api_response.result = ret
-
+        api_response.total = total
         return api_response.json_response()
 
     @router.post(
@@ -255,7 +256,6 @@ class APIImportData:
         session_id = sessionId
         minio_access_token = Authorization
         minio_refresh_token = refresh_token
-
         # validate the dataset if exists
         srv_dataset = SrvDatasetMgr()
         dataset = await srv_dataset.get_bygeid(db, dataset_id)
@@ -266,7 +266,6 @@ class APIImportData:
             return api_response.json_response()
 
         # first get the target -> the target must be a folder or dataset root
-        target_minio_path = None
         if request_payload.target_geid == dataset_id:
             target_folder = {
                 'id': dataset.id,
@@ -274,25 +273,18 @@ class APIImportData:
                 'parent_path': None,
                 'code': dataset.code,
             }
-            target_minio_path = ''
+
         else:
             target_folder = await get_node_by_geid(request_payload.target_geid)
-            if len(target_folder) == 0:
+            if not target_folder:
                 api_response.code = EAPIResponseCode.not_found
                 api_response.error_msg = 'The target folder does not exist'
                 return api_response.json_response()
             # also the folder MUST under the same dataset
-            if target_folder.get('code') != dataset.code:
+            if target_folder.get('container_code') != dataset.code:
                 api_response.code = EAPIResponseCode.not_found
                 api_response.error_msg = 'The target folder does not exist'
                 return api_response.json_response()
-            # formate the target location
-            if not target_folder.get('parent_path'):
-                target_minio_path = target_folder.get('name') + '/'
-            else:
-                target_minio_path = (
-                    target_folder.get('parent_path').replace('.', '/') + '/' + target_folder.get('name') + '/'
-                )
 
         # validate the file if it is under the dataset
         move_list = request_payload.source_list
@@ -315,7 +307,6 @@ class APIImportData:
                 dataset,
                 request_payload.operator,
                 target_folder,
-                target_minio_path,
                 session_id,
                 minio_access_token,
                 minio_refresh_token,
@@ -650,18 +641,17 @@ class APIImportData:
                 # TODO simplify here
                 minio_path = ff_object.get('storage').get('location_uri').split('//')[-1]
                 _, bucket, old_path = tuple(minio_path.split('/', 2))
-
                 if isinstance(parent_node, Dataset):
-                    parent_node_id = str(parent_node.id)
+                    current_root_path = None
                 else:
-                    parent_node_id = parent_node.get('id')
+                    current_root_path = parent_node.get('parent_path')
 
                 # create the copied node
                 new_node, _ = await create_file_node(
-                    dataset.code,
+                    dataset,
                     ff_object,
                     oper,
-                    parent_node_id,
+                    parent_node,
                     current_root_path,
                     access_token,
                     refresh_token,
@@ -862,7 +852,6 @@ class APIImportData:
         dataset_obj,
         oper,
         target_folder,
-        target_minio_path,
         session_id,
         access_token,
         refresh_token,
@@ -871,31 +860,25 @@ class APIImportData:
         action = 'dataset_file_move'
         job_tracker = await self.initialize_file_jobs(session_id, action, move_list, dataset_obj, oper)
 
-        # minio move update the arribute
-        # find the parent node for path
-        parent_node = target_folder
-        parent_path = parent_node.get('parent_path', None)
-        parent_path = parent_path + '/' + parent_node.get('name') if parent_path else ConfigClass.DATASET_FILE_FOLDER
-
         try:
             # then we mark both source node tree and target nodes as write
-            locked_node, err = await recursive_lock_move_rename(move_list, parent_path)
+            locked_node, err = await recursive_lock_move_rename(move_list, ConfigClass.DATASET_FILE_FOLDER)
             if err:
                 raise err
 
             # but note here the job tracker is not pass into the function
             # we only let the delete to state the finish
             _, _, _ = await self.recursive_copy(
-                move_list, dataset_obj, oper, parent_path, parent_node, access_token, refresh_token
+                move_list, dataset_obj, oper, target_folder['name'], target_folder, access_token, refresh_token
             )
 
             # delete the old one
             await self.recursive_delete(
-                move_list, dataset_obj, oper, parent_node, access_token, refresh_token, job_tracker=job_tracker
+                move_list, dataset_obj, oper, target_folder, access_token, refresh_token, job_tracker=job_tracker
             )
 
             # generate the activity log
-            dff = ConfigClass.DATASET_FILE_FOLDER + '/'
+            dff = ConfigClass.DATASET_FILE_FOLDER
             for ff_geid in move_list:
                 if ff_geid.get('type').lower() == 'file':
                     # minio location is minio://http://<end_point>/bucket/user/object_path
@@ -904,16 +887,18 @@ class APIImportData:
                     old_path = old_path.replace(dff, '', 1)
 
                     # format new path if the temp is None then the path is from
-                    new_path = (target_minio_path + ff_geid.get('name')).replace(dff, '', 1)
-
+                    if target_folder.get('parent_path'):
+                        parent_path = target_folder.get('parent_path').replace('.', '/')
+                        parent_path += '/' + target_folder['name']
+                    else:
+                        parent_path = target_folder['name']
+                    new_path = '/' + parent_path + '/' + ff_geid.get('name')
                 # else we mark the folder as deleted
                 else:
                     # update the relative path by remove `data` at begining
-                    old_path = ff_geid.get('parent_path') + '/' + ff_geid.get('name')
-                    old_path = old_path.replace(dff, '', 1)
+                    old_path = ff_geid.get('parent_path', '.').replace('.', '/')
 
-                    new_path = target_minio_path + ff_geid.get('name')
-                    new_path = new_path.replace(dff, '', 1)
+                    new_path = target_folder.get('parent_path', '.').replace('.', '/') + ff_geid.get('name')
 
                 # send to the es for logging
                 await self.file_act_notifier.on_move_event(dataset_geid, oper, old_path, new_path)
@@ -948,7 +933,6 @@ class APIImportData:
         job_tracker = await self.initialize_file_jobs(session_id, action, delete_list, dataset_obj, oper)
         try:
             # mark both source&destination as write lock
-
             locked_node, err = await recursive_lock_delete(delete_list)
             if err:
                 raise err

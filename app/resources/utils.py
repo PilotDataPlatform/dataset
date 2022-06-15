@@ -110,10 +110,6 @@ async def get_node_by_geid(obj_id: str):
 
 
 async def get_parent_node(parent_id):
-    # objects = await metadata_client.get_objects_by_code(code)
-    # for key, value in objects.items():
-    #     if key == 'parent_id'
-    # here we have to find the parent node and delete the relationship
     if parent_id:
         return await MetadataClient.get_by_id(parent_id)
     else:
@@ -149,22 +145,33 @@ async def delete_node(target_node, access_token, refresh_token):
 
 
 async def create_file_node(
-    dataset_code, source_file, operator, parent_id, relative_path, access_token, refresh_token, new_name=None
+    dataset, source_file, operator, parent, relative_path, access_token, refresh_token, new_name=None
 ):
     # generate minio object path
     file_name = new_name if new_name else source_file.get('name')
-    fuf_path = relative_path + '/' + file_name
+
+    parent_path = parent.get('parent_path')
+    if parent and dataset.id != parent['id']:
+        if parent_path:
+            parent_path = parent_path + '.' + parent['name']
+        else:
+            parent_path = parent['name']
+
+    if parent_path:
+        fuf_path = parent_path.replace('.', '/') + '/' + file_name
+    else:
+        fuf_path = file_name
     minio_http = ('https://' if ConfigClass.MINIO_HTTPS else 'http://') + ConfigClass.MINIO_ENDPOINT
-    location = 'minio://%s/%s/%s' % (minio_http, dataset_code, fuf_path)
+    location = 'minio://%s/%s/%s/%s' % (minio_http, dataset.code, ConfigClass.DATASET_FILE_FOLDER, fuf_path)
 
     payload = {
-        'parent': parent_id,
-        'parent_path': relative_path,
+        'parent': parent.get('id'),
+        'parent_path': parent_path,
         'type': 'file',
         'size': source_file.get('size', 0),
         'name': file_name,
         'owner': operator,
-        'container_code': dataset_code,
+        'container_code': dataset.code,
         'container_type': 'dataset',
         'location_uri': location,
     }
@@ -177,8 +184,8 @@ async def create_file_node(
         minio_path = source_file.get('storage').get('location_uri').split('//')[-1]
         _, bucket, obj_path = tuple(minio_path.split('/', 2))
 
-        mc.copy_object(dataset_code, fuf_path, bucket, obj_path)
-        logger.info('Minio Copy %s/%s Success' % (dataset_code, fuf_path))
+        mc.copy_object(dataset.code, fuf_path, bucket, obj_path)
+        logger.info('Minio Copy %s/%s Success' % (dataset.code, fuf_path))
     except Exception as e:
         logger.error('error when uploading: ' + str(e))
 

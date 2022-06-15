@@ -88,7 +88,6 @@ class DatasetFolder:
             if item['name'] == data.folder_name and item['parent'] == parent_id:
                 does_name_exist = True
 
-        does_name_exist
         if does_name_exist:
             api_response.code = EAPIResponseCode.conflict
             api_response.error_msg = 'folder with that name already exists'

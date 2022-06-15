@@ -308,9 +308,9 @@ async def recursive_lock_move_rename(nodes, root_path, new_name=None):
                     minio_path = ff_object.get('storage').get('location_uri').split('//')[-1]
                     _, bucket, minio_obj_path = tuple(minio_path.split('/', 2))
                 else:
-                    bucket = ff_object.get('code')
+                    bucket = ff_object.get('container_code')
                     minio_obj_path = '%s/%s' % (ff_object.get('parent_path'), ff_object.get('name'))
-                source_key = '{}/{}'.format(bucket, minio_obj_path)
+                source_key = '{}/{}/{}'.format(bucket, current_root_path, minio_obj_path)
                 await lock_resource(source_key, 'write')
                 locked_node.append((source_key, 'write'))
 

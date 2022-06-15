@@ -31,7 +31,7 @@ async def test_move_file_should_call_background_task_and_add_file_to_processing(
         json={
             'result': {
                 'id': folder_id,
-                'code': dataset.code,
+                'container_code': dataset.code,
                 'name': 'folder_name',
                 'parent': None,
                 'parent_path': None,
