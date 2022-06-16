@@ -184,7 +184,7 @@ async def create_file_node(
         minio_path = source_file.get('storage').get('location_uri').split('//')[-1]
         _, bucket, obj_path = tuple(minio_path.split('/', 2))
 
-        mc.copy_object(dataset.code, fuf_path, bucket, obj_path)
+        mc.copy_object(dataset.code, ConfigClass.DATASET_FILE_FOLDER + '/' + fuf_path, bucket, obj_path)
         logger.info('Minio Copy %s/%s Success' % (dataset.code, fuf_path))
     except Exception as e:
         logger.error('error when uploading: ' + str(e))
