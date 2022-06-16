@@ -27,18 +27,12 @@ from app.schemas.base import EAPIResponseCode
 logger = LoggerFactory('api_dataset_import').get_logger()
 
 
-async def get_files_recursive(folder_geid, items, all_files=None):
-    if all_files is None:
-        all_files = []
-
-    items = await get_children_nodes(folder_geid)
+async def get_files_all_files(folder_geid, items):
+    all_files = []
     """get all files from dataset."""
-    while items is not []:
-        for item in items:
-            if item['type'] == 'file':
-                all_files.append(item)
-            else:
-                items = await get_files_recursive(item[id])
+    for item in items:
+        if item['type'] == 'file' and item['parent'] == folder_geid:
+            all_files.append(item)
     return all_files
 
 

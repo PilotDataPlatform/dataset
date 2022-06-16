@@ -33,7 +33,7 @@ from app.config import ConfigClass
 from app.core.db import get_db_session
 from app.models.bids import BIDSResult
 from app.resources.error_handler import catch_internal
-from app.resources.utils import get_files_recursive
+from app.resources.utils import get_files_all_files
 from app.resources.utils import get_node_relative_path
 from app.resources.utils import make_temp_folder
 from app.schemas.base import APIResponse
@@ -173,7 +173,7 @@ class DatasetRestful:
                 files_info.append({'file_path': TEMP_FOLDER + dataset.code + file_path, 'file_size': item['size']})
 
             if item['type'].lower() == 'folder':
-                files = await get_files_recursive(item['id'], items)
+                files = await get_files_all_files(item['id'], items)
                 for file in files:
                     file_path = get_node_relative_path(dataset.code, item['storage']['location_uri'])
                     files_info.append({'file_path': TEMP_FOLDER + dataset.code + file_path, 'file_size': file['size']})
