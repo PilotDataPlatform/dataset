@@ -275,9 +275,16 @@ async def recursive_lock_delete(nodes, new_name=None):
                     minio_path = ff_object.get('storage').get('location_uri').split('//')[-1]
                     _, bucket, minio_obj_path = tuple(minio_path.split('/', 2))
                 else:
-                    bucket = ff_object.get('code')
-                    parent_path = ff_object.get('parent_path').split('.', 1)[1].replace('.', '/')
-                    minio_obj_path = '%s/%s' % (parent_path, ff_object.get('name'))
+                    bucket = ff_object.get('container_code')
+                    parent_path = ff_object.get('parent_path')
+                    if parent_path:
+                        try:
+                            parent_path = parent_path.split('.', 1)[1].replace('.', '/')
+                        except IndexError:
+                            pass
+                        minio_obj_path = '%s/%s' % (parent_path, ff_object.get('name'))
+                    else:
+                        minio_obj_path = '%s' % ff_object.get('name')
 
                 source_key = '{}/{}'.format(bucket, minio_obj_path)
                 await lock_resource(source_key, 'write')
@@ -397,7 +404,7 @@ async def recursive_lock_publish(nodes):
                     minio_path = ff_object.get('storage').get('location_uri').split('//')[-1]
                     _, bucket, minio_obj_path = tuple(minio_path.split('/', 2))
                 else:
-                    bucket = ff_object.get('code')
+                    bucket = ff_object.get('container_code')
                     minio_obj_path = '%s/%s' % (ConfigClass.DATASET_FILE_FOLDER, ff_object.get('name'))
 
                 source_key = '{}/{}'.format(bucket, minio_obj_path)

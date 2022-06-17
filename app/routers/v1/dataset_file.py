@@ -760,7 +760,7 @@ class APIImportData:
 
                 # for folder, we have to disconnect all child node then
                 # disconnect it from parent
-                children_nodes = await get_children_nodes(ff_object.get('id'))
+                children_nodes = await get_children_nodes(ff_object.get('container_code'), ff_object.get('id'))
                 num_of_child_files, num_of_child_size = await self.recursive_delete(
                     children_nodes, dataset, oper, ff_object, access_token, refresh_token
                 )
