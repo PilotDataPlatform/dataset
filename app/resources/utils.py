@@ -110,8 +110,8 @@ async def get_parent_node(parent_id):
         return {'parent': None, 'parent_path': None}
 
 
-async def get_children_nodes(code: str, father_id: str):
-    items = await MetadataClient.get_objects(code)
+async def get_children_nodes(code: str, father_id: str, items_type: str = 'dataset'):
+    items = await MetadataClient.get_objects(code, items_type=items_type)
     children_items = []
 
     for item in items:
