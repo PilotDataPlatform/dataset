@@ -190,13 +190,14 @@ async def create_folder_node(dataset_code, source_folder, operator, parent_node,
     folder_name = new_name if new_name else source_folder.get('name')
     # create node in metadata
     payload = {
-        'parent': parent_node['id'],
+        'parent': parent_node.get('id'),
         'parent_path': relative_path,
         'type': 'folder',
         'name': folder_name,
         'owner': operator,
         'container_code': dataset_code,
         'container_type': 'dataset',
+        'size': source_folder.get('size', 0),
     }
     folder_node = await create_node(payload)
     return folder_node, folder_node['parent']

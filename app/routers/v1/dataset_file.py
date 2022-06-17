@@ -597,7 +597,7 @@ class APIImportData:
 
     async def recursive_copy(
         self,
-        currenct_nodes,
+        current_nodes,
         dataset,
         oper,
         current_root_path,
@@ -612,7 +612,7 @@ class APIImportData:
         # this variable DOESNOT contain the child nodes
         new_lv1_nodes = []
         # copy the files under the project neo4j node to dataset node
-        for ff_object in currenct_nodes:
+        for ff_object in current_nodes:
             ff_geid = ff_object.get('id')
             new_node = None
 
@@ -664,7 +664,6 @@ class APIImportData:
 
             # else it is folder will trigger the recursive
             elif ff_object.get('type').lower() == 'folder':
-
                 # first create the folder
                 new_node, _ = await create_folder_node(
                     dataset.code, ff_object, oper, parent_node, current_root_path, new_name
@@ -673,10 +672,20 @@ class APIImportData:
 
                 # seconds recursively go throught the folder/subfolder by same proccess
                 # also if we want the folder to be renamed if new_name is not None
-                next_root = current_root_path + '/' + (new_name if new_name else ff_object.get('name'))
-                children_nodes = await get_children_nodes(ff_geid)
+                if new_name:
+                    filename = new_name
+                else:
+                    filename = ff_object.get('name')
+
+                if current_root_path == ConfigClass.DATASET_FILE_FOLDER:
+                    next_root_path = filename
+                else:
+                    next_root_path = current_root_path + '/' + filename
+                children_nodes = await get_children_nodes(
+                    ff_object['container_code'], ff_object.get('id', None), ff_object['container_type']
+                )
                 num_of_child_files, num_of_child_size, _ = await self.recursive_copy(
-                    children_nodes, dataset, oper, next_root, new_node, access_token, refresh_token
+                    children_nodes, dataset, oper, next_root_path, new_node, access_token, refresh_token
                 )
 
                 # append the log together
@@ -703,12 +712,12 @@ class APIImportData:
         return num_of_files, total_file_size, new_lv1_nodes
 
     async def recursive_delete(
-        self, currenct_nodes, dataset, oper, parent_node, access_token, refresh_token, job_tracker=None
+        self, current_nodes, dataset, oper, parent_node, access_token, refresh_token, job_tracker=None
     ):
         num_of_files = 0
         total_file_size = 0
         # copy the files under the project neo4j node to dataset node
-        for ff_object in currenct_nodes:
+        for ff_object in current_nodes:
             ff_geid = ff_object.get('id')
 
             # update here if the folder/file is archieved then skip
