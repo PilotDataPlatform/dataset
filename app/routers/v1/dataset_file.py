@@ -268,12 +268,12 @@ class APIImportData:
         # first get the target -> the target must be a folder or dataset root
         if request_payload.target_geid == dataset_id:
             target_folder = {
-                'id': dataset.id,
+                'id': None,
+                'name': None,
                 'parent': None,
                 'parent_path': None,
                 'code': dataset.code,
             }
-
         else:
             target_folder = await get_node_by_geid(request_payload.target_geid)
             if not target_folder:
@@ -290,10 +290,14 @@ class APIImportData:
         move_list = request_payload.source_list
         move_list, wrong_file = await self.validate_files_folders(move_list, dataset.code)
         for file in move_list:
-            file['parent'] = target_folder['id']
-            file['parent_path'] = (target_folder['name'] if target_folder['name'] else '') + (
-                '.' + file['parent_path'] if file['parent_path'] else ''
-            )
+            if request_payload.target_geid == dataset_id:
+                file['parent'] = None
+                file['parent_path'] = None
+            else:
+                file['parent'] = target_folder['id']
+                file['parent_path'] = (target_folder['name'] if target_folder['name'] else '') + (
+                    '.' + file['parent_path'] if file['parent_path'] else ''
+                )
         duplicate, move_list = await self.remove_duplicate_file(move_list, dataset.code)
         # fomutate the result
         api_response.result = {'processing': move_list, 'ignored': wrong_file + duplicate}
@@ -868,7 +872,6 @@ class APIImportData:
         dataset_geid = str(dataset_obj.id)
         action = 'dataset_file_move'
         job_tracker = await self.initialize_file_jobs(session_id, action, move_list, dataset_obj, oper)
-
         try:
             # then we mark both source node tree and target nodes as write
             locked_node, err = await recursive_lock_move_rename(move_list, ConfigClass.DATASET_FILE_FOLDER)
@@ -877,8 +880,13 @@ class APIImportData:
 
             # but note here the job tracker is not pass into the function
             # we only let the delete to state the finish
+            if not target_folder.get('id'):
+                target_folder = {}
+                target_folder_name = ConfigClass.DATASET_FILE_FOLDER
+            else:
+                target_folder_name = target_folder['name']
             _, _, _ = await self.recursive_copy(
-                move_list, dataset_obj, oper, target_folder['name'], target_folder, access_token, refresh_token
+                move_list, dataset_obj, oper, target_folder_name, target_folder, access_token, refresh_token
             )
 
             # delete the old one
@@ -898,9 +906,9 @@ class APIImportData:
                     # format new path if the temp is None then the path is from
                     if target_folder.get('parent_path'):
                         parent_path = target_folder.get('parent_path').replace('.', '/')
-                        parent_path += '/' + target_folder['name']
+                        parent_path += '/' + target_folder_name
                     else:
-                        parent_path = target_folder['name']
+                        parent_path = target_folder_name
                     new_path = '/' + parent_path + '/' + ff_geid.get('name')
                 # else we mark the folder as deleted
                 else:
