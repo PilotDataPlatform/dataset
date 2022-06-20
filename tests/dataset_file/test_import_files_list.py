@@ -20,14 +20,14 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
-async def test_import_files_from_source_list_should_return_200(client, httpx_mock, dataset):
+async def test_import_files_from_source_list_should_return_200(client, httpx_mock, dataset, mock_minio):
     dataset_geid = str(dataset.id)
     source_project = str(dataset.project_id)
     file_id = 'b1064aa6-edbe-4eb6-b560-a8552f2f6162'
     file_dict = {
         'id': file_id,
-        'parent': '81b70730-2bc3-4ffc-9e98-3d0cdeec867b',
-        'parent_path': 'admin.test_sub_6 - Copy.test_sub_delete_6',
+        'parent': None,
+        'parent_path': None,
         'name': '.hidden_file.txt',
         'container_code': 'test202203241',
         'container_type': 'project',
@@ -66,6 +66,11 @@ async def test_import_files_from_source_list_should_return_200(client, httpx_moc
     # because of the background task
     httpx_mock.add_response(
         method='POST',
+        url='http://metadata_service/v1/item/',
+        json={'result': {'parent': None}},
+    )
+    httpx_mock.add_response(
+        method='POST',
         url='http://queue_service/v1/broker/pub',
         json={},
     )
@@ -77,16 +82,6 @@ async def test_import_files_from_source_list_should_return_200(client, httpx_moc
     httpx_mock.add_response(
         method='PUT',
         url='http://data_ops_util/v1/tasks/',
-        json={},
-    )
-    httpx_mock.add_response(
-        method='POST',
-        url='http://data_ops_util/v2/resource/lock/',
-        json={},
-    )
-    httpx_mock.add_response(
-        method='DELETE',
-        url='http://data_ops_util/v2/resource/lock/',
         json={},
     )
 
@@ -136,8 +131,8 @@ async def test_05_test_import_duplicate(client, httpx_mock, dataset):
     file_id = 'b1064aa6-edbe-4eb6-b560-a8552f2f6162'
     file_dict = {
         'id': file_id,
-        'parent': '81b70730-2bc3-4ffc-9e98-3d0cdeec867b',
-        'parent_path': 'admin.test_sub_6 - Copy.test_sub_delete_6',
+        'parent': None,
+        'parent_path': None,
         'name': '.hidden_file.txt',
         'container_code': 'test202203241',
         'container_type': 'project',
@@ -151,6 +146,7 @@ async def test_05_test_import_duplicate(client, httpx_mock, dataset):
             'version': None,
         },
     }
+
     httpx_mock.add_response(
         method='GET',
         url=f'http://project_service/v1/projects/{source_project}',

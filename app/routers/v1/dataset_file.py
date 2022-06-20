@@ -99,7 +99,6 @@ class APIImportData:
             api_response.code = EAPIResponseCode.not_found
             api_response.error_msg = 'Invalid geid for dataset'
             return api_response.json_response()
-
         # here we only allow user to import from one project
         # if user try to import from another project block the action
         if dataset.project_id and str(dataset.project_id) != project_id:
@@ -110,7 +109,9 @@ class APIImportData:
         # check if file is from source project or exist
         project = await ProjectClient.get_by_id(project_id)
         import_list, wrong_file = await self.validate_files_folders(import_list, project['code'], items_type='project')
-
+        for file in import_list:
+            file['parent'] = None
+            file['parent_path'] = None
         # and check if file has been under the dataset
         duplicate, import_list = await self.remove_duplicate_file(import_list, dataset.code)
         # fomutate the result
@@ -800,7 +801,6 @@ class APIImportData:
     async def copy_files_worker(
         self, db, import_list, dataset_obj, oper, source_project_geid, session_id, access_token, refresh_token
     ):
-
         # TODO:
         # replace source_project_geid with the result from that query already requested.
         # This avoid an unnecessary request.
@@ -829,11 +829,10 @@ class APIImportData:
             # also update the log
             dataset_geid = str(dataset_obj.id)
             source_project = await ProjectClient.get_by_id(source_project_geid)
-            import_logs = [source_project.get('code') + '/' + x.get('parent_path') for x in import_list]
+            import_logs = [source_project.get('code') + '/' + (x.get('parent_path') or '') for x in import_list]
             project = source_project.get('name', '')
             project_code = source_project.get('code', '')
             await self.file_act_notifier.on_import_event(dataset_geid, oper, import_logs, project, project_code)
-
         except Exception as e:
             # here batch deny the operation
             error_message = {'err_message': str(e)}
