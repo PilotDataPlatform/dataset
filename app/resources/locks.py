@@ -234,7 +234,7 @@ async def recursive_lock_import(dataset_code, nodes, root_path):
                 if current_root_path == ConfigClass.DATASET_FILE_FOLDER:
                     next_root_path = filename
                 else:
-                    next_root_path = current_root_path + '.' + filename
+                    next_root_path = current_root_path + '/' + filename
                 children_nodes = await get_children_nodes(
                     ff_object['container_code'], ff_object.get('id', None), ff_object['container_type']
                 )
