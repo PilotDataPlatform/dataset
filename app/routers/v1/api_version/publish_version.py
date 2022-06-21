@@ -26,6 +26,7 @@ from common import LoggerFactory
 from sqlalchemy.future import select
 from starlette.concurrency import run_in_threadpool
 
+from app.clients.metadata import MetadataClient
 from app.commons.service_connection.minio_client import Minio_Client
 from app.config import ConfigClass
 from app.models.schema import DatasetSchema
@@ -68,12 +69,12 @@ class PublishVersion(object):
     async def publish(self, db):
         try:
             # lock file here
-            level1_nodes = await get_children_nodes(self.dataset_node['code'], self.dataset_geid)
+            level1_nodes = await get_children_nodes(self.dataset_node['code'], None)
             locked_node, err = await recursive_lock_publish(level1_nodes)
             if err:
                 raise err
-
-            await self.get_dataset_files(level1_nodes)
+            items = await MetadataClient.get_objects(self.dataset_node['code'])
+            await self.get_dataset_files(items)
             self.download_dataset_files()
             await self.add_schemas(db)
             await run_in_threadpool(self.zip_files)

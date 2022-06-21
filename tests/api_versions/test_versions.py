@@ -40,7 +40,7 @@ async def test_publish_version_should_start_background_task_and_return_200(clien
             'result': [
                 {
                     'id': file_geid,
-                    'parent': dataset_id,
+                    'parent': None,
                     'type': 'file',
                     'parent_path': 'http://anything.com/bucket/obj/path',
                     'storage': {'location_uri': 'http://anything.com/bucket/obj/path'},
