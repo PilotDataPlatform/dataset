@@ -101,9 +101,16 @@ async def test_copy_file_worker_should_import_file_succeed(
     assert req_res['event_type'] == 'DATASET_FILE_IMPORT_SUCCEED'
 
 
+@pytest.mark.parametrize(
+    'target_folder,',
+    [
+        ({'id': 'any', 'parent_path': None, 'name': 'any_folder'}),
+        ({'id': None, 'name': None, 'parent_path': None, 'name': None}),
+    ],
+)
 @mock.patch('app.routers.v1.dataset_file.recursive_lock_move_rename')
 async def test_move_file_worker_should_move_file_succeed(
-    mock_recursive_lock_move_rename, external_requests, httpx_mock, test_db, dataset
+    mock_recursive_lock_move_rename, external_requests, httpx_mock, test_db, dataset, target_folder
 ):
     mock_recursive_lock_move_rename.return_value = [], False
     move_list = [
@@ -133,7 +140,6 @@ async def test_move_file_worker_should_move_file_succeed(
             },
         }
     ]
-    target_folder = {'folder_relative_path': None, 'name': 'any_folder'}
 
     with mock.patch.object(APIImportData, 'recursive_copy') as mock_recursive_copy:
         mock_recursive_copy.return_value = 1, 1, None

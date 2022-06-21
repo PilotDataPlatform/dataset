@@ -879,17 +879,17 @@ class APIImportData:
         job_tracker = await self.initialize_file_jobs(session_id, action, move_list, dataset_obj, oper)
         try:
             # then we mark both source node tree and target nodes as write
-            locked_node, err = await recursive_lock_move_rename(move_list, ConfigClass.DATASET_FILE_FOLDER)
-            if err:
-                raise err
-
-            # but note here the job tracker is not pass into the function
-            # we only let the delete to state the finish
             if not target_folder.get('id'):
                 target_folder = {}
                 target_folder_name = ConfigClass.DATASET_FILE_FOLDER
             else:
                 target_folder_name = target_folder['name']
+            locked_node, err = await recursive_lock_move_rename(move_list, target_folder_name)
+            if err:
+                raise err
+
+            # but note here the job tracker is not pass into the function
+            # we only let the delete to state the finish
             _, _, _ = await self.recursive_copy(
                 move_list, dataset_obj, oper, target_folder_name, target_folder, access_token, refresh_token
             )
