@@ -290,7 +290,8 @@ class APIImportData:
         # validate the file if it is under the dataset
         move_list = request_payload.source_list
         move_list, wrong_file = await self.validate_files_folders(move_list, dataset.code)
-        for file in move_list:
+        future_list = copy.deepcopy(move_list)
+        for file in future_list:
             if request_payload.target_geid == dataset_id:
                 file['parent'] = None
                 file['parent_path'] = None
@@ -299,16 +300,21 @@ class APIImportData:
                 file['parent_path'] = (target_folder['name'] if target_folder['name'] else '') + (
                     '.' + file['parent_path'] if file['parent_path'] else ''
                 )
-        duplicate, move_list = await self.remove_duplicate_file(move_list, dataset.code)
+        duplicate, future_list = await self.remove_duplicate_file(future_list, dataset.code)
+        final_list = []
+        duplicated_ids = [item['id'] for item in duplicate]
+        for item in move_list:
+            if item['id'] not in duplicated_ids:
+                final_list.append(item)
         # fomutate the result
-        api_response.result = {'processing': move_list, 'ignored': wrong_file + duplicate}
+        api_response.result = {'processing': final_list, 'ignored': wrong_file + duplicate}
 
         # start the background job to copy the file one by one
         if len(move_list) > 0:
             background_tasks.add_task(
                 self.move_file_worker,
                 db,
-                move_list,
+                final_list,
                 dataset,
                 request_payload.operator,
                 target_folder,

@@ -315,7 +315,6 @@ async def recursive_lock_move_rename(nodes, root_path, new_name=None):
     locked_node, err = [], None
 
     # TODO lock
-
     async def recur_walker(current_nodes, current_root_path, new_name=None):
         """recursively trace down the node tree and run the lock function."""
         for ff_object in current_nodes:
