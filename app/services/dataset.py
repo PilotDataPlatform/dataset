@@ -131,6 +131,8 @@ class SrvDatasetMgr:
             except json.decoder.JSONDecodeError:
                 # if not found then we just create a new one for user
                 policy_file_name = create_dataset_policy_template(code)
+            except KeyError:
+                policy['Policy']['Statement'][0]['Resource'].append('arn:aws:s3:::%s/*' % (code))
 
             stream = os.popen('mc admin policy add minio %s %s' % (username, policy_file_name))
             output = stream.read()
