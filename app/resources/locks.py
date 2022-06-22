@@ -332,22 +332,30 @@ async def recursive_lock_move_rename(nodes, root_path, new_name=None):
                     _, bucket, minio_obj_path = tuple(minio_path.split('/', 2))
                 else:
                     bucket = ff_object.get('container_code')
-                    parent_path = ff_object.get('parent_path')
-                    if parent_path:
-                        try:
-                            parent_path = parent_path.split('.', 1)[1].replace('.', '/')
-                        except IndexError:
-                            pass
-                        minio_obj_path = '%s/%s' % (parent_path, ff_object.get('name'))
+                    if ff_object['parent_path']:
+                        parent_path = ff_object['parent_path'].replace('.', '/')
+                        minio_obj_path = '%s/%s/%s' % (
+                            ConfigClass.DATASET_FILE_FOLDER,
+                            parent_path,
+                            ff_object.get('name'),
+                        )
                     else:
-                        minio_obj_path = '%s' % ff_object.get('name')
+                        minio_obj_path = '%s/%s' % (ConfigClass.DATASET_FILE_FOLDER, ff_object.get('name'))
                 source_key = '{}/{}'.format(bucket, minio_obj_path)
                 await lock_resource(source_key, 'write')
                 locked_node.append((source_key, 'write'))
 
-                target_key = '{}/{}/{}'.format(
-                    bucket, current_root_path, new_name if new_name else ff_object.get('name')
-                )
+                if current_root_path == ConfigClass.DATASET_FILE_FOLDER:
+                    target_key = '{}/{}/{}'.format(
+                        bucket, current_root_path, new_name if new_name else ff_object.get('name')
+                    )
+                else:
+                    target_key = '{}/{}/{}/{}'.format(
+                        bucket,
+                        ConfigClass.DATASET_FILE_FOLDER,
+                        current_root_path,
+                        new_name if new_name else ff_object.get('name'),
+                    )
                 await lock_resource(target_key, 'write')
                 locked_node.append((target_key, 'write'))
 

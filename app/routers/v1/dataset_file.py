@@ -907,20 +907,19 @@ class APIImportData:
                     minio_path = ff_geid.get('storage').get('location_uri').split('//')[-1]
                     _, bucket, old_path = tuple(minio_path.split('/', 2))
                     old_path = old_path.replace(dff, '', 1)
-
-                    # format new path if the temp is None then the path is from
-                    if target_folder.get('parent_path'):
-                        parent_path = target_folder.get('parent_path').replace('.', '/')
-                        parent_path += '/' + target_folder_name
-                    else:
-                        parent_path = target_folder_name
-                    new_path = '/' + parent_path + '/' + ff_geid.get('name')
-                # else we mark the folder as deleted
                 else:
                     # update the relative path by remove `data` at begining
-                    old_path = ff_geid.get('parent_path', '.').replace('.', '/')
+                    if target_folder.get('parent_path'):
+                        old_path = ff_geid.get('parent_path').replace('.', '/')
+                    else:
+                        old_path = '/'
 
-                    new_path = target_folder.get('parent_path', '.').replace('.', '/') + ff_geid.get('name')
+                if target_folder.get('parent_path'):
+                    parent_path = target_folder.get('parent_path').replace('.', '/')
+                    parent_path += '/' + target_folder_name
+                else:
+                    parent_path = target_folder_name
+                new_path = '/' + parent_path + '/' + ff_geid.get('name')
 
                 # send to the es for logging
                 await self.file_act_notifier.on_move_event(dataset_geid, oper, old_path, new_path)
