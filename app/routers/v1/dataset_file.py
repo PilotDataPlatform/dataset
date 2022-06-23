@@ -57,6 +57,7 @@ _API_TAG = 'V1 DATASET'
 _API_NAMESPACE = 'api_dataset'
 
 HEADERS = {'accept': 'application/json', 'Content-Type': 'application/json'}
+logger = LoggerFactory(__name__).get_logger()
 
 
 @cbv.cbv(router)
@@ -826,12 +827,16 @@ class APIImportData:
 
             # after all update the file number/total size/project geid
             srv_dataset = SrvDatasetMgr()
+            logger.info('dataset %s total_files increase' % dataset_obj.code)
             update_attribute = {
                 'total_files': dataset_obj.total_files + num_of_files,
                 'size': dataset_obj.size + total_file_size,
                 'project_id': source_project_geid,
             }
             await srv_dataset.update(db, dataset_obj, update_attribute)
+            logger.info(
+                'dataset %s: %s files added, old total %s' % (dataset_obj.code, num_of_files, dataset_obj.total_files)
+            )
             # also update the log
             dataset_geid = str(dataset_obj.id)
             source_project = await ProjectClient.get_by_id(source_project_geid)
@@ -990,12 +995,16 @@ class APIImportData:
 
             # after all update the file number/total size/project geid
             srv_dataset = SrvDatasetMgr()
+            logger.info('dataset %s total_files decreased' % dataset_obj.code)
             update_attribute = {
                 'total_files': dataset_obj.total_files - num_of_files,
                 'size': dataset_obj.size - total_file_size,
             }
             await srv_dataset.update(db, dataset_obj, update_attribute)
-
+            logger.info(
+                'dataset %s : %s files removed, old total %s'
+                % (dataset_obj.code, num_of_files, dataset_obj.total_files)
+            )
             # also update the message to service queue
             dataset_geid = str(dataset_obj.id)
             await self.file_act_notifier.on_delete_event(dataset_geid, oper, deleted_files)
