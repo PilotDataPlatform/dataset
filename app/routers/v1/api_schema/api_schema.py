@@ -37,6 +37,7 @@ from app.schemas.schema import POSTSchemaList
 from app.schemas.schema import POSTSchemaResponse
 from app.schemas.schema import PUTSchema
 from app.schemas.schema import PUTSchemaResponse
+from app.services.dataset import SrvDatasetMgr
 
 logger = LoggerFactory('api_schema').get_logger()
 router = APIRouter()
@@ -48,11 +49,10 @@ class Schema:
     def __init__(self) -> None:
         self.geid_client = GEIDClient()
 
-    async def update_dataset_node(self, dataset_geid, content):
+    async def update_dataset_node(self, db, dataset_geid, content):
         # Update dataset neo4j entry
-        dataset_node = self.get_dataset_by_geid(dataset_geid)
-        dataset_id = dataset_node['id']
-
+        srv_dataset = SrvDatasetMgr()
+        dataset = await srv_dataset.get_bygeid(db, dataset_geid)
         payload = {}
         required_fields = ['dataset_title', 'dataset_authors', 'dataset_description', 'dataset_type']
         optional_fields = ['dataset_modality', 'dataset_collection_method', 'dataset_license', 'dataset_tags']
@@ -70,13 +70,10 @@ class Schema:
         # Frontend can't easily pass a blank string if license
         # should be removed, so update it to blank if it exists
         # on the node and doesn't exist in payload
-        if dataset_node.get('license') and 'license' not in payload:
+        if dataset.license and 'license' not in payload:
             payload['license'] = ''
-        async with httpx.AsyncClient() as client:
-            response = await client.put(ConfigClass.NEO4J_SERVICE + f'nodes/Dataset/node/{dataset_id}', json=payload)
-        if response.status_code != 200:
-            logger.error(response.json())
-            raise APIException(error_msg=response.json(), status_code=response.status_code)
+
+        await srv_dataset.update(db, dataset, payload)
 
     async def update_activity_log(self, activity_data):
         url = ConfigClass.QUEUE_SERVICE + 'broker/pub'
@@ -224,7 +221,7 @@ class Schema:
             }
             await self.update_activity_log(activity_data)
         if schema.name == 'essential.schema.json':
-            await self.update_dataset_node(schema.dataset_geid, data.content)
+            await self.update_dataset_node(db, schema.dataset_geid, data.content)
         return api_response.json_response()
 
     @router.delete(
