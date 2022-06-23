@@ -108,6 +108,46 @@ async def test_update_schema_should_reflect_change_and_return_200(client, httpx_
     assert res.json()['result']['content'] == {'test': 'testing'}
 
 
+async def test_update_essential_schema_should_reflect_change_and_return_200(client, httpx_mock, essential_schema):
+    schema_geid = essential_schema['geid']
+    payload = {
+        'username': 'admin',
+        'content': {
+            'dataset_title': 'title',
+            'dataset_authors': 'author',
+            'dataset_description': 'any',
+            'dataset_type': 'bids',
+            'dataset_modality': 'any',
+        },
+        'activity': [],
+    }
+    res = await client.put(f'/v1/schema/{schema_geid}', json=payload)
+    assert res.status_code == 200
+    assert res.json()['result']['content'] == {
+        'dataset_authors': 'author',
+        'dataset_description': 'any',
+        'dataset_modality': 'any',
+        'dataset_title': 'title',
+        'dataset_type': 'bids',
+    }
+
+
+async def test_update_essential_schema_should_have_required_all_fields_return_400(client, httpx_mock, essential_schema):
+    schema_geid = essential_schema['geid']
+    payload = {
+        'username': 'admin',
+        'content': {'dataset_title': 'title', 'dataset_authors': 'author', 'dataset_description': 'any'},
+        'activity': [],
+    }
+    res = await client.put(f'/v1/schema/{schema_geid}', json=payload)
+    assert res.status_code == 400
+    assert res.json() == {
+        'code': 400,
+        'error_msg': 'Missing content field for essential schema: dataset_type',
+        'result': '',
+    }
+
+
 async def test_delete_schema_should_return_200(client, schema):
     dataset_geid = schema['dataset_geid']
     schema_geid = schema['geid']
