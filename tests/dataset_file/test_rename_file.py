@@ -157,6 +157,7 @@ async def test_rename_file_should_add_file_to_ignoring_when_file_duplicated_and_
                     'name': 'new_name',
                     'parent': None,
                     'parent_path': None,
+                    'type': 'file',
                 },
             ]
         },

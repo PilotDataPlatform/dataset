@@ -406,6 +406,7 @@ class APIImportData:
         passed_file = []
         not_passed_file = []
         duplicate_in_batch_dict = {}
+
         obj_list = await MetadataClient.get_objects(code, items_type=items_type)
         # creates dict where key is obj.id and value is root_objects index
         object_ids = {obj['id']: obj_list.index(obj) for obj in obj_list}
@@ -481,11 +482,13 @@ class APIImportData:
         duplic_file = []
         not_duplic_file = []
         name_parent_dict = {obj['name']: obj['parent_path'] for obj in dataset_objects}
+        type_dict = {obj['name']: obj['type'] for obj in dataset_objects}
         for file in files_list:
             same_name = name_parent_dict.get(file.get('name'), 'not_found')
+            obj_type = type_dict.get(file.get('name'), 'not_found')
             if same_name == 'not_found':
                 not_duplic_file.append(file)
-            elif same_name == file.get('parent_path'):
+            elif same_name == file.get('parent_path') and obj_type == file.get('type'):
                 file.update({'feedback': 'duplicate or unauthorized'})
                 duplic_file.append(file)
             else:
