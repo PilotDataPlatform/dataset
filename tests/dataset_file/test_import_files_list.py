@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from copy import deepcopy
 from uuid import uuid4
 
 import pytest
@@ -181,3 +182,90 @@ async def test_05_test_import_duplicate(client, httpx_mock, dataset):
     assert res.status_code == 200
     assert result.get('processing') == []
     assert result.get('ignored') == [{**file_dict, 'feedback': 'duplicate or unauthorized'}]
+
+
+async def test_import_files_from_with_same_name_but_different_types_should_return_200(
+    client, httpx_mock, dataset, mock_minio
+):
+    dataset_geid = str(dataset.id)
+    source_project = str(dataset.project_id)
+    file_id = 'b1064aa6-edbe-4eb6-b560-a8552f2f6162'
+    folder_id = str(uuid4())
+    file_dict = {
+        'id': file_id,
+        'parent': None,
+        'parent_path': None,
+        'name': '.hidden_file.txt',
+        'container_code': 'test202203241',
+        'container_type': 'project',
+        'type': 'file',
+        'storage': {
+            'id': 'f2397e68-4e94-4419-bb72-3be532a789b2',
+            'location_uri': (
+                'minio://http://minio.minio:9000/core-test202203241/admin/test_sub_6'
+                ' - Copy/test_sub_delete_6/.hidden_file.txt'
+            ),
+            'version': None,
+        },
+    }
+    folder = deepcopy(file_dict)
+    folder.update({'id': folder_id, 'type': 'folder', 'storage': {}})
+    httpx_mock.add_response(
+        method='GET',
+        url=f'http://project_service/v1/projects/{source_project}',
+        json={'code': 'test202203241'},
+    )
+    httpx_mock.add_response(
+        method='GET',
+        url=(
+            'http://metadata_service/v1/items/search/?'
+            'recursive=true&zone=1&container_code=test202203241&container_type=project&page_size=100000'
+        ),
+        json={'result': [file_dict, folder]},
+    )
+    httpx_mock.add_response(
+        method='GET',
+        url=(
+            'http://metadata_service/v1/items/search/?'
+            f'recursive=true&zone=1&container_code={dataset.code}&container_type=dataset&page_size=100000'
+        ),
+        json={'result': [file_dict]},
+    )
+
+    # because of the background task
+    httpx_mock.add_response(
+        method='POST',
+        url='http://metadata_service/v1/item/',
+        json={'result': {'parent': None}},
+    )
+    httpx_mock.add_response(
+        method='POST',
+        url='http://queue_service/v1/broker/pub',
+        json={},
+    )
+    httpx_mock.add_response(
+        method='POST',
+        url='http://data_ops_util/v1/tasks/',
+        json={},
+    )
+    httpx_mock.add_response(
+        method='PUT',
+        url='http://data_ops_util/v1/tasks/',
+        json={},
+    )
+    payload = {
+        'source_list': [
+            folder_id,
+        ],
+        'operator': 'admin',
+        'project_geid': source_project,
+    }
+    res = await client.put(
+        f'/v1/dataset/{dataset_geid}/files',
+        headers={'Authorization': 'Barear token', 'Refresh-Token': 'refresh_token'},
+        json=payload,
+    )
+    result = res.json()['result']
+    assert res.status_code == 200
+    assert result.get('ignored') == []
+    assert result.get('processing') == [{**folder, 'feedback': 'exist'}]
