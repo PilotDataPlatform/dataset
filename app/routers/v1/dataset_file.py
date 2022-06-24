@@ -847,6 +847,7 @@ class APIImportData:
         except Exception as e:
             # here batch deny the operation
             error_message = {'err_message': str(e)}
+            logger.error(error_message)
             # loop over all existing job and send error
             for ff_object in import_list:
                 job_id = job_tracker['job_id'].get(ff_object.get('id'))
@@ -933,6 +934,7 @@ class APIImportData:
             # here batch deny the operation
             error_message = {'err_message': str(e)}
             # loop over all existing job and send error
+            logger.error(error_message)
             for ff_object in move_list:
                 job_id = job_tracker['job_id'].get(ff_object.get('id'))
                 await self.update_job_status(
@@ -1012,6 +1014,7 @@ class APIImportData:
         except Exception as e:
             # here batch deny the operation
             error_message = {'err_message': str(e)}
+            logger.error(error_message)
             # loop over all existing job and send error
             for ff_object in delete_list:
                 job_id = job_tracker['job_id'].get(ff_object.get('id'))
@@ -1095,8 +1098,10 @@ class APIImportData:
             await self.file_act_notifier.on_rename_event(dataset_geid, oper, frp + old_file_name, frp + new_name)
 
         except Exception as e:
+            error_msg = str(e)
+            logger.error(error_msg)
             # send the cancelled
-            error_message = {'err_message': str(e)}
+            error_message = {'err_message': error_msg}
             await self.update_job_status(
                 job_tracker['session_id'],
                 old_file,
