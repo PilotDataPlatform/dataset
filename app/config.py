@@ -36,12 +36,12 @@ def load_vault_settings(settings: BaseSettings) -> Dict[str, Any]:
 
 
 class Settings(BaseSettings):
+    DEBUG: bool = False
     port: int = 5081
     host: str = '0.0.0.0'
     env: str = ''
     VERSION: str = '0.2.3'
     namespace: str = ''
-    OPEN_TELEMETRY_ENABLED: str
 
     DATASET_FILE_FOLDER: str = 'data'
     DATASET_SCHEMA_FOLDER: str = 'schema'
@@ -88,6 +88,8 @@ class Settings(BaseSettings):
     REDIS_DB: str
     REDIS_PASSWORD: str
 
+    KAFKA_URL: str
+
     # download secret
     DOWNLOAD_KEY: str = 'indoc101'
     DOWNLOAD_TOKEN_EXPIRE_AT: int = 5
@@ -125,7 +127,7 @@ class Settings(BaseSettings):
         super().__init__()
 
         self.disk_namespace = self.namespace
-        self.opentelemetry_enabled = self.OPEN_TELEMETRY_ENABLED == 'TRUE'
+        self.opentelemetry_enabled = self.OPEN_TELEMETRY_ENABLED
 
         self.MINIO_TMP_PATH = self.ROOT_PATH + '/tmp/'
 

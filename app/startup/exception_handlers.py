@@ -14,30 +14,17 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from fastapi import FastAPI
+from fastapi import Request
+from fastapi.responses import JSONResponse
 
-from app.config import ConfigClass
-from app.startup import api_registry
-from app.startup import create_app
-from app.startup import on_shutdown_event
-from app.startup import on_startup_event
-
-app: FastAPI = create_app(
-    title='Service Dataset',
-    description='Service Dataset',
-    debug=ConfigClass.DEBUG,
-    docs_url='/v1/api-doc',
-    version=ConfigClass.VERSION,
-)
-
-api_registry(app)
+from app.resources.error_handler import APIException
 
 
-@app.on_event('startup')
-async def startup() -> None:
-    await on_startup_event(app)
+async def http_exception_handler(request: Request, exc: APIException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=exc.content,
+    )
 
 
-@app.on_event('shutdown')
-async def shutdown() -> None:
-    await on_shutdown_event()
+exception_handlers = ((APIException, http_exception_handler),)

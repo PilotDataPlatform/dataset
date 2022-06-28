@@ -29,6 +29,7 @@ from httpx import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.asyncio import create_async_engine
 from starlette.config import environ
+from testcontainers.kafka import KafkaContainer
 from testcontainers.postgres import PostgresContainer
 from urllib3 import HTTPResponse
 
@@ -70,6 +71,7 @@ environ['OPSDB_UTILITY_HOST'] = 'localhost'
 environ['OPSDB_UTILITY_PORT'] = '5432'
 environ['OPSDB_UTILITY_USERNAME'] = 'postgres'
 environ['OPSDB_UTILITY_PASSWORD'] = 'postgres'
+environ['KAFKA_URL'] = 'any'
 
 
 @pytest_asyncio.fixture(scope='session')
@@ -79,11 +81,18 @@ def db_postgres():
         yield db_uri.replace(f'{urlparse(db_uri).scheme}://', 'postgresql+asyncpg://', 1)
 
 
+@pytest_asyncio.fixture(scope='session')
+def kafka_url():
+    with KafkaContainer() as kafka_container:
+        yield kafka_container.get_bootstrap_server()
+
+
 @pytest_asyncio.fixture(autouse=True)
-def set_settings(monkeypatch, db_postgres):
+def set_settings(monkeypatch, db_postgres, kafka_url):
     from app.config import ConfigClass
 
     monkeypatch.setattr(ConfigClass, 'OPS_DB_URI', db_postgres)
+    monkeypatch.setattr(ConfigClass, 'KAFKA_URL', kafka_url)
 
 
 @pytest_asyncio.fixture()
@@ -117,16 +126,11 @@ def event_loop(request):
 
 
 @pytest_asyncio.fixture
-def app():
-    from app.main import create_app
+async def client():
+    from app.main import app
 
-    app = create_app()
-    yield app
-
-
-@pytest_asyncio.fixture
-async def client(app):
-    return TestClient(app)
+    async with TestClient(app) as client:
+        yield client
 
 
 @pytest_asyncio.fixture

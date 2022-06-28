@@ -13,31 +13,18 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
 from fastapi import FastAPI
-
-from app.config import ConfigClass
-from app.startup import api_registry
-from app.startup import create_app
-from app.startup import on_shutdown_event
-from app.startup import on_startup_event
-
-app: FastAPI = create_app(
-    title='Service Dataset',
-    description='Service Dataset',
-    debug=ConfigClass.DEBUG,
-    docs_url='/v1/api-doc',
-    version=ConfigClass.VERSION,
-)
-
-api_registry(app)
+from fastapi.middleware.cors import CORSMiddleware
 
 
-@app.on_event('startup')
-async def startup() -> None:
-    await on_startup_event(app)
+def setup_cors_middlware(app: FastAPI) -> None:  # pragma: no cover
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins='*',
+        allow_credentials=True,
+        allow_methods=['*'],
+        allow_headers=['*'],
+    )
 
 
-@app.on_event('shutdown')
-async def shutdown() -> None:
-    await on_shutdown_event()
+middlewares = (setup_cors_middlware,)
