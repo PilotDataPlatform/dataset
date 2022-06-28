@@ -30,6 +30,7 @@ from app.config import SRV_NAMESPACE
 from app.config import ConfigClass
 from app.consumer.consumers import dataset_consumer
 from app.core.db import db_engine
+from app.core.kafka import aioproducer
 
 from .exception_handlers import exception_handlers
 from .middlewares import middlewares
@@ -72,10 +73,11 @@ async def on_startup_event(app: FastAPI) -> None:
         await _initialize_instrument_app(app)
     if ConfigClass.env != 'test':
         dataset_consumer()
+    await aioproducer.start()
 
 
 async def on_shutdown_event() -> None:
-    pass
+    await aioproducer.stop()
 
 
 _all_ = ('on_startup_event', 'on_shutdown_event')
