@@ -14,7 +14,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from common import GEIDClient
+from uuid import uuid4
+
 from common import LoggerFactory
 from fastapi import APIRouter
 from fastapi import Depends
@@ -30,7 +31,7 @@ from app.schemas.base import EAPIResponseCode
 from app.schemas.schema_template import SchemaTemplateList
 from app.schemas.schema_template import SchemaTemplatePost
 from app.schemas.schema_template import SchemaTemplatePut
-from app.schemas.schema_template import SrvDatasetSchemaTemplateMgr
+from app.services.activity_log import ActivityLogService
 
 router = APIRouter()
 
@@ -61,8 +62,7 @@ class APISchemaTemplate:
 
     def __init__(self):
         self.__logger = LoggerFactory('api_dataset_schema_template').get_logger()
-        self.__activity_manager = SrvDatasetSchemaTemplateMgr()
-        self.geid_client = GEIDClient()
+        self.__activity_manager = ActivityLogService()
 
     @router.post(
         '/dataset/{dataset_geid}/schemaTPL', tags=[_API_TAG], summary='API will create the new schema template'
@@ -80,7 +80,7 @@ class APISchemaTemplate:
             return api_response
         try:
             new_template = DatasetSchemaTemplate(
-                geid=self.geid_client.get_GEID(),
+                geid=str(uuid4()),
                 name=request_payload.name,
                 dataset_geid=dataset_geid,
                 standard=request_payload.standard,
@@ -95,7 +95,7 @@ class APISchemaTemplate:
             api_response.result = new_template.to_dict()
 
             # create the log activity
-            await self.__activity_manager.on_create_event(
+            await self.__activity_manager.send_schema_template_on_create_event(
                 dataset_geid, new_template.geid, request_payload.creator, request_payload.name
             )
         except Exception as e:
@@ -206,7 +206,7 @@ class APISchemaTemplate:
             # based on the frontend infomation, create the log activity
             activities = request_payload.activity
             for act in activities:
-                await self.__activity_manager.on_update_event(
+                await self.__activity_manager.send_schema_template_on_update_event(
                     dataset_geid, template_geid, result.creator, act.get('action'), act.get('detail', {})
                 )
         except NoResultFound:
@@ -239,7 +239,7 @@ class APISchemaTemplate:
             api_response.result = result.to_dict()
 
             # create the log activity
-            await self.__activity_manager.on_delete_event(
+            await self.__activity_manager.send_schema_template_on_delete_event(
                 result.dataset_geid, template_geid, result.creator, result.name
             )
 

@@ -19,9 +19,7 @@ import shutil
 import time
 from datetime import datetime
 
-import httpx
 from aioredis import StrictRedis
-from common import GEIDClient
 from common import LoggerFactory
 from sqlalchemy.future import select
 from starlette.concurrency import run_in_threadpool
@@ -34,6 +32,7 @@ from app.models.version import DatasetVersion
 from app.resources.locks import recursive_lock_publish
 from app.resources.locks import unlock_resource
 from app.resources.utils import get_children_nodes
+from app.services.activity_log import ActivityLogService
 
 logger = LoggerFactory('api_version').get_logger()
 
@@ -63,8 +62,6 @@ class PublishVersion(object):
         )
         self.status_id = status_id
         self.version = version
-
-        self.geid_client = GEIDClient()
 
     async def publish(self, db):
         try:
@@ -109,28 +106,8 @@ class PublishVersion(object):
         return
 
     async def update_activity_log(self):
-        url = ConfigClass.QUEUE_SERVICE + 'broker/pub'
-        post_json = {
-            'event_type': 'DATASET_PUBLISH_SUCCEED',
-            'payload': {
-                'dataset_geid': self.dataset_geid,
-                'act_geid': self.geid_client.get_GEID(),
-                'operator': self.operator,
-                'action': 'PUBLISH',
-                'resource': 'Dataset',
-                'detail': {'source': self.version},
-            },
-            'queue': 'dataset_actlog',
-            'routing_key': '',
-            'exchange': {'name': 'DATASET_ACTS', 'type': 'fanout'},
-        }
-        async with httpx.AsyncClient() as client:
-            res = await client.post(url, json=post_json)
-        if res.status_code != 200:
-            error_msg = 'update_activity_log {}: {}'.format(res.status_code, res.text)
-            logger.error(error_msg)
-            raise Exception(error_msg)
-        return res
+        activity_log = ActivityLogService()
+        return await activity_log.send_publish_version_succeed(self)
 
     async def update_status(self, status, error_msg=''):
         """Updates job status in redis."""

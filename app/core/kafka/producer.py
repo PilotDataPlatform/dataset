@@ -25,4 +25,6 @@ logger = LoggerFactory(__name__).get_logger()
 
 loop = get_event_loop()
 
-aioproducer = AIOKafkaProducer(loop=loop, client_id=SRV_NAMESPACE, bootstrap_servers=ConfigClass.KAFKA_URL)
+aioproducer = AIOKafkaProducer(
+    loop=loop, client_id=SRV_NAMESPACE, bootstrap_servers=[ConfigClass.KAFKA_URL], acks='all'
+)

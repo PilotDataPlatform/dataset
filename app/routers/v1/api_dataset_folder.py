@@ -15,7 +15,6 @@
 
 import re
 
-from common import GEIDClient
 from common import LoggerFactory
 from fastapi import APIRouter
 from fastapi import Depends
@@ -37,12 +36,7 @@ router = APIRouter()
 
 @cbv.cbv(router)
 class DatasetFolder:
-    def __init__(self) -> None:
-        self.geid_client = GEIDClient()
-
-    '''
-        Create an empty folder
-    '''
+    """Create an empty folder."""
 
     @router.post(
         '/v1/dataset/{dataset_geid}/folder',

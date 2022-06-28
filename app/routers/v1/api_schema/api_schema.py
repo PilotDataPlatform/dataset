@@ -13,8 +13,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import httpx
-from common import GEIDClient
+from uuid import uuid4
+
 from common import LoggerFactory
 from fastapi import APIRouter
 from fastapi import Depends
@@ -37,6 +37,7 @@ from app.schemas.schema import POSTSchemaList
 from app.schemas.schema import POSTSchemaResponse
 from app.schemas.schema import PUTSchema
 from app.schemas.schema import PUTSchemaResponse
+from app.services.activity_log import ActivityLogService
 from app.services.dataset import SrvDatasetMgr
 
 logger = LoggerFactory('api_schema').get_logger()
@@ -46,9 +47,6 @@ ESSENTIALS_NAME = ConfigClass.ESSENTIALS_NAME
 
 @cbv.cbv(router)
 class Schema:
-    def __init__(self) -> None:
-        self.geid_client = GEIDClient()
-
     async def update_dataset_node(self, db, dataset_geid, content):
         # Update dataset neo4j entry
         srv_dataset = SrvDatasetMgr()
@@ -76,28 +74,8 @@ class Schema:
         await srv_dataset.update(db, dataset, payload)
 
     async def update_activity_log(self, activity_data):
-        url = ConfigClass.QUEUE_SERVICE + 'broker/pub'
-        post_json = {
-            'event_type': activity_data['event_type'],
-            'payload': {
-                'dataset_geid': activity_data['dataset_geid'],
-                'act_geid': self.geid_client.get_GEID(),
-                'operator': activity_data['username'],
-                'action': activity_data['action'],
-                'resource': activity_data['resource'],
-                'detail': activity_data['detail'],
-            },
-            'queue': 'dataset_actlog',
-            'routing_key': '',
-            'exchange': {'name': 'DATASET_ACTS', 'type': 'fanout'},
-        }
-        async with httpx.AsyncClient() as client:
-            res = await client.post(url, json=post_json)
-        if res.status_code != 200:
-            error_msg = 'update_activity_log {}: {}'.format(res.status_code, res.text)
-            logger.error(error_msg)
-            raise Exception(error_msg)
-        return res
+        activity_log = ActivityLogService()
+        return await activity_log.send_schema_log(activity_data)
 
     async def db_add_operation(self, schema, db):
         try:
@@ -160,7 +138,7 @@ class Schema:
             return api_response.json_response()
 
         model_data = {
-            'geid': self.geid_client.get_GEID(),
+            'geid': str(uuid4()),
             'name': data.name,
             'dataset_geid': data.dataset_geid,
             'tpl_geid': data.tpl_geid,

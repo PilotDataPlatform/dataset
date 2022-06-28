@@ -48,8 +48,8 @@ from app.schemas.import_data import DatasetFileDelete
 from app.schemas.import_data import DatasetFileMove
 from app.schemas.import_data import DatasetFileRename
 from app.schemas.import_data import ImportDataPost
+from app.services.activity_log import ActivityLogService
 from app.services.dataset import SrvDatasetMgr
-from app.services.import_data import SrvDatasetFileMgr
 
 router = APIRouter()
 
@@ -66,7 +66,7 @@ class APIImportData:
 
     def __init__(self):
         self.__logger = LoggerFactory('api_dataset_import').get_logger()
-        self.file_act_notifier = SrvDatasetFileMgr()
+        self.file_act_notifier = ActivityLogService()
 
     @router.put(
         '/dataset/{dataset_id}/files',

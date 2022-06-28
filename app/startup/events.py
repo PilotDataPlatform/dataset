@@ -30,7 +30,7 @@ from app.config import SRV_NAMESPACE
 from app.config import ConfigClass
 from app.consumer.consumers import dataset_consumer
 from app.core.db import db_engine
-from app.core.kafka import aioproducer
+from app.core.kafka.producer import aioproducer
 
 from .exception_handlers import exception_handlers
 from .middlewares import middlewares

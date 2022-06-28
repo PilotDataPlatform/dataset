@@ -13,27 +13,28 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from datetime import datetime
+from typing import Dict
+from typing import Optional
+
 from pydantic import BaseModel
 
 
-class SchemaTemplatePost(BaseModel):
-    """the post request payload for import data from project."""
-
-    name: str
-    standard: str
-    system_defined: bool
-    is_draft: bool
-    content: dict
-    creator: str
-
-
-class SchemaTemplatePut(BaseModel):
-    name: str
-    is_draft: bool
-    content: dict
-    activity: list
+class ActivityLogSchema(BaseModel):
+    activity_type: str
+    activity_time: str = datetime.utcnow().isoformat()
+    container_code: str
+    version: str
+    target_name: Optional[str] = None
+    user: str
+    changes: list[Dict[str, str]] = []
 
 
-class SchemaTemplateList(BaseModel):
-    # dataset_geid : Optional[str] = None
-    pass
+class ItemActivityLogSchema(ActivityLogSchema):
+    item_id: str
+    item_type: str
+    item_name: str
+    item_parent_path: str
+    container_type: str
+    zone: int
+    imported_from: Optional[str] = None
