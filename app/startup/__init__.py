@@ -16,7 +16,6 @@
 
 from .api_registry import api_registry
 from .app import create_app
-from .events import on_shutdown_event
 from .events import on_startup_event
 
-__all__ = ('create_app', 'on_startup_event', 'on_shutdown_event', 'api_registry')
+__all__ = ('create_app', 'on_startup_event', 'api_registry')

@@ -1,0 +1,56 @@
+{
+  "type": "record",
+  "name": "Activity",
+  "namespace": "metadata.items",
+  "fields": [
+    {
+      "name": "item_id",
+      "type": {
+    "type": "string",
+    "logicalType": "uuid"
+      }
+    }, {
+      "name": "item_name",
+      "type": "string"
+    }, {
+      "name": "item_type",
+      "type": "string"
+    }, {
+      "name": "item_parent_path",
+      "type": "string"
+    }, {
+      "name": "container_code",
+      "type": "string"
+    }, {
+      "name": "container_type",
+      "type": "string"
+    }, {
+      "name": "zone",
+      "type": "int"
+    }, {
+      "name": "user",
+      "type": "string"
+    }, {
+      "name": "imported_from",
+      "type": ["string", "null"]
+    }, {
+      "name": "activity_type",
+      "type": "string"
+    }, {
+      "name": "activity_time",
+      "type": {
+    "type": "long",
+    "logicalType": "timestamp-millis"
+      }
+    }, {
+      "name": "changes",
+      "type": {
+    "type": "array",
+    "items": {
+        "type": "map",
+        "values": "string"
+    }
+      }
+    }
+  ]
+}

@@ -20,7 +20,7 @@ from typing import Optional
 from pydantic import BaseModel
 
 
-class ActivityLogSchema(BaseModel):
+class DatasetActivityLogSchema(BaseModel):
     activity_type: str
     activity_time: str = datetime.utcnow().isoformat()
     container_code: str
@@ -30,7 +30,7 @@ class ActivityLogSchema(BaseModel):
     changes: list[Dict[str, str]] = []
 
 
-class ItemActivityLogSchema(ActivityLogSchema):
+class ItemActivityLogSchema(DatasetActivityLogSchema):
     item_id: str
     item_type: str
     item_name: str

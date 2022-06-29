@@ -19,7 +19,6 @@ from fastapi import FastAPI
 from app.config import ConfigClass
 from app.startup import api_registry
 from app.startup import create_app
-from app.startup import on_shutdown_event
 from app.startup import on_startup_event
 
 app: FastAPI = create_app(
@@ -36,8 +35,3 @@ api_registry(app)
 @app.on_event('startup')
 async def startup() -> None:
     await on_startup_event(app)
-
-
-@app.on_event('shutdown')
-async def shutdown() -> None:
-    await on_shutdown_event()

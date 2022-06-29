@@ -12,7 +12,7 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
+# import io
 from typing import Any
 from typing import Dict
 from uuid import uuid4
@@ -21,6 +21,14 @@ import httpx
 from common import LoggerFactory
 
 from app.config import ConfigClass
+from app.schemas.activity_log import DatasetActivityLogSchema
+from app.schemas.activity_log import ItemActivityLogSchema
+
+# from fastavro import schema
+# from fastavro import schemaless_writer
+
+
+# from aiokafka import AIOKafkaProducer
 
 
 class ActivityLogService:
@@ -39,7 +47,7 @@ class ActivityLogService:
         extra: Dict[str, Any] = None,
     ) -> dict:
 
-        post_json = {
+        msg_dict = {
             'event_type': event_type,
             'payload': {
                 'dataset_geid': geid,
@@ -54,10 +62,21 @@ class ActivityLogService:
             'exchange': {'name': 'DATASET_ACTS', 'type': 'fanout'},
         }
         if extra:
-            post_json['payload'].update(**extra)
-        self.logger.info('Sending socket notification: ' + str(post_json))
+            msg_dict['payload'].update(**extra)
+
+        # self.aioproducer = AIOKafkaProducer(bootstrap_servers=[ConfigClass.KAFKA_URL])
+        # self.logger.info('Sending socket notification: ' + str(msg_dict))
+        # loaded_schema = schema.load_schema(self.avro_schema_path)
+        # msg_bytes = io.BytesIO(msg_dict)
+        # msg = schemaless_writer(msg_bytes, loaded_schema)
+        # try:
+        #     self.aioproducer.start()
+        #     await self.aioproducer.send(self.topic, msg)
+        # finally:
+        #     self.aioproducer.stop()
+
         async with httpx.AsyncClient() as client:
-            res = await client.post(self.queue_url, json=post_json)
+            res = await client.post(self.queue_url, json=msg_dict)
         if res.status_code != 200:
             error_msg = 'on_{}_event {}: {}'.format(event_type, res.status_code, res.text)
             self.logger.error(error_msg)
@@ -68,6 +87,9 @@ class ActivityLogService:
 class FileFolderActivityLogService(ActivityLogService):
 
     logger = LoggerFactory('ActivityLogService').get_logger()
+    log_schema = ItemActivityLogSchema
+    topic = 'items-activity-logs'
+    avro_schema_path = 'app/schemas/metadata.items.activity.avsc'
 
     async def on_import_event(self, geid, username, source_list, project='', project_code=''):
         detail = {
@@ -98,6 +120,9 @@ class FileFolderActivityLogService(ActivityLogService):
 class DatasetActivityLogService(ActivityLogService):
 
     logger = LoggerFactory('ActivityLogService').get_logger()
+    log_schema = DatasetActivityLogSchema
+    topic = 'datasets-activity-logs'
+    avro_schema_path = 'app/schemas/dataset.activity.avsc'
 
     async def send_schema_create_event(self, activity_data: Dict[str, Any]):
         return await self._message_send(
