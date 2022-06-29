@@ -13,6 +13,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from typing import Any
+from typing import Dict
 from uuid import uuid4
 
 import httpx
@@ -78,7 +80,72 @@ class ActivityLogService:
 
         return res
 
-    async def _message_send(self, geid: str, operator: str, action: str, event_type: str, detail: dict) -> dict:
+    async def send_schema_log(self, activity_data):
+        return await self._message_send(
+            activity_data['dataset_geid'],
+            activity_data['username'],
+            activity_data['action'],
+            activity_data['event_type'],
+            activity_data['detail'],
+        )
+
+    async def send_publish_version_succeed(self, dataset_schema):
+        return await self._message_send(
+            dataset_schema.dataset_geid,
+            dataset_schema.operator,
+            'PUBLISH',
+            'DATASET_PUBLISH_SUCCEED',
+            {'source': dataset_schema.version},
+        )
+
+    async def send_schema_template_on_create_event(self, dataset_geid, template_geid, username, template_name):
+        return await self._message_send(
+            dataset_geid,
+            username,
+            'CREATE',
+            'DATASET_SCHEMA_TEMPLATE_CREATE',
+            {'name': template_name},
+            'Dataset.Schema.Template',
+            extra={'schema_template_geid': template_geid},
+        )
+
+    async def send_schema_template_on_update_event(
+        self, dataset_geid, template_geid, username, attribute_action, attributes
+    ):
+        return await self._message_send(
+            dataset_geid,
+            username,
+            attribute_action,
+            'DATASET_SCHEMA_TEMPLATE_UPDATE',
+            attributes,
+            'Dataset.Schema.Template.Attributes',
+            extra={'schema_template_geid': template_geid},
+        )
+
+    async def send_schema_template_on_delete_event(self, dataset_geid, template_geid, username, template_name):
+        return await self._message_send(
+            dataset_geid,
+            username,
+            'REMOVE',
+            'DATASET_SCHEMA_TEMPLATE_DELETE',
+            {'name': template_name},
+            'Dataset.Schema.Template',
+            extra={'schema_template_geid': template_geid},
+        )
+
+    async def send_dataset_on_create_event(self, geid, username):
+        return await self._message_send(geid, username, 'CREATE', 'DATASET_CREATE_SUCCEED', {'source': geid})
+
+    async def _message_send(
+        self,
+        geid: str,
+        operator: str,
+        action: str,
+        event_type: str,
+        detail: dict,
+        resource: str = 'Dataset',
+        extra: Dict[str, Any] = None,
+    ) -> dict:
 
         post_json = {
             'event_type': event_type,
@@ -87,157 +154,20 @@ class ActivityLogService:
                 'act_geid': str(uuid4()),
                 'operator': operator,
                 'action': action,
-                'resource': 'Dataset',
+                'resource': resource,
                 'detail': detail,
             },
             'queue': 'dataset_actlog',
             'routing_key': '',
             'exchange': {'name': 'DATASET_ACTS', 'type': 'fanout'},
         }
+        if extra:
+            post_json['payload'].update(**extra)
         self.logger.info('Sending socket notification: ' + str(post_json))
         async with httpx.AsyncClient() as client:
             res = await client.post(self.queue_url, json=post_json)
         if res.status_code != 200:
-            raise Exception('on_{}_event {}: {}'.format(event_type, res.status_code, res.text))
+            error_msg = 'on_{}_event {}: {}'.format(event_type, res.status_code, res.text)
+            self.logger.error(error_msg)
+            raise Exception(error_msg)
         return res.json()
-
-    async def send_schema_log(self, activity_data):
-        url = ConfigClass.QUEUE_SERVICE + 'broker/pub'
-        post_json = {
-            'event_type': activity_data['event_type'],
-            'payload': {
-                'dataset_geid': activity_data['dataset_geid'],
-                'act_geid': str(uuid4()),
-                'operator': activity_data['username'],
-                'action': activity_data['action'],
-                'resource': activity_data['resource'],
-                'detail': activity_data['detail'],
-            },
-            'queue': 'dataset_actlog',
-            'routing_key': '',
-            'exchange': {'name': 'DATASET_ACTS', 'type': 'fanout'},
-        }
-        async with httpx.AsyncClient() as client:
-            res = await client.post(url, json=post_json)
-        if res.status_code != 200:
-            error_msg = 'update_activity_log {}: {}'.format(res.status_code, res.text)
-            self.logger.error(error_msg)
-            raise Exception(error_msg)
-        return res
-
-    async def send_publish_version_succeed(self, dataset_schema):
-        url = ConfigClass.QUEUE_SERVICE + 'broker/pub'
-        post_json = {
-            'event_type': 'DATASET_PUBLISH_SUCCEED',
-            'payload': {
-                'dataset_geid': dataset_schema.dataset_geid,
-                'act_geid': str(uuid4()),
-                'operator': dataset_schema.operator,
-                'action': 'PUBLISH',
-                'resource': 'Dataset',
-                'detail': {'source': dataset_schema.version},
-            },
-            'queue': 'dataset_actlog',
-            'routing_key': '',
-            'exchange': {'name': 'DATASET_ACTS', 'type': 'fanout'},
-        }
-        async with httpx.AsyncClient() as client:
-            res = await client.post(url, json=post_json)
-        if res.status_code != 200:
-            error_msg = 'update_activity_log {}: {}'.format(res.status_code, res.text)
-            self.logger.error(error_msg)
-            raise Exception(error_msg)
-        return res
-
-    async def send_schema_template_on_create_event(self, dataset_geid, template_geid, username, template_name):
-        url = ConfigClass.QUEUE_SERVICE + 'broker/pub'
-        post_json = {
-            'event_type': 'DATASET_SCHEMA_TEMPLATE_CREATE',
-            'payload': {
-                'dataset_geid': dataset_geid,  # None if it is default template
-                'schema_template_geid': template_geid,
-                'act_geid': str(uuid4()),
-                'operator': username,
-                'action': 'CREATE',
-                'resource': 'Dataset.Schema.Template',
-                'detail': {'name': template_name},  # list of file name
-            },
-            'queue': 'dataset_actlog',
-            'routing_key': '',
-            'exchange': {'name': 'DATASET_ACTS', 'type': 'fanout'},
-        }
-        async with httpx.AsyncClient() as client:
-            res = await client.post(url, json=post_json)
-        if res.status_code != 200:
-            raise Exception('__on_import_event {}: {}'.format(res.status_code, res.text))
-        return res
-
-    async def send_schema_template_on_update_event(
-        self, dataset_geid, template_geid, username, attribute_action, attributes
-    ):
-        url = ConfigClass.QUEUE_SERVICE + 'broker/pub'
-        post_json = {
-            'event_type': 'DATASET_SCHEMA_TEMPLATE_UPDATE',
-            'payload': {
-                'dataset_geid': dataset_geid,  # None if it is default template
-                'schema_template_geid': template_geid,
-                'act_geid': str(uuid4()),
-                'operator': username,
-                'action': attribute_action,
-                'resource': 'Dataset.Schema.Template.Attributes',
-                'detail': attributes,
-            },
-            'queue': 'dataset_actlog',
-            'routing_key': '',
-            'exchange': {'name': 'DATASET_ACTS', 'type': 'fanout'},
-        }
-        async with httpx.AsyncClient() as client:
-            res = await client.post(url, json=post_json)
-        if res.status_code != 200:
-            raise Exception('__on_import_event {}: {}'.format(res.status_code, res.text))
-        return res
-
-    async def send_schema_template_on_delete_event(self, dataset_geid, template_geid, username, template_name):
-        url = ConfigClass.QUEUE_SERVICE + 'broker/pub'
-        post_json = {
-            'event_type': 'DATASET_SCHEMA_TEMPLATE_DELETE',
-            'payload': {
-                'dataset_geid': dataset_geid,  # None if it is default template
-                'schema_template_geid': template_geid,  # None if the
-                'act_geid': str(uuid4()),
-                'operator': username,
-                'action': 'REMOVE',
-                'resource': 'Dataset.Schema.Template',
-                'detail': {'name': template_name},  # list of file name
-            },
-            'queue': 'dataset_actlog',
-            'routing_key': '',
-            'exchange': {'name': 'DATASET_ACTS', 'type': 'fanout'},
-        }
-        async with httpx.AsyncClient() as client:
-            res = await client.post(url, json=post_json)
-        if res.status_code != 200:
-            raise Exception('__on_import_event {}: {}'.format(res.status_code, res.text))
-        return res
-
-    async def send_dataset_on_create_event(self, geid, username):
-        url = ConfigClass.QUEUE_SERVICE + 'broker/pub'
-        post_json = {
-            'event_type': 'DATASET_CREATE_SUCCEED',
-            'payload': {
-                'dataset_geid': geid,
-                'act_geid': str(uuid4()),
-                'operator': username,
-                'action': 'CREATE',
-                'resource': 'Dataset',
-                'detail': {'source': geid},
-            },
-            'queue': 'dataset_actlog',
-            'routing_key': '',
-            'exchange': {'name': 'DATASET_ACTS', 'type': 'fanout'},
-        }
-        async with httpx.AsyncClient() as client:
-            res = await client.post(url, json=post_json)
-        if res.status_code != 200:
-            raise Exception('__on_create_event {}: {}'.format(res.status_code, res.text))
-        return res
