@@ -31,7 +31,7 @@ from app.schemas.base import EAPIResponseCode
 from app.schemas.schema_template import SchemaTemplateList
 from app.schemas.schema_template import SchemaTemplatePost
 from app.schemas.schema_template import SchemaTemplatePut
-from app.services.activity_log import ActivityLogService
+from app.services.activity_log import DatasetActivityLogService
 
 router = APIRouter()
 
@@ -62,7 +62,7 @@ class APISchemaTemplate:
 
     def __init__(self):
         self.__logger = LoggerFactory('api_dataset_schema_template').get_logger()
-        self.__activity_manager = ActivityLogService()
+        self.__activity_manager = DatasetActivityLogService()
 
     @router.post(
         '/dataset/{dataset_geid}/schemaTPL', tags=[_API_TAG], summary='API will create the new schema template'

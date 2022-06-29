@@ -32,7 +32,7 @@ from app.models.version import DatasetVersion
 from app.resources.locks import recursive_lock_publish
 from app.resources.locks import unlock_resource
 from app.resources.utils import get_children_nodes
-from app.services.activity_log import ActivityLogService
+from app.services.activity_log import DatasetActivityLogService
 
 logger = LoggerFactory('api_version').get_logger()
 
@@ -106,7 +106,7 @@ class PublishVersion(object):
         return
 
     async def update_activity_log(self):
-        activity_log = ActivityLogService()
+        activity_log = DatasetActivityLogService()
         return await activity_log.send_publish_version_succeed(self)
 
     async def update_status(self, status, error_msg=''):

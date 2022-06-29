@@ -41,7 +41,7 @@ from app.config import ConfigClass
 from app.models.dataset import Dataset
 from app.models.schema import DatasetSchema
 from app.models.schema import DatasetSchemaTemplate
-from app.services.activity_log import ActivityLogService
+from app.services.activity_log import DatasetActivityLogService
 
 ESSENTIALS_TPL_NAME = ConfigClass.ESSENTIALS_TPL_NAME
 ESSENTIALS_NAME = ConfigClass.ESSENTIALS_NAME
@@ -225,7 +225,7 @@ class SrvDatasetMgr:
         return schema.to_dict()
 
     async def __on_create_event(self, geid, username):
-        activitity_log = ActivityLogService()
+        activitity_log = DatasetActivityLogService()
         return await activitity_log.send_dataset_on_create_event(geid, username)
 
 

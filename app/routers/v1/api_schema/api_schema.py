@@ -37,7 +37,7 @@ from app.schemas.schema import POSTSchemaList
 from app.schemas.schema import POSTSchemaResponse
 from app.schemas.schema import PUTSchema
 from app.schemas.schema import PUTSchemaResponse
-from app.services.activity_log import ActivityLogService
+from app.services.activity_log import DatasetActivityLogService
 from app.services.dataset import SrvDatasetMgr
 
 logger = LoggerFactory('api_schema').get_logger()
@@ -74,7 +74,7 @@ class Schema:
         await srv_dataset.update(db, dataset, payload)
 
     async def update_activity_log(self, activity_data):
-        activity_log = ActivityLogService()
+        activity_log = DatasetActivityLogService()
         return await activity_log.send_schema_log(activity_data)
 
     async def db_add_operation(self, schema, db):
