@@ -47,6 +47,8 @@ ESSENTIALS_NAME = ConfigClass.ESSENTIALS_NAME
 
 @cbv.cbv(router)
 class Schema:
+    ACTIVITY_LOG = DatasetActivityLogService()
+
     async def update_dataset_node(self, db, dataset_geid, content):
         # Update dataset neo4j entry
         srv_dataset = SrvDatasetMgr()
@@ -72,10 +74,6 @@ class Schema:
             payload['license'] = ''
 
         await srv_dataset.update(db, dataset, payload)
-
-    async def update_activity_log(self, activity_data):
-        activity_log = DatasetActivityLogService()
-        return await activity_log.send_schema_log(activity_data)
 
     async def db_add_operation(self, schema, db):
         try:
@@ -152,14 +150,13 @@ class Schema:
         schema = await self.db_add_operation(schema, db)
         api_response.result = schema.to_dict()
 
-        for activity in data.activity:
+        if data.activity:
             activity_data = {
                 'dataset_geid': data.dataset_geid,
                 'username': data.creator,
-                'event_type': 'SCHEMA_CREATE',
-                **activity,
+                **data.activity[0],
             }
-            await self.update_activity_log(activity_data)
+            await self.ACTIVITY_LOG.send_schema_create_event(activity_data)
 
         return api_response.json_response()
 
@@ -190,14 +187,13 @@ class Schema:
 
         schema = await self.db_add_operation(schema, db)
         api_response.result = schema.to_dict()
-        for activity in data.activity:
+        if data.activity:
             activity_data = {
                 'dataset_geid': data.dataset_geid,
                 'username': data.username,
-                'event_type': 'SCHEMA_UPDATE',
-                **activity,
+                **data.activity[0],
             }
-            await self.update_activity_log(activity_data)
+            await self.ACTIVITY_LOG.send_schema_update_event(activity_data)
         if schema.name == 'essential.schema.json':
             await self.update_dataset_node(db, schema.dataset_geid, data.content)
         return api_response.json_response()
@@ -211,14 +207,13 @@ class Schema:
         schema = await self.get_schema_or_404(schema_geid, db)
         schema = await self.db_delete_operation(schema, db)
 
-        for activity in data.activity:
+        if data.activity:
             activity_data = {
                 'dataset_geid': data.dataset_geid,
                 'username': data.username,
-                'event_type': 'SCHEMA_DELETE',
-                **activity,
+                **data.activity[0],
             }
-            await self.update_activity_log(activity_data)
+            await self.ACTIVITY_LOG.send_schema_delete_event(activity_data)
 
         api_response.result = 'success'
         return api_response.json_response()

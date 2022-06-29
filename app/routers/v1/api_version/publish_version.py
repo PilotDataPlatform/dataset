@@ -45,6 +45,7 @@ def parse_minio_location(location):
 
 class PublishVersion(object):
     def __init__(self, dataset_node, operator, notes, status_id, version):
+        self.activity_log = DatasetActivityLogService()
         self.operator = operator
         self.notes = notes
         self.dataset_node = dataset_node
@@ -92,7 +93,7 @@ class PublishVersion(object):
                 raise e
 
             logger.info(f'Successfully published {self.dataset_geid} version {self.version}')
-            await self.update_activity_log()
+            await self.activity_log.send_publish_version_succeed(self)
             await self.update_status('success')
         except Exception as e:
             error_msg = f'Error publishing {self.dataset_geid}: {str(e)}'
@@ -104,10 +105,6 @@ class PublishVersion(object):
                 await unlock_resource(resource_key, operation)
 
         return
-
-    async def update_activity_log(self):
-        activity_log = DatasetActivityLogService()
-        return await activity_log.send_publish_version_succeed(self)
 
     async def update_status(self, status, error_msg=''):
         """Updates job status in redis."""

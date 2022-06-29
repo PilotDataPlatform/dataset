@@ -69,67 +69,61 @@ class FileFolderActivityLogService(ActivityLogService):
 
     logger = LoggerFactory('ActivityLogService').get_logger()
 
-    event_action_map = {
-        'DATASET_FILE_IMPORT_SUCCEED': 'ADD',
-        'DATASET_FILE_DELETE_SUCCEED': 'REMOVE',
-        'DATASET_FILE_MOVE_SUCCEED': 'MOVE',
-        'DATASET_FILE_RENAME_SUCCEED': 'UPDATE',
-    }
-
     async def on_import_event(self, geid, username, source_list, project='', project_code=''):
         detail = {
             'source_list': source_list,  # list of file name
             'project': project,
             'project_code': project_code,
         }
-        event_type = 'DATASET_FILE_IMPORT_SUCCEED'
-        action = self.event_action_map.get(event_type)
-        return await self._message_send(geid, username, action, event_type, detail)
+        return await self._message_send(geid, username, 'ADD', 'DATASET_FILE_IMPORT_SUCCEED', detail)
 
     async def on_delete_event(self, geid, username, source_list):
 
         detail = {'source_list': source_list}  # list of file name
-        event_type = 'DATASET_FILE_DELETE_SUCCEED'
-        action = self.event_action_map.get(event_type)
-        return await self._message_send(geid, username, action, event_type, detail)
+        return await self._message_send(geid, username, 'REMOVE', 'DATASET_FILE_DELETE_SUCCEED', detail)
 
     # this function will be per file/folder since the batch display
     # is not human readable
     async def on_move_event(self, geid, username, source, target):
 
         detail = {'from': source, 'to': target}
-        event_type = 'DATASET_FILE_MOVE_SUCCEED'
-        action = self.event_action_map.get(event_type)
-        return await self._message_send(geid, username, action, event_type, detail)
+        return await self._message_send(geid, username, 'MOVE', 'DATASET_FILE_MOVE_SUCCEED', detail)
 
     async def on_rename_event(self, geid, username, source, target):
 
         detail = {'from': source, 'to': target}
-        event_type = 'DATASET_FILE_RENAME_SUCCEED'
-        action = self.event_action_map.get(event_type)
-        return await self._message_send(geid, username, action, event_type, detail)
+        return await self._message_send(geid, username, 'UPDATE', 'DATASET_FILE_RENAME_SUCCEED', detail)
 
 
 class DatasetActivityLogService(ActivityLogService):
 
     logger = LoggerFactory('ActivityLogService').get_logger()
 
-    async def send_schema_log(self, activity_data):
+    async def send_schema_create_event(self, activity_data: Dict[str, Any]):
         return await self._message_send(
             activity_data['dataset_geid'],
             activity_data['username'],
-            activity_data['action'],
-            activity_data['event_type'],
+            'CREATE',
+            'SCHEMA_CREATE',
             activity_data['detail'],
         )
 
-    async def send_publish_version_succeed(self, dataset_schema):
+    async def send_schema_update_event(self, activity_data: Dict[str, Any]):
         return await self._message_send(
-            dataset_schema.dataset_geid,
-            dataset_schema.operator,
-            'PUBLISH',
-            'DATASET_PUBLISH_SUCCEED',
-            {'source': dataset_schema.version},
+            activity_data['dataset_geid'],
+            activity_data['username'],
+            'UPDATE',
+            'SCHEMA_UPDATE',
+            activity_data['detail'],
+        )
+
+    async def send_schema_delete_event(self, activity_data: Dict[str, Any]):
+        return await self._message_send(
+            activity_data['dataset_geid'],
+            activity_data['username'],
+            'REMOVE',
+            'SCHEMA_DELETE',
+            activity_data['detail'],
         )
 
     async def send_schema_template_on_create_event(self, dataset_geid, template_geid, username, template_name):
@@ -143,13 +137,22 @@ class DatasetActivityLogService(ActivityLogService):
             extra={'schema_template_geid': template_geid},
         )
 
+    async def send_publish_version_succeed(self, dataset_schema):
+        return await self._message_send(
+            dataset_schema.dataset_geid,
+            dataset_schema.operator,
+            'PUBLISH',
+            'DATASET_PUBLISH_SUCCEED',
+            {'source': dataset_schema.version},
+        )
+
     async def send_schema_template_on_update_event(
         self, dataset_geid, template_geid, username, attribute_action, attributes
     ):
         return await self._message_send(
             dataset_geid,
             username,
-            attribute_action,
+            'UPDATE',
             'DATASET_SCHEMA_TEMPLATE_UPDATE',
             attributes,
             'Dataset.Schema.Template.Attributes',
