@@ -32,6 +32,7 @@ from app.schemas.schema_template import SchemaTemplateList
 from app.schemas.schema_template import SchemaTemplatePost
 from app.schemas.schema_template import SchemaTemplatePut
 from app.services.activity_log import DatasetActivityLogService
+from app.services.dataset import SrvDatasetMgr
 
 router = APIRouter()
 
@@ -63,6 +64,7 @@ class APISchemaTemplate:
     def __init__(self):
         self.__logger = LoggerFactory('api_dataset_schema_template').get_logger()
         self.__activity_manager = DatasetActivityLogService()
+        self.dataset_mgr = SrvDatasetMgr()
 
     @router.post(
         '/dataset/{dataset_geid}/schemaTPL', tags=[_API_TAG], summary='API will create the new schema template'
@@ -233,15 +235,14 @@ class APISchemaTemplate:
         # delete the row if we find it
         try:
             query = select(DatasetSchemaTemplate).where(DatasetSchemaTemplate.geid == template_geid)
-            result = (await db.execute(query)).scalars().one()
-            await db.delete(result)
+            schema_template = (await db.execute(query)).scalars().one()
+            await db.delete(schema_template)
             await db.commit()
-            api_response.result = result.to_dict()
+            api_response.result = schema_template.to_dict()
 
+            dataset = await self.dataset_mgr.get_bygeid(db, schema_template.dataset_geid)
             # create the log activity
-            await self.__activity_manager.send_schema_template_on_delete_event(
-                result.dataset_geid, template_geid, result.creator, result.name
-            )
+            await self.__activity_manager.send_schema_template_on_delete_event(schema_template, dataset)
 
         except NoResultFound:
             api_response.code = EAPIResponseCode.not_found

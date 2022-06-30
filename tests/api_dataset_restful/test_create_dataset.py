@@ -42,11 +42,6 @@ async def test_create_dataset_should_return_200(client, httpx_mock, db_session, 
         url='http://cataloguing_service/v1/entity',
         json=[],
     )
-    httpx_mock.add_response(
-        method='POST',
-        url='http://queue_service/v1/broker/pub',
-        json=[],
-    )
 
     payload = {
         'username': 'amyguindoc14',

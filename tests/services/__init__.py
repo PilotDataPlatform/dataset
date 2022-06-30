@@ -12,29 +12,3 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-from datetime import datetime
-from typing import Dict
-from typing import Optional
-
-from pydantic import BaseModel
-
-
-class DatasetActivityLogSchema(BaseModel):
-    container_code: str
-    version: Optional[str]
-    user: str
-    target_name: Optional[str] = None
-    activity_type: str
-    activity_time: datetime = datetime.utcnow()
-    changes: list[Dict[str, str]] = []
-
-
-class ItemActivityLogSchema(DatasetActivityLogSchema):
-    item_id: str
-    item_type: str
-    item_name: str
-    item_parent_path: str
-    container_type: str
-    zone: int
-    imported_from: Optional[str] = None

@@ -12,23 +12,24 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-# import io
+import io
 from typing import Any
 from typing import Dict
 from uuid import uuid4
 
 import httpx
+from aiokafka import AIOKafkaProducer
+from aiokafka.errors import KafkaError
 from common import LoggerFactory
+from fastavro import schema
+from fastavro import schemaless_writer
 
 from app.config import ConfigClass
+from app.models.dataset import Dataset
+from app.models.schema import DatasetSchemaTemplate
 from app.schemas.activity_log import DatasetActivityLogSchema
-from app.schemas.activity_log import ItemActivityLogSchema
 
-# from fastavro import schema
-# from fastavro import schemaless_writer
-
-
-# from aiokafka import AIOKafkaProducer
+# from app.schemas.activity_log import ItemActivityLogSchema
 
 
 class ActivityLogService:
@@ -36,7 +37,26 @@ class ActivityLogService:
     logger = LoggerFactory('ActivityLogService').get_logger()
     queue_url = ConfigClass.QUEUE_SERVICE + 'broker/pub'
 
-    async def _message_send(
+    async def _message_send(self, data: Dict[str, Any] = None) -> dict:
+        self.logger.info('Sending socket notification: ' + str(data))
+        loaded_schema = schema.load_schema(self.avro_schema_path)
+        bio = io.BytesIO()
+        try:
+            schemaless_writer(bio, loaded_schema, data)
+            msg = bio.getvalue()
+        except ValueError as e:
+            self.logger.exception('error during the AVRO validation', extra={'error_msg': str(e)})
+
+        try:
+            self.aioproducer = AIOKafkaProducer(bootstrap_servers=[ConfigClass.KAFKA_URL])
+            await self.aioproducer.start()
+            await self.aioproducer.send(self.topic, msg)
+        except KafkaError as ke:
+            self.logger.exception('error sending ActivityLog to Kafka: %s', ke)
+        finally:
+            await self.aioproducer.stop()
+
+    async def _old_message_send(
         self,
         geid: str,
         operator: str,
@@ -64,17 +84,6 @@ class ActivityLogService:
         if extra:
             msg_dict['payload'].update(**extra)
 
-        # self.aioproducer = AIOKafkaProducer(bootstrap_servers=[ConfigClass.KAFKA_URL])
-        # self.logger.info('Sending socket notification: ' + str(msg_dict))
-        # loaded_schema = schema.load_schema(self.avro_schema_path)
-        # msg_bytes = io.BytesIO(msg_dict)
-        # msg = schemaless_writer(msg_bytes, loaded_schema)
-        # try:
-        #     self.aioproducer.start()
-        #     await self.aioproducer.send(self.topic, msg)
-        # finally:
-        #     self.aioproducer.stop()
-
         async with httpx.AsyncClient() as client:
             res = await client.post(self.queue_url, json=msg_dict)
         if res.status_code != 200:
@@ -87,7 +96,6 @@ class ActivityLogService:
 class FileFolderActivityLogService(ActivityLogService):
 
     logger = LoggerFactory('ActivityLogService').get_logger()
-    log_schema = ItemActivityLogSchema
     topic = 'items-activity-logs'
     avro_schema_path = 'app/schemas/metadata.items.activity.avsc'
 
@@ -97,24 +105,24 @@ class FileFolderActivityLogService(ActivityLogService):
             'project': project,
             'project_code': project_code,
         }
-        return await self._message_send(geid, username, 'ADD', 'DATASET_FILE_IMPORT_SUCCEED', detail)
+        return await self._old_message_send(geid, username, 'ADD', 'DATASET_FILE_IMPORT_SUCCEED', detail)
 
     async def on_delete_event(self, geid, username, source_list):
 
         detail = {'source_list': source_list}  # list of file name
-        return await self._message_send(geid, username, 'REMOVE', 'DATASET_FILE_DELETE_SUCCEED', detail)
+        return await self._old_message_send(geid, username, 'REMOVE', 'DATASET_FILE_DELETE_SUCCEED', detail)
 
     # this function will be per file/folder since the batch display
     # is not human readable
     async def on_move_event(self, geid, username, source, target):
 
         detail = {'from': source, 'to': target}
-        return await self._message_send(geid, username, 'MOVE', 'DATASET_FILE_MOVE_SUCCEED', detail)
+        return await self._old_message_send(geid, username, 'MOVE', 'DATASET_FILE_MOVE_SUCCEED', detail)
 
     async def on_rename_event(self, geid, username, source, target):
 
         detail = {'from': source, 'to': target}
-        return await self._message_send(geid, username, 'UPDATE', 'DATASET_FILE_RENAME_SUCCEED', detail)
+        return await self._old_message_send(geid, username, 'UPDATE', 'DATASET_FILE_RENAME_SUCCEED', detail)
 
 
 class DatasetActivityLogService(ActivityLogService):
@@ -125,7 +133,7 @@ class DatasetActivityLogService(ActivityLogService):
     avro_schema_path = 'app/schemas/dataset.activity.avsc'
 
     async def send_schema_create_event(self, activity_data: Dict[str, Any]):
-        return await self._message_send(
+        return await self._old_message_send(
             activity_data['dataset_geid'],
             activity_data['username'],
             'CREATE',
@@ -134,7 +142,7 @@ class DatasetActivityLogService(ActivityLogService):
         )
 
     async def send_schema_update_event(self, activity_data: Dict[str, Any]):
-        return await self._message_send(
+        return await self._old_message_send(
             activity_data['dataset_geid'],
             activity_data['username'],
             'UPDATE',
@@ -143,7 +151,7 @@ class DatasetActivityLogService(ActivityLogService):
         )
 
     async def send_schema_delete_event(self, activity_data: Dict[str, Any]):
-        return await self._message_send(
+        return await self._old_message_send(
             activity_data['dataset_geid'],
             activity_data['username'],
             'REMOVE',
@@ -152,7 +160,7 @@ class DatasetActivityLogService(ActivityLogService):
         )
 
     async def send_schema_template_on_create_event(self, dataset_geid, template_geid, username, template_name):
-        return await self._message_send(
+        return await self._old_message_send(
             dataset_geid,
             username,
             'CREATE',
@@ -163,7 +171,7 @@ class DatasetActivityLogService(ActivityLogService):
         )
 
     async def send_publish_version_succeed(self, dataset_schema):
-        return await self._message_send(
+        return await self._old_message_send(
             dataset_schema.dataset_geid,
             dataset_schema.operator,
             'PUBLISH',
@@ -174,7 +182,7 @@ class DatasetActivityLogService(ActivityLogService):
     async def send_schema_template_on_update_event(
         self, dataset_geid, template_geid, username, attribute_action, attributes
     ):
-        return await self._message_send(
+        return await self._old_message_send(
             dataset_geid,
             username,
             'UPDATE',
@@ -184,16 +192,16 @@ class DatasetActivityLogService(ActivityLogService):
             extra={'schema_template_geid': template_geid},
         )
 
-    async def send_schema_template_on_delete_event(self, dataset_geid, template_geid, username, template_name):
-        return await self._message_send(
-            dataset_geid,
-            username,
-            'REMOVE',
-            'DATASET_SCHEMA_TEMPLATE_DELETE',
-            {'name': template_name},
-            'Dataset.Schema.Template',
-            extra={'schema_template_geid': template_geid},
+    async def send_schema_template_on_delete_event(self, schema_template: DatasetSchemaTemplate, dataset: Dataset):
+        log_schema = DatasetActivityLogSchema(
+            activity_type='template_delete',
+            container_code=dataset.code,
+            user=schema_template.creator,
+            target_name=schema_template.name,
         )
+        return await self._message_send(log_schema.dict())
 
-    async def send_dataset_on_create_event(self, geid, username):
-        return await self._message_send(geid, username, 'CREATE', 'DATASET_CREATE_SUCCEED', {'source': geid})
+    async def send_dataset_on_create_event(self, dataset: Dataset):
+        log_schema = DatasetActivityLogSchema(activity_type='create', container_code=dataset.code, user=dataset.creator)
+
+        return await self._message_send(log_schema.dict())

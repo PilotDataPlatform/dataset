@@ -105,7 +105,7 @@ class SrvDatasetMgr:
             tags,
             username,
         )
-        await self.__on_create_event(global_entity_id, username)
+        await self.__on_create_event(dataset)
         # and also create minio bucket with the dataset code
         try:
             # TODO: IO-blocking code, also review this add policy logic.
@@ -224,9 +224,9 @@ class SrvDatasetMgr:
         schema = await db_add_operation(schema, db)
         return schema.to_dict()
 
-    async def __on_create_event(self, geid, username):
+    async def __on_create_event(self, dataset: Dataset):
         activitity_log = DatasetActivityLogService()
-        return await activitity_log.send_dataset_on_create_event(geid, username)
+        return await activitity_log.send_dataset_on_create_event(dataset)
 
 
 async def db_add_operation(schema, db):
