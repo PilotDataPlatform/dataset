@@ -97,9 +97,8 @@ class APISchemaTemplate:
             api_response.result = new_template.to_dict()
 
             # create the log activity
-            await self.__activity_manager.send_schema_template_on_create_event(
-                dataset_geid, new_template.geid, request_payload.creator, request_payload.name
-            )
+            dataset = await self.dataset_mgr.get_bygeid(db, dataset_geid)
+            await self.__activity_manager.send_schema_template_on_create_event(new_template, dataset)
         except Exception as e:
             api_response.code = EAPIResponseCode.bad_request
             api_response.error_msg = str(e)
@@ -196,20 +195,21 @@ class APISchemaTemplate:
                 .where(DatasetSchemaTemplate.geid == template_geid)
                 .where(DatasetSchemaTemplate.dataset_geid == dataset_geid)
             )
-            result = (await db.execute(query)).scalars().one()
+            schema_template = (await db.execute(query)).scalars().one()
 
             # update the row if we find it
-            result.name = request_payload.name
-            result.content = request_payload.content
-            result.is_draft = request_payload.is_draft
+            schema_template.name = request_payload.name
+            schema_template.content = request_payload.content
+            schema_template.is_draft = request_payload.is_draft
             await db.commit()
-            api_response.result = result.to_dict()
+            api_response.result = schema_template.to_dict()
 
             # based on the frontend infomation, create the log activity
             activities = request_payload.activity
+            dataset = await self.dataset_mgr.get_bygeid(db, schema_template.dataset_geid)
             for act in activities:
                 await self.__activity_manager.send_schema_template_on_update_event(
-                    dataset_geid, template_geid, result.creator, act.get('action'), act.get('detail', {})
+                    schema_template, dataset, [act.get('detail', {})]
                 )
         except NoResultFound:
             api_response.code = EAPIResponseCode.not_found

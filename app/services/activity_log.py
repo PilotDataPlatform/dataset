@@ -27,6 +27,7 @@ from fastavro import schemaless_writer
 from app.config import ConfigClass
 from app.models.dataset import Dataset
 from app.models.schema import DatasetSchemaTemplate
+from app.models.version import DatasetVersion
 from app.schemas.activity_log import DatasetActivityLogSchema
 
 # from app.schemas.activity_log import ItemActivityLogSchema
@@ -132,6 +133,18 @@ class DatasetActivityLogService(ActivityLogService):
     topic = 'datasets-activity-logs'
     avro_schema_path = 'app/schemas/dataset.activity.avsc'
 
+    async def send_dataset_on_create_event(self, dataset: Dataset):
+        log_schema = DatasetActivityLogSchema(activity_type='create', container_code=dataset.code, user=dataset.creator)
+
+        return await self._message_send(log_schema.dict())
+
+    async def send_publish_version_succeed(self, version: DatasetVersion, dataset: Dataset):
+        log_schema = DatasetActivityLogSchema(
+            activity_type='release', version=version.version, container_code=dataset.code, user=version.created_by
+        )
+
+        return await self._message_send(log_schema.dict())
+
     async def send_schema_create_event(self, activity_data: Dict[str, Any]):
         return await self._old_message_send(
             activity_data['dataset_geid'],
@@ -159,38 +172,26 @@ class DatasetActivityLogService(ActivityLogService):
             activity_data['detail'],
         )
 
-    async def send_schema_template_on_create_event(self, dataset_geid, template_geid, username, template_name):
-        return await self._old_message_send(
-            dataset_geid,
-            username,
-            'CREATE',
-            'DATASET_SCHEMA_TEMPLATE_CREATE',
-            {'name': template_name},
-            'Dataset.Schema.Template',
-            extra={'schema_template_geid': template_geid},
+    async def send_schema_template_on_create_event(self, schema_template: DatasetSchemaTemplate, dataset: Dataset):
+        log_schema = DatasetActivityLogSchema(
+            activity_type='template_create',
+            container_code=dataset.code,
+            user=schema_template.creator,
+            target_name=schema_template.name,
         )
-
-    async def send_publish_version_succeed(self, dataset_schema):
-        return await self._old_message_send(
-            dataset_schema.dataset_geid,
-            dataset_schema.operator,
-            'PUBLISH',
-            'DATASET_PUBLISH_SUCCEED',
-            {'source': dataset_schema.version},
-        )
+        return await self._message_send(log_schema.dict())
 
     async def send_schema_template_on_update_event(
-        self, dataset_geid, template_geid, username, attribute_action, attributes
+        self, schema_template: DatasetSchemaTemplate, dataset: Dataset, changes: list[Dict[str, Any]] = None
     ):
-        return await self._old_message_send(
-            dataset_geid,
-            username,
-            'UPDATE',
-            'DATASET_SCHEMA_TEMPLATE_UPDATE',
-            attributes,
-            'Dataset.Schema.Template.Attributes',
-            extra={'schema_template_geid': template_geid},
+        log_schema = DatasetActivityLogSchema(
+            activity_type='template_update',
+            container_code=dataset.code,
+            user=schema_template.creator,
+            target_name=schema_template.name,
+            changes=changes,
         )
+        return await self._message_send(log_schema.dict())
 
     async def send_schema_template_on_delete_event(self, schema_template: DatasetSchemaTemplate, dataset: Dataset):
         log_schema = DatasetActivityLogSchema(
@@ -199,9 +200,4 @@ class DatasetActivityLogService(ActivityLogService):
             user=schema_template.creator,
             target_name=schema_template.name,
         )
-        return await self._message_send(log_schema.dict())
-
-    async def send_dataset_on_create_event(self, dataset: Dataset):
-        log_schema = DatasetActivityLogSchema(activity_type='create', container_code=dataset.code, user=dataset.creator)
-
         return await self._message_send(log_schema.dict())

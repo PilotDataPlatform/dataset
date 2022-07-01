@@ -51,11 +51,6 @@ async def test_publish_version_should_start_background_task_and_return_200(clien
 
     httpx_mock.add_response(
         method='POST',
-        url='http://queue_service/v1/broker/pub',
-        json={},
-    )
-    httpx_mock.add_response(
-        method='POST',
         url='http://data_ops_util/v2/resource/lock/',
         json={},
     )
@@ -92,7 +87,7 @@ async def test_publish_version_with_incorrect_notes_should_return_400(client, mo
 
 
 async def test_publish_version_duplicate_should_return_409(client, mock_minio, version):
-    dataset_id = version['dataset_geid']
+    dataset_id = version.dataset_geid
     payload = {'operator': 'admin', 'notes': 'test', 'version': '2.0'}
     res = await client.post(f'/v1/dataset/{dataset_id}/publish', json=payload)
     assert res.status_code == 409
@@ -100,11 +95,11 @@ async def test_publish_version_duplicate_should_return_409(client, mock_minio, v
 
 
 async def test_version_list_should_return_200_and_version_in_result(client, version):
-    dataset_id = version['dataset_geid']
+    dataset_id = version.dataset_geid
     payload = {}
     res = await client.get(f'/v1/dataset/{dataset_id}/versions', json=payload)
     assert res.status_code == 200
-    assert res.json()['result'][0] == version
+    assert res.json()['result'][0] == version.to_dict()
 
 
 async def test_version_not_published_to_dataset_should_return_404(client, dataset):
@@ -123,7 +118,7 @@ async def test_version_not_published_to_dataset_should_return_404(client, datase
 
 
 async def test_version_list_should_return_200_and_download_hash_as_str(client, version):
-    dataset_id = version['dataset_geid']
+    dataset_id = version.dataset_geid
     payload = {'version': '2.0'}
     res = await client.get(f'/v1/dataset/{dataset_id}/download/pre', query_string=payload)
     assert res.status_code, 200

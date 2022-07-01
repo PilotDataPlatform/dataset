@@ -35,6 +35,7 @@ from testcontainers.postgres import PostgresContainer
 from urllib3 import HTTPResponse
 
 environ['CONFIG_CENTER_ENABLED'] = 'false'
+environ['env'] = 'test'
 
 environ['QUEUE_SERVICE'] = 'http://QUEUE_SERVICE'
 environ['DATA_OPS_UTIL'] = 'http://DATA_OPS_UTIL'
@@ -186,7 +187,7 @@ async def version(db_session, dataset):
     db_session.add(new_version)
     await db_session.commit()
     await db_session.refresh(new_version)
-    yield new_version.to_dict()
+    yield new_version
     await db_session.delete(new_version)
     await db_session.commit()
 

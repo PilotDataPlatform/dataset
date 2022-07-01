@@ -47,8 +47,8 @@ async def test_activity_logs_get_by_version_when_version_doesnt_exist_should_ret
 
 
 async def test_activity_logs_get_by_version_should_return_200(client, httpx_mock, test_db, version):
-    dataset_geid = version['dataset_geid']
-    query_string = f'page_size=10&page=0&version={version["version"]}'
+    dataset_geid = version.dataset_geid
+    query_string = f'page_size=10&page=0&version={version.version}'
     httpx_mock.add_response(
         method='GET',
         url='http://elastic_search_service/activity-logs/_search',
