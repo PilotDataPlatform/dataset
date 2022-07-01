@@ -26,6 +26,7 @@ from fastavro import schemaless_writer
 
 from app.config import ConfigClass
 from app.models.dataset import Dataset
+from app.models.schema import DatasetSchema
 from app.models.schema import DatasetSchemaTemplate
 from app.models.version import DatasetVersion
 from app.schemas.activity_log import DatasetActivityLogSchema
@@ -145,32 +146,32 @@ class DatasetActivityLogService(ActivityLogService):
 
         return await self._message_send(log_schema.dict())
 
-    async def send_schema_create_event(self, activity_data: Dict[str, Any]):
-        return await self._old_message_send(
-            activity_data['dataset_geid'],
-            activity_data['username'],
-            'CREATE',
-            'SCHEMA_CREATE',
-            activity_data['detail'],
+    async def send_schema_create_event(self, schema: DatasetSchema, dataset: Dataset, username: str):
+        log_schema = DatasetActivityLogSchema(
+            activity_type='schema_create', container_code=dataset.code, user=username, target_name=schema.name
         )
+        return await self._message_send(log_schema.dict())
 
-    async def send_schema_update_event(self, activity_data: Dict[str, Any]):
-        return await self._old_message_send(
-            activity_data['dataset_geid'],
-            activity_data['username'],
-            'UPDATE',
-            'SCHEMA_UPDATE',
-            activity_data['detail'],
+    async def send_schema_update_event(
+        self, schema: DatasetSchema, dataset: Dataset, username: str, changes: list[Dict[str, Any]] = None
+    ):
+        log_schema = DatasetActivityLogSchema(
+            activity_type='schema_update',
+            container_code=dataset.code,
+            user=username,
+            target_name=schema.name,
+            changes=changes,
         )
+        return await self._message_send(log_schema.dict())
 
-    async def send_schema_delete_event(self, activity_data: Dict[str, Any]):
-        return await self._old_message_send(
-            activity_data['dataset_geid'],
-            activity_data['username'],
-            'REMOVE',
-            'SCHEMA_DELETE',
-            activity_data['detail'],
+    async def send_schema_delete_event(self, schema: DatasetSchema, dataset: Dataset, username: str):
+        log_schema = DatasetActivityLogSchema(
+            activity_type='schema_delete',
+            container_code=dataset.code,
+            user=username,
+            target_name=schema.name,
         )
+        return await self._message_send(log_schema.dict())
 
     async def send_schema_template_on_create_event(self, schema_template: DatasetSchemaTemplate, dataset: Dataset):
         log_schema = DatasetActivityLogSchema(

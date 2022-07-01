@@ -48,11 +48,12 @@ ESSENTIALS_NAME = ConfigClass.ESSENTIALS_NAME
 @cbv.cbv(router)
 class Schema:
     ACTIVITY_LOG = DatasetActivityLogService()
+    SRV_DATASET = SrvDatasetMgr()
 
     async def update_dataset_node(self, db, dataset_geid, content):
         # Update dataset neo4j entry
-        srv_dataset = SrvDatasetMgr()
-        dataset = await srv_dataset.get_bygeid(db, dataset_geid)
+
+        dataset = await self.SRV_DATASET.get_bygeid(db, dataset_geid)
         payload = {}
         required_fields = ['dataset_title', 'dataset_authors', 'dataset_description', 'dataset_type']
         optional_fields = ['dataset_modality', 'dataset_collection_method', 'dataset_license', 'dataset_tags']
@@ -73,7 +74,7 @@ class Schema:
         if dataset.license and 'license' not in payload:
             payload['license'] = ''
 
-        await srv_dataset.update(db, dataset, payload)
+        await self.SRV_DATASET.update(db, dataset, payload)
 
     async def db_add_operation(self, schema, db):
         try:
@@ -150,13 +151,8 @@ class Schema:
         schema = await self.db_add_operation(schema, db)
         api_response.result = schema.to_dict()
 
-        if data.activity:
-            activity_data = {
-                'dataset_geid': data.dataset_geid,
-                'username': data.creator,
-                **data.activity[0],
-            }
-            await self.ACTIVITY_LOG.send_schema_create_event(activity_data)
+        dataset = await self.SRV_DATASET.get_bygeid(db, schema.dataset_geid)
+        await self.ACTIVITY_LOG.send_schema_create_event(schema, dataset, data.creator)
 
         return api_response.json_response()
 
@@ -188,12 +184,11 @@ class Schema:
         schema = await self.db_add_operation(schema, db)
         api_response.result = schema.to_dict()
         if data.activity:
-            activity_data = {
-                'dataset_geid': data.dataset_geid,
-                'username': data.username,
-                **data.activity[0],
-            }
-            await self.ACTIVITY_LOG.send_schema_update_event(activity_data)
+            detail = data.activity[0].get('detail', {})
+        else:
+            detail = []
+        dataset = await self.SRV_DATASET.get_bygeid(db, schema.dataset_geid)
+        await self.ACTIVITY_LOG.send_schema_update_event(schema, dataset, data.username, [detail])
         if schema.name == 'essential.schema.json':
             await self.update_dataset_node(db, schema.dataset_geid, data.content)
         return api_response.json_response()
@@ -205,15 +200,10 @@ class Schema:
         logger.info('Calling schema delete')
         api_response = POSTSchemaResponse()
         schema = await self.get_schema_or_404(schema_geid, db)
-        schema = await self.db_delete_operation(schema, db)
+        await self.db_delete_operation(schema, db)
 
-        if data.activity:
-            activity_data = {
-                'dataset_geid': data.dataset_geid,
-                'username': data.username,
-                **data.activity[0],
-            }
-            await self.ACTIVITY_LOG.send_schema_delete_event(activity_data)
+        dataset = await self.SRV_DATASET.get_bygeid(db, schema.dataset_geid)
+        await self.ACTIVITY_LOG.send_schema_delete_event(schema, dataset, data.username)
 
         api_response.result = 'success'
         return api_response.json_response()

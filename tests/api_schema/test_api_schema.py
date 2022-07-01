@@ -44,17 +44,11 @@ async def test_schema_without_template_should_return_404(client):
 
 
 async def test_schema_should_return_200(client, httpx_mock, schema_template):
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3'
     schema_template_geid = schema_template.geid
-    httpx_mock.add_response(
-        method='POST',
-        url='http://queue_service/v1/broker/pub',
-        json={},
-    )
 
     payload = {
         'name': 'unittestdataset',
-        'dataset_geid': dataset_geid,
+        'dataset_geid': str(schema_template.dataset_geid),
         'tpl_geid': schema_template_geid,
         'standard': 'default',
         'system_defined': True,
