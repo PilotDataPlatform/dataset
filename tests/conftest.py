@@ -97,6 +97,14 @@ async def kafka_dataset_consumer(kafka_url):
     await consumer.stop()
 
 
+@pytest_asyncio.fixture(scope='session')
+async def kafka_file_folder_consumer(kafka_url):
+    consumer = AIOKafkaConsumer('items-activity-logs', bootstrap_servers=kafka_url)
+    await consumer.start()
+    yield consumer
+    await consumer.stop()
+
+
 @pytest_asyncio.fixture(autouse=True)
 def set_settings(monkeypatch, db_postgres, kafka_url):
     from app.config import ConfigClass

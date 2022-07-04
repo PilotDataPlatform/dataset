@@ -841,12 +841,8 @@ class APIImportData:
                 'dataset %s: %s files added, old total %s' % (dataset_obj.code, num_of_files, dataset_obj.total_files)
             )
             # also update the log
-            dataset_geid = str(dataset_obj.id)
             source_project = await ProjectClient.get_by_id(source_project_geid)
-            import_logs = [source_project.get('code') + '/' + (x.get('parent_path') or '') for x in import_list]
-            project = source_project.get('name', '')
-            project_code = source_project.get('code', '')
-            await self.file_act_notifier.on_import_event(dataset_geid, oper, import_logs, project, project_code)
+            await self.file_act_notifier.send_on_import_event(dataset_obj, source_project, import_list, oper)
         except Exception as e:
             # here batch deny the operation
             error_message = {'err_message': str(e)}
@@ -883,7 +879,6 @@ class APIImportData:
         access_token,
         refresh_token,
     ):
-        dataset_geid = str(dataset_obj.id)
         action = 'dataset_file_move'
         job_tracker = await self.initialize_file_jobs(session_id, action, move_list, dataset_obj, oper)
         try:
@@ -931,7 +926,7 @@ class APIImportData:
                 new_path = '/' + parent_path + '/' + ff_geid.get('name')
 
                 # send to the es for logging
-                await self.file_act_notifier.on_move_event(dataset_geid, oper, old_path, new_path)
+                await self.file_act_notifier.send_on_move_event(dataset_obj, ff_geid, oper, old_path, new_path)
 
         except Exception as e:
             # here batch deny the operation
@@ -1011,8 +1006,7 @@ class APIImportData:
                 % (dataset_obj.code, num_of_files, dataset_obj.total_files)
             )
             # also update the message to service queue
-            dataset_geid = str(dataset_obj.id)
-            await self.file_act_notifier.on_delete_event(dataset_geid, oper, deleted_files)
+            await self.file_act_notifier.send_on_delete_event(dataset_obj, delete_list, oper)
 
         except Exception as e:
             # here batch deny the operation
@@ -1092,13 +1086,7 @@ class APIImportData:
             )
 
             # update es & log
-            dataset_geid = str(dataset.id)
-            old_file_name = old_file.get('name')
-            # remove the /data in begining ONLY once
-            frp = ''
-            if ConfigClass.DATASET_FILE_FOLDER != parent_path:
-                frp = parent_path.replace(ConfigClass.DATASET_FILE_FOLDER + '/', '', 1) + '/'
-            await self.file_act_notifier.on_rename_event(dataset_geid, oper, frp + old_file_name, frp + new_name)
+            await self.file_act_notifier.send_on_rename_event(dataset, [old_file], oper, new_name)
 
         except Exception as e:
             error_msg = str(e)

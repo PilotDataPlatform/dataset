@@ -120,7 +120,6 @@ async def test_send_schema_events_send_correct_msg(
 
     msg = await kafka_dataset_consumer.getone()
 
-    # schema_loaded = schema.load_schema('app/schemas/metadata.items.activity.avsc')
     schema_loaded = avro_schema.load_schema('app/schemas/dataset.activity.avsc')
     activity_log = schemaless_reader(io.BytesIO(msg.value), schema_loaded)
 

@@ -16,25 +16,29 @@
 from datetime import datetime
 from typing import Dict
 from typing import Optional
+from uuid import UUID
 
 from pydantic import BaseModel
 
 
-class DatasetActivityLogSchema(BaseModel):
-    container_code: str
-    version: Optional[str]
-    user: str
-    target_name: Optional[str] = None
-    activity_type: str
+class BaseActivityLogSchema(BaseModel):
     activity_time: datetime = datetime.utcnow()
     changes: list[Dict[str, str]] = []
+    activity_type: str
+    user: str
+    container_code: str
 
 
-class ItemActivityLogSchema(DatasetActivityLogSchema):
-    item_id: str
+class DatasetActivityLogSchema(BaseActivityLogSchema):
+    version: Optional[str]
+    target_name: Optional[str] = None
+
+
+class FileFolderActivityLogSchema(BaseActivityLogSchema):
+    item_id: UUID
     item_type: str
     item_name: str
-    item_parent_path: str
-    container_type: str
-    zone: int
+    item_parent_path: str = ''
+    container_type: str = 'dataset'
+    zone: int = 1
     imported_from: Optional[str] = None

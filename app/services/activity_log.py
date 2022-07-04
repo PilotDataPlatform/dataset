@@ -15,9 +15,9 @@
 import io
 from typing import Any
 from typing import Dict
-from uuid import uuid4
+from typing import List
+from uuid import UUID
 
-import httpx
 from aiokafka import AIOKafkaProducer
 from aiokafka.errors import KafkaError
 from common import LoggerFactory
@@ -30,8 +30,7 @@ from app.models.schema import DatasetSchema
 from app.models.schema import DatasetSchemaTemplate
 from app.models.version import DatasetVersion
 from app.schemas.activity_log import DatasetActivityLogSchema
-
-# from app.schemas.activity_log import ItemActivityLogSchema
+from app.schemas.activity_log import FileFolderActivityLogSchema
 
 
 class ActivityLogService:
@@ -58,42 +57,6 @@ class ActivityLogService:
         finally:
             await self.aioproducer.stop()
 
-    async def _old_message_send(
-        self,
-        geid: str,
-        operator: str,
-        action: str,
-        event_type: str,
-        detail: dict,
-        resource: str = 'Dataset',
-        extra: Dict[str, Any] = None,
-    ) -> dict:
-
-        msg_dict = {
-            'event_type': event_type,
-            'payload': {
-                'dataset_geid': geid,
-                'act_geid': str(uuid4()),
-                'operator': operator,
-                'action': action,
-                'resource': resource,
-                'detail': detail,
-            },
-            'queue': 'dataset_actlog',
-            'routing_key': '',
-            'exchange': {'name': 'DATASET_ACTS', 'type': 'fanout'},
-        }
-        if extra:
-            msg_dict['payload'].update(**extra)
-
-        async with httpx.AsyncClient() as client:
-            res = await client.post(self.queue_url, json=msg_dict)
-        if res.status_code != 200:
-            error_msg = 'on_{}_event {}: {}'.format(event_type, res.status_code, res.text)
-            self.logger.error(error_msg)
-            raise Exception(error_msg)
-        return res.json()
-
 
 class FileFolderActivityLogService(ActivityLogService):
 
@@ -101,30 +64,65 @@ class FileFolderActivityLogService(ActivityLogService):
     topic = 'items-activity-logs'
     avro_schema_path = 'app/schemas/metadata.items.activity.avsc'
 
-    async def on_import_event(self, geid, username, source_list, project='', project_code=''):
-        detail = {
-            'source_list': source_list,  # list of file name
-            'project': project,
-            'project_code': project_code,
-        }
-        return await self._old_message_send(geid, username, 'ADD', 'DATASET_FILE_IMPORT_SUCCEED', detail)
+    async def send_on_import_event(
+        self, dataset: Dataset, project: Dict[str, Any], imported_list: List[str], user: str
+    ):
+        for item in imported_list:
+            log_schema = FileFolderActivityLogSchema(
+                container_code=dataset.code,
+                user=user,
+                activity_type='import',
+                item_id=UUID(item['id']),
+                item_type=item['type'],
+                item_name=item['name'],
+                imported_from=project['code'],
+            )
+            await self._message_send(log_schema.dict())
 
-    async def on_delete_event(self, geid, username, source_list):
+    async def send_on_delete_event(self, dataset: Dataset, source_list: List[str], user: str):
+        for item in source_list:
+            log_schema = FileFolderActivityLogSchema(
+                container_code=dataset.code,
+                user=user,
+                activity_type='delete',
+                item_parent_path=item['parent_path'] or '',
+                item_id=UUID(item['id']),
+                item_type=item['type'],
+                item_name=item['name'],
+                changes=[{'source_list': item['name']}],
+            )
+            await self._message_send(log_schema.dict())
 
-        detail = {'source_list': source_list}  # list of file name
-        return await self._old_message_send(geid, username, 'REMOVE', 'DATASET_FILE_DELETE_SUCCEED', detail)
+    async def send_on_move_event(self, dataset: Dataset, item: Dict[str, Any], user: str, old_path: str, new_path: str):
+        # even thought the event is UPDATE there is no update in metadata service.
+        # as of today, when one item is moved, the item is deleted and a new one is created in the new path.
+        log_schema = FileFolderActivityLogSchema(
+            container_code=dataset.code,
+            user=user,
+            activity_type='update',
+            item_parent_path=item['parent_path'] or '',
+            item_id=UUID(item['id']),
+            item_type=item['type'],
+            item_name=item['name'],
+            changes=[{'item_property': 'parent_path', 'old_value': old_path, 'new_value': new_path}],
+        )
+        await self._message_send(log_schema.dict())
 
-    # this function will be per file/folder since the batch display
-    # is not human readable
-    async def on_move_event(self, geid, username, source, target):
-
-        detail = {'from': source, 'to': target}
-        return await self._old_message_send(geid, username, 'MOVE', 'DATASET_FILE_MOVE_SUCCEED', detail)
-
-    async def on_rename_event(self, geid, username, source, target):
-
-        detail = {'from': source, 'to': target}
-        return await self._old_message_send(geid, username, 'UPDATE', 'DATASET_FILE_RENAME_SUCCEED', detail)
+    async def send_on_rename_event(self, dataset: Dataset, source_list: List[str], user: str, new_name: str):
+        # even thought the event is UPDATE there is no update in metadata service.
+        # as of today, when one item is moved, the item is deleted and a new one is created in the new name.
+        for item in source_list:
+            log_schema = FileFolderActivityLogSchema(
+                container_code=dataset.code,
+                user=user,
+                activity_type='update',
+                item_parent_path=item['parent_path'] or '',
+                item_id=UUID(item['id']),
+                item_type=item['type'],
+                item_name=item['name'],
+                changes=[{'item_property': 'name', 'old_value': item['name'], 'new_value': new_name}],
+            )
+            await self._message_send(log_schema.dict())
 
 
 class DatasetActivityLogService(ActivityLogService):
