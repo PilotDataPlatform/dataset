@@ -15,6 +15,7 @@
 
 from datetime import datetime
 from typing import Dict
+from typing import List
 from typing import Optional
 from uuid import UUID
 
@@ -23,7 +24,7 @@ from pydantic import BaseModel
 
 class BaseActivityLogSchema(BaseModel):
     activity_time: datetime = datetime.utcnow()
-    changes: list[Dict[str, str]] = []
+    changes: List[Dict[str, str]] = []
     activity_type: str
     user: str
     container_code: str
