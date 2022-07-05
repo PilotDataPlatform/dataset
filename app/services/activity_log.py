@@ -143,7 +143,7 @@ class DatasetActivityLogService(ActivityLogService):
         return await self._message_send(log_schema.dict())
 
     async def send_schema_update_event(
-        self, schema: DatasetSchema, dataset: Dataset, username: str, changes: list[Dict[str, Any]] = None
+        self, schema: DatasetSchema, dataset: Dataset, username: str, changes: List[Dict[str, Any]] = None
     ):
         log_schema = DatasetActivityLogSchema(
             activity_type='schema_update',
@@ -173,7 +173,7 @@ class DatasetActivityLogService(ActivityLogService):
         return await self._message_send(log_schema.dict())
 
     async def send_schema_template_on_update_event(
-        self, schema_template: DatasetSchemaTemplate, dataset: Dataset, changes: list[Dict[str, Any]] = None
+        self, schema_template: DatasetSchemaTemplate, dataset: Dataset, changes: List[Dict[str, Any]] = None
     ):
         log_schema = DatasetActivityLogSchema(
             activity_type='template_update',
