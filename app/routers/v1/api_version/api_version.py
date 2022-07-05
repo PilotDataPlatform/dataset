@@ -109,7 +109,7 @@ class VersionAPI:
         if not dataset:
             raise APIException(status_code=404, error_msg='Dataset not found')
         client = PublishVersion(
-            dataset_node=dataset.to_dict(),
+            dataset=dataset,
             operator=data.operator,
             notes=data.notes,
             status_id=dataset_geid,

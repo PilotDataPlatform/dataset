@@ -1,0 +1,39 @@
+{
+  "type": "record",
+  "name": "Activity",
+  "namespace": "dataset",
+  "fields": [
+    {
+      "name": "container_code",
+      "type": "string"
+    }, {
+      "name": "version",
+      "default": null,
+      "type": ["string", "null"]
+    }, {
+      "name": "user",
+      "type": "string"
+    }, {
+      "name": "target_name",
+      "type": ["string", "null"]
+    }, {
+      "name": "activity_type",
+      "type": "string"
+    }, {
+      "name": "activity_time",
+      "type": {
+    "type": "long",
+    "logicalType": "timestamp-millis"
+      }
+    }, {
+      "name": "changes",
+      "type": {
+    "type": "array",
+    "items": {
+        "type": "map",
+        "values": "string"
+    }
+      }
+    }
+  ]
+}

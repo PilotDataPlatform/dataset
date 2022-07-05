@@ -14,7 +14,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from common import GEIDClient
+from uuid import uuid4
+
 from common import LoggerFactory
 from fastapi import APIRouter
 from fastapi import Depends
@@ -30,7 +31,8 @@ from app.schemas.base import EAPIResponseCode
 from app.schemas.schema_template import SchemaTemplateList
 from app.schemas.schema_template import SchemaTemplatePost
 from app.schemas.schema_template import SchemaTemplatePut
-from app.schemas.schema_template import SrvDatasetSchemaTemplateMgr
+from app.services.activity_log import DatasetActivityLogService
+from app.services.dataset import SrvDatasetMgr
 
 router = APIRouter()
 
@@ -61,8 +63,8 @@ class APISchemaTemplate:
 
     def __init__(self):
         self.__logger = LoggerFactory('api_dataset_schema_template').get_logger()
-        self.__activity_manager = SrvDatasetSchemaTemplateMgr()
-        self.geid_client = GEIDClient()
+        self.__activity_manager = DatasetActivityLogService()
+        self.dataset_mgr = SrvDatasetMgr()
 
     @router.post(
         '/dataset/{dataset_geid}/schemaTPL', tags=[_API_TAG], summary='API will create the new schema template'
@@ -80,7 +82,7 @@ class APISchemaTemplate:
             return api_response
         try:
             new_template = DatasetSchemaTemplate(
-                geid=self.geid_client.get_GEID(),
+                geid=str(uuid4()),
                 name=request_payload.name,
                 dataset_geid=dataset_geid,
                 standard=request_payload.standard,
@@ -95,9 +97,8 @@ class APISchemaTemplate:
             api_response.result = new_template.to_dict()
 
             # create the log activity
-            await self.__activity_manager.on_create_event(
-                dataset_geid, new_template.geid, request_payload.creator, request_payload.name
-            )
+            dataset = await self.dataset_mgr.get_bygeid(db, dataset_geid)
+            await self.__activity_manager.send_schema_template_on_create_event(new_template, dataset)
         except Exception as e:
             api_response.code = EAPIResponseCode.bad_request
             api_response.error_msg = str(e)
@@ -194,20 +195,21 @@ class APISchemaTemplate:
                 .where(DatasetSchemaTemplate.geid == template_geid)
                 .where(DatasetSchemaTemplate.dataset_geid == dataset_geid)
             )
-            result = (await db.execute(query)).scalars().one()
+            schema_template = (await db.execute(query)).scalars().one()
 
             # update the row if we find it
-            result.name = request_payload.name
-            result.content = request_payload.content
-            result.is_draft = request_payload.is_draft
+            schema_template.name = request_payload.name
+            schema_template.content = request_payload.content
+            schema_template.is_draft = request_payload.is_draft
             await db.commit()
-            api_response.result = result.to_dict()
+            api_response.result = schema_template.to_dict()
 
             # based on the frontend infomation, create the log activity
             activities = request_payload.activity
+            dataset = await self.dataset_mgr.get_bygeid(db, schema_template.dataset_geid)
             for act in activities:
-                await self.__activity_manager.on_update_event(
-                    dataset_geid, template_geid, result.creator, act.get('action'), act.get('detail', {})
+                await self.__activity_manager.send_schema_template_on_update_event(
+                    schema_template, dataset, [act.get('detail', {})]
                 )
         except NoResultFound:
             api_response.code = EAPIResponseCode.not_found
@@ -233,15 +235,14 @@ class APISchemaTemplate:
         # delete the row if we find it
         try:
             query = select(DatasetSchemaTemplate).where(DatasetSchemaTemplate.geid == template_geid)
-            result = (await db.execute(query)).scalars().one()
-            await db.delete(result)
+            schema_template = (await db.execute(query)).scalars().one()
+            await db.delete(schema_template)
             await db.commit()
-            api_response.result = result.to_dict()
+            api_response.result = schema_template.to_dict()
 
+            dataset = await self.dataset_mgr.get_bygeid(db, schema_template.dataset_geid)
             # create the log activity
-            await self.__activity_manager.on_delete_event(
-                result.dataset_geid, template_geid, result.creator, result.name
-            )
+            await self.__activity_manager.send_schema_template_on_delete_event(schema_template, dataset)
 
         except NoResultFound:
             api_response.code = EAPIResponseCode.not_found

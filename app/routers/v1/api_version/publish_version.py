@@ -19,9 +19,7 @@ import shutil
 import time
 from datetime import datetime
 
-import httpx
 from aioredis import StrictRedis
-from common import GEIDClient
 from common import LoggerFactory
 from sqlalchemy.future import select
 from starlette.concurrency import run_in_threadpool
@@ -34,6 +32,7 @@ from app.models.version import DatasetVersion
 from app.resources.locks import recursive_lock_publish
 from app.resources.locks import unlock_resource
 from app.resources.utils import get_children_nodes
+from app.services.activity_log import DatasetActivityLogService
 
 logger = LoggerFactory('api_version').get_logger()
 
@@ -45,15 +44,15 @@ def parse_minio_location(location):
 
 
 class PublishVersion(object):
-    def __init__(self, dataset_node, operator, notes, status_id, version):
+    def __init__(self, dataset, operator, notes, status_id, version):
+        self.activity_log = DatasetActivityLogService()
         self.operator = operator
         self.notes = notes
-        self.dataset_node = dataset_node
-        self.dataset_geid = dataset_node['id']
+        self.dataset = dataset
         self.dataset_files = []
         tmp_base = '/tmp/'
         self.tmp_folder = tmp_base + str(time.time()) + '/'
-        self.zip_path = tmp_base + dataset_node['code'] + '_' + str(datetime.now())
+        self.zip_path = tmp_base + dataset.code + '_' + str(datetime.now())
         self.mc = Minio_Client()
         self.redis_client = StrictRedis(
             host=ConfigClass.REDIS_HOST,
@@ -64,16 +63,14 @@ class PublishVersion(object):
         self.status_id = status_id
         self.version = version
 
-        self.geid_client = GEIDClient()
-
     async def publish(self, db):
         try:
             # lock file here
-            level1_nodes = await get_children_nodes(self.dataset_node['code'], None)
+            level1_nodes = await get_children_nodes(self.dataset.code, None)
             locked_node, err = await recursive_lock_publish(level1_nodes)
             if err:
                 raise err
-            items = await MetadataClient.get_objects(self.dataset_node['code'])
+            items = await MetadataClient.get_objects(self.dataset.code)
             await self.get_dataset_files(items)
             self.download_dataset_files()
             await self.add_schemas(db)
@@ -81,8 +78,8 @@ class PublishVersion(object):
             minio_location = await self.upload_version()
             try:
                 dataset_version = DatasetVersion(
-                    dataset_code=self.dataset_node['code'],
-                    dataset_geid=self.dataset_geid,
+                    dataset_code=self.dataset.code,
+                    dataset_geid=str(self.dataset.id),
                     version=str(self.version),
                     created_by=self.operator,
                     location=minio_location,
@@ -94,11 +91,11 @@ class PublishVersion(object):
                 logger.error('Psql Error: ' + str(e))
                 raise e
 
-            logger.info(f'Successfully published {self.dataset_geid} version {self.version}')
-            await self.update_activity_log()
+            logger.info(f'Successfully published {self.dataset.id} version {self.version}')
+            await self.activity_log.send_publish_version_succeed(dataset_version, self.dataset)
             await self.update_status('success')
         except Exception as e:
-            error_msg = f'Error publishing {self.dataset_geid}: {str(e)}'
+            error_msg = f'Error publishing {self.dataset.id}: {str(e)}'
             logger.error(error_msg)
             await self.update_status('failed', error_msg=error_msg)
         finally:
@@ -107,30 +104,6 @@ class PublishVersion(object):
                 await unlock_resource(resource_key, operation)
 
         return
-
-    async def update_activity_log(self):
-        url = ConfigClass.QUEUE_SERVICE + 'broker/pub'
-        post_json = {
-            'event_type': 'DATASET_PUBLISH_SUCCEED',
-            'payload': {
-                'dataset_geid': self.dataset_geid,
-                'act_geid': self.geid_client.get_GEID(),
-                'operator': self.operator,
-                'action': 'PUBLISH',
-                'resource': 'Dataset',
-                'detail': {'source': self.version},
-            },
-            'queue': 'dataset_actlog',
-            'routing_key': '',
-            'exchange': {'name': 'DATASET_ACTS', 'type': 'fanout'},
-        }
-        async with httpx.AsyncClient() as client:
-            res = await client.post(url, json=post_json)
-        if res.status_code != 200:
-            error_msg = 'update_activity_log {}: {}'.format(res.status_code, res.text)
-            logger.error(error_msg)
-            raise Exception(error_msg)
-        return res
 
     async def update_status(self, status, error_msg=''):
         """Updates job status in redis."""
@@ -176,7 +149,7 @@ class PublishVersion(object):
             os.mkdir(self.tmp_folder + '/data')
 
         query = select(DatasetSchema).where(
-            DatasetSchema.dataset_geid == self.dataset_geid, DatasetSchema.is_draft.is_(False)
+            DatasetSchema.dataset_geid == str(self.dataset.id), DatasetSchema.is_draft.is_(False)
         )
         query_default = query.where(DatasetSchema.standard == 'default')
         query_open_minds = query.where(DatasetSchema.standard == 'open_minds')
@@ -194,7 +167,7 @@ class PublishVersion(object):
 
     async def upload_version(self):
         """Upload version zip to minio."""
-        bucket = self.dataset_node['code']
+        bucket = self.dataset.code
         path = 'versions/' + self.zip_path.split('/')[-1] + '.zip'
         try:
             await run_in_threadpool(

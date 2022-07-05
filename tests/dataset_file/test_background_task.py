@@ -21,6 +21,8 @@ import pytest
 import pytest_asyncio
 
 from app.routers.v1.dataset_file import APIImportData
+from app.schemas.activity_log import FileFolderActivityLogSchema
+from app.services.activity_log import FileFolderActivityLogService
 
 pytestmark = pytest.mark.asyncio
 
@@ -69,9 +71,10 @@ def external_requests(httpx_mock):
     )
 
 
+@mock.patch.object(FileFolderActivityLogService, '_message_send')
 @mock.patch('app.routers.v1.dataset_file.recursive_lock_import')
 async def test_copy_file_worker_should_import_file_succeed(
-    mock_recursive_lock_import, external_requests, httpx_mock, test_db, dataset
+    mock_recursive_lock_import, mock_kafka_msg, external_requests, httpx_mock, test_db, dataset
 ):
     source_project_geid = str(uuid4())
 
@@ -120,11 +123,12 @@ async def test_copy_file_worker_should_import_file_succeed(
             )
         except Exception as e:
             pytest.fail(f'copy_files_worker raised {e} unexpectedly')
-    event_status_request = httpx_mock.get_requests()[-1]
-    req_res = json.loads(event_status_request.content)
-    assert req_res['event_type'] == 'DATASET_FILE_IMPORT_SUCCEED'
+    assert mock_kafka_msg.call_count == 1
+    file_folder = FileFolderActivityLogSchema.parse_obj(mock_kafka_msg.call_args[0][0])
+    assert file_folder.activity_type == 'import'
 
 
+@mock.patch.object(FileFolderActivityLogService, '_message_send')
 @pytest.mark.parametrize(
     'target_folder,item_type',
     [
@@ -139,7 +143,7 @@ async def test_copy_file_worker_should_import_file_succeed(
     ],
 )
 async def test_move_file_worker_should_move_file_succeed(
-    external_requests, httpx_mock, test_db, dataset, target_folder, item_type
+    mock_kafka_msg, external_requests, httpx_mock, test_db, dataset, target_folder, item_type
 ):
     code = 'testdataset202201101'
     httpx_mock.add_response(
@@ -171,24 +175,7 @@ async def test_move_file_worker_should_move_file_succeed(
                 f'recursive=true&zone=1&container_code={code}&container_type=dataset&page_size=100000'
             ),
             json={
-                'result': [
-                    # {
-                    #     'id': str(uuid4()),
-                    #     'parent': item_type['id'],
-                    #     'type': 'file',
-                    #     'name': 'chid.txt',
-                    #     'parent_path': parent_path,
-                    #     'storage': {'location_uri': f'http://anything.com/{code}/data/{minio_path}'},
-                    # },
-                    # {
-                    #     'id': str(uuid4()),
-                    #     'parent': item_type['id'],
-                    #     'type': 'folder',
-                    #     'name': 'chid',
-                    #     'parent_path': parent_path,
-                    #     'storage': {'location_uri': ''},
-                    # }
-                ],
+                'result': [],
             },
         )
 
@@ -226,8 +213,6 @@ async def test_move_file_worker_should_move_file_succeed(
                 )
             except Exception as e:
                 pytest.fail(f'copy_files_worker raised {e} unexpectedly')
-    event_status_request = json.loads(httpx_mock.get_requests()[-3].content)
-
     locks = []
     unlocks = []
 
@@ -254,12 +239,15 @@ async def test_move_file_worker_should_move_file_succeed(
         assert f'{code}/data/{name}' in locks
         assert f'{code}/data/{name}' in unlocks
 
-    assert event_status_request['event_type'] == 'DATASET_FILE_MOVE_SUCCEED'
+    assert mock_kafka_msg.call_count == 1
+    file_folder = FileFolderActivityLogSchema.parse_obj(mock_kafka_msg.call_args[0][0])
+    assert file_folder.activity_type == 'update'
 
 
+@mock.patch.object(FileFolderActivityLogService, '_message_send')
 @mock.patch('app.routers.v1.dataset_file.recursive_lock_delete')
 async def test_delete_files_work_should_delete_file_succeed(
-    mock_recursive_lock_delete, external_requests, httpx_mock, test_db, dataset
+    mock_recursive_lock_delete, mock_kafka_msg, external_requests, httpx_mock, test_db, dataset
 ):
     mock_recursive_lock_delete.return_value = [], False
     delete_list = [
@@ -296,14 +284,16 @@ async def test_delete_files_work_should_delete_file_succeed(
             await API.delete_files_work(test_db, delete_list, dataset, OPER, SESSION_ID, ACCESS_TOKEN, REFRESH_TOKEN)
         except Exception as e:
             pytest.fail(f'copy_delete_work raised {e} unexpectedly')
-    event_status_request = httpx_mock.get_requests()[-1]
-    req_res = json.loads(event_status_request.content)
-    assert req_res['event_type'] == 'DATASET_FILE_DELETE_SUCCEED'
+
+    assert mock_kafka_msg.call_count == 1
+    file_folder = FileFolderActivityLogSchema.parse_obj(mock_kafka_msg.call_args[0][0])
+    assert file_folder.activity_type == 'delete'
 
 
+@mock.patch.object(FileFolderActivityLogService, '_message_send')
 @mock.patch('app.routers.v1.dataset_file.recursive_lock_move_rename')
-async def test_rename_file_worker_should_move_file_succeed(
-    mock_recursive_lock_move_rename, external_requests, httpx_mock, test_db, dataset
+async def test_rename_file_worker_should_rename_file_succeed(
+    mock_recursive_lock_move_rename, mock_kafka_msg, external_requests, httpx_mock, test_db, dataset
 ):
     mock_recursive_lock_move_rename.return_value = [], False
     httpx_mock.add_response(
@@ -360,6 +350,7 @@ async def test_rename_file_worker_should_move_file_succeed(
                 await API.rename_file_worker(old_file, new_name, dataset, OPER, SESSION_ID, ACCESS_TOKEN, REFRESH_TOKEN)
             except Exception as e:
                 pytest.fail(f'rename_file_worker raised {e} unexpectedly')
-    event_status_request = httpx_mock.get_requests()[-1]
-    req_res = json.loads(event_status_request.content)
-    assert req_res['event_type'] == 'DATASET_FILE_RENAME_SUCCEED'
+
+    assert mock_kafka_msg.call_count == 1
+    file_folder = FileFolderActivityLogSchema.parse_obj(mock_kafka_msg.call_args[0][0])
+    assert file_folder.activity_type == 'update'

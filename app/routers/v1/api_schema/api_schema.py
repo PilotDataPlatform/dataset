@@ -13,8 +13,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import httpx
-from common import GEIDClient
+from uuid import uuid4
+
 from common import LoggerFactory
 from fastapi import APIRouter
 from fastapi import Depends
@@ -37,6 +37,7 @@ from app.schemas.schema import POSTSchemaList
 from app.schemas.schema import POSTSchemaResponse
 from app.schemas.schema import PUTSchema
 from app.schemas.schema import PUTSchemaResponse
+from app.services.activity_log import DatasetActivityLogService
 from app.services.dataset import SrvDatasetMgr
 
 logger = LoggerFactory('api_schema').get_logger()
@@ -46,13 +47,13 @@ ESSENTIALS_NAME = ConfigClass.ESSENTIALS_NAME
 
 @cbv.cbv(router)
 class Schema:
-    def __init__(self) -> None:
-        self.geid_client = GEIDClient()
+    ACTIVITY_LOG = DatasetActivityLogService()
+    SRV_DATASET = SrvDatasetMgr()
 
     async def update_dataset_node(self, db, dataset_geid, content):
         # Update dataset neo4j entry
-        srv_dataset = SrvDatasetMgr()
-        dataset = await srv_dataset.get_bygeid(db, dataset_geid)
+
+        dataset = await self.SRV_DATASET.get_bygeid(db, dataset_geid)
         payload = {}
         required_fields = ['dataset_title', 'dataset_authors', 'dataset_description', 'dataset_type']
         optional_fields = ['dataset_modality', 'dataset_collection_method', 'dataset_license', 'dataset_tags']
@@ -73,31 +74,7 @@ class Schema:
         if dataset.license and 'license' not in payload:
             payload['license'] = ''
 
-        await srv_dataset.update(db, dataset, payload)
-
-    async def update_activity_log(self, activity_data):
-        url = ConfigClass.QUEUE_SERVICE + 'broker/pub'
-        post_json = {
-            'event_type': activity_data['event_type'],
-            'payload': {
-                'dataset_geid': activity_data['dataset_geid'],
-                'act_geid': self.geid_client.get_GEID(),
-                'operator': activity_data['username'],
-                'action': activity_data['action'],
-                'resource': activity_data['resource'],
-                'detail': activity_data['detail'],
-            },
-            'queue': 'dataset_actlog',
-            'routing_key': '',
-            'exchange': {'name': 'DATASET_ACTS', 'type': 'fanout'},
-        }
-        async with httpx.AsyncClient() as client:
-            res = await client.post(url, json=post_json)
-        if res.status_code != 200:
-            error_msg = 'update_activity_log {}: {}'.format(res.status_code, res.text)
-            logger.error(error_msg)
-            raise Exception(error_msg)
-        return res
+        await self.SRV_DATASET.update(db, dataset, payload)
 
     async def db_add_operation(self, schema, db):
         try:
@@ -160,7 +137,7 @@ class Schema:
             return api_response.json_response()
 
         model_data = {
-            'geid': self.geid_client.get_GEID(),
+            'geid': str(uuid4()),
             'name': data.name,
             'dataset_geid': data.dataset_geid,
             'tpl_geid': data.tpl_geid,
@@ -174,14 +151,8 @@ class Schema:
         schema = await self.db_add_operation(schema, db)
         api_response.result = schema.to_dict()
 
-        for activity in data.activity:
-            activity_data = {
-                'dataset_geid': data.dataset_geid,
-                'username': data.creator,
-                'event_type': 'SCHEMA_CREATE',
-                **activity,
-            }
-            await self.update_activity_log(activity_data)
+        dataset = await self.SRV_DATASET.get_bygeid(db, schema.dataset_geid)
+        await self.ACTIVITY_LOG.send_schema_create_event(schema, dataset, data.creator)
 
         return api_response.json_response()
 
@@ -212,14 +183,12 @@ class Schema:
 
         schema = await self.db_add_operation(schema, db)
         api_response.result = schema.to_dict()
-        for activity in data.activity:
-            activity_data = {
-                'dataset_geid': data.dataset_geid,
-                'username': data.username,
-                'event_type': 'SCHEMA_UPDATE',
-                **activity,
-            }
-            await self.update_activity_log(activity_data)
+        if data.activity:
+            detail = data.activity[0].get('detail', {})
+        else:
+            detail = []
+        dataset = await self.SRV_DATASET.get_bygeid(db, schema.dataset_geid)
+        await self.ACTIVITY_LOG.send_schema_update_event(schema, dataset, data.username, [detail])
         if schema.name == 'essential.schema.json':
             await self.update_dataset_node(db, schema.dataset_geid, data.content)
         return api_response.json_response()
@@ -231,16 +200,10 @@ class Schema:
         logger.info('Calling schema delete')
         api_response = POSTSchemaResponse()
         schema = await self.get_schema_or_404(schema_geid, db)
-        schema = await self.db_delete_operation(schema, db)
+        await self.db_delete_operation(schema, db)
 
-        for activity in data.activity:
-            activity_data = {
-                'dataset_geid': data.dataset_geid,
-                'username': data.username,
-                'event_type': 'SCHEMA_DELETE',
-                **activity,
-            }
-            await self.update_activity_log(activity_data)
+        dataset = await self.SRV_DATASET.get_bygeid(db, schema.dataset_geid)
+        await self.ACTIVITY_LOG.send_schema_delete_event(schema, dataset, data.username)
 
         api_response.result = 'success'
         return api_response.json_response()

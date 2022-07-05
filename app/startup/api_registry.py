@@ -15,16 +15,16 @@
 
 from fastapi import FastAPI
 
-from .routers import api_root
-from .routers.v1 import api_activity_logs
-from .routers.v1 import api_dataset_folder
-from .routers.v1 import api_dataset_list
-from .routers.v1 import api_dataset_restful
-from .routers.v1 import api_preview
-from .routers.v1 import dataset_file
-from .routers.v1.api_schema import api_schema
-from .routers.v1.api_schema import api_schema_template
-from .routers.v1.api_version import api_version
+from app.routers import api_root
+from app.routers.v1 import api_activity_logs
+from app.routers.v1 import api_dataset_folder
+from app.routers.v1 import api_dataset_list
+from app.routers.v1 import api_dataset_restful
+from app.routers.v1 import api_preview
+from app.routers.v1 import dataset_file
+from app.routers.v1.api_schema import api_schema
+from app.routers.v1.api_schema import api_schema_template
+from app.routers.v1.api_version import api_version
 
 
 def api_registry(app: FastAPI):

@@ -21,7 +21,6 @@ from uuid import UUID
 from uuid import uuid4
 
 import httpx
-from common import GEIDClient
 from common import LoggerFactory
 from fastapi import Query
 from fastapi_pagination import Params as BaseParams
@@ -42,6 +41,7 @@ from app.config import ConfigClass
 from app.models.dataset import Dataset
 from app.models.schema import DatasetSchema
 from app.models.schema import DatasetSchemaTemplate
+from app.services.activity_log import DatasetActivityLogService
 
 ESSENTIALS_TPL_NAME = ConfigClass.ESSENTIALS_TPL_NAME
 ESSENTIALS_NAME = ConfigClass.ESSENTIALS_NAME
@@ -55,7 +55,6 @@ class SrvDatasetMgr:
     """Service for Dataset Entity INFO Manager."""
 
     logger = LoggerFactory('SrvDatasetMgr').get_logger()
-    geid_client = GEIDClient()
 
     async def create(
         self,
@@ -106,7 +105,7 @@ class SrvDatasetMgr:
             tags,
             username,
         )
-        await self.__on_create_event(global_entity_id, username)
+        await self.__on_create_event(dataset)
         # and also create minio bucket with the dataset code
         try:
             # TODO: IO-blocking code, also review this add policy logic.
@@ -201,7 +200,7 @@ class SrvDatasetMgr:
 
         etpl = await get_essential_tpl()
         model_data = {
-            'geid': self.geid_client.get_GEID(),
+            'geid': str(uuid4()),
             'name': ESSENTIALS_NAME,
             'dataset_geid': dataset_geid,
             'tpl_geid': etpl.geid,
@@ -225,27 +224,9 @@ class SrvDatasetMgr:
         schema = await db_add_operation(schema, db)
         return schema.to_dict()
 
-    async def __on_create_event(self, geid, username):
-        url = ConfigClass.QUEUE_SERVICE + 'broker/pub'
-        post_json = {
-            'event_type': 'DATASET_CREATE_SUCCEED',
-            'payload': {
-                'dataset_geid': geid,
-                'act_geid': str(uuid4()),
-                'operator': username,
-                'action': 'CREATE',
-                'resource': 'Dataset',
-                'detail': {'source': geid},
-            },
-            'queue': 'dataset_actlog',
-            'routing_key': '',
-            'exchange': {'name': 'DATASET_ACTS', 'type': 'fanout'},
-        }
-        async with httpx.AsyncClient() as client:
-            res = await client.post(url, json=post_json)
-        if res.status_code != 200:
-            raise Exception('__on_create_event {}: {}'.format(res.status_code, res.text))
-        return res
+    async def __on_create_event(self, dataset: Dataset):
+        activitity_log = DatasetActivityLogService()
+        return await activitity_log.send_dataset_on_create_event(dataset)
 
 
 async def db_add_operation(schema, db):

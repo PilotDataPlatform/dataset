@@ -20,6 +20,7 @@ from urllib.parse import urlparse
 from uuid import uuid4
 
 import pytest_asyncio
+from aiokafka import AIOKafkaConsumer
 from aioredis import StrictRedis
 from alembic.command import downgrade
 from alembic.command import upgrade
@@ -29,11 +30,13 @@ from httpx import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.asyncio import create_async_engine
 from starlette.config import environ
+from testcontainers.kafka import KafkaContainer
 from testcontainers.postgres import PostgresContainer
 from urllib3 import HTTPResponse
 
 environ['CONFIG_CENTER_ENABLED'] = 'false'
-
+environ['env'] = 'test'
+environ['DEBUG'] = 'true'
 environ['QUEUE_SERVICE'] = 'http://QUEUE_SERVICE'
 environ['DATA_OPS_UTIL'] = 'http://DATA_OPS_UTIL'
 environ['CATALOGUING_SERVICE'] = 'http://CATALOGUING_SERVICE'
@@ -70,6 +73,7 @@ environ['OPSDB_UTILITY_HOST'] = 'localhost'
 environ['OPSDB_UTILITY_PORT'] = '5432'
 environ['OPSDB_UTILITY_USERNAME'] = 'postgres'
 environ['OPSDB_UTILITY_PASSWORD'] = 'postgres'
+environ['KAFKA_URL'] = 'any'
 
 
 @pytest_asyncio.fixture(scope='session')
@@ -79,11 +83,34 @@ def db_postgres():
         yield db_uri.replace(f'{urlparse(db_uri).scheme}://', 'postgresql+asyncpg://', 1)
 
 
+@pytest_asyncio.fixture(scope='session')
+def kafka_url():
+    with KafkaContainer() as kafka_container:
+        yield kafka_container.get_bootstrap_server()
+
+
+@pytest_asyncio.fixture(scope='session')
+async def kafka_dataset_consumer(kafka_url):
+    consumer = AIOKafkaConsumer('datasets-activity-logs', bootstrap_servers=kafka_url)
+    await consumer.start()
+    yield consumer
+    await consumer.stop()
+
+
+@pytest_asyncio.fixture(scope='session')
+async def kafka_file_folder_consumer(kafka_url):
+    consumer = AIOKafkaConsumer('items-activity-logs', bootstrap_servers=kafka_url)
+    await consumer.start()
+    yield consumer
+    await consumer.stop()
+
+
 @pytest_asyncio.fixture(autouse=True)
-def set_settings(monkeypatch, db_postgres):
+def set_settings(monkeypatch, db_postgres, kafka_url):
     from app.config import ConfigClass
 
     monkeypatch.setattr(ConfigClass, 'OPS_DB_URI', db_postgres)
+    monkeypatch.setattr(ConfigClass, 'KAFKA_URL', kafka_url)
 
 
 @pytest_asyncio.fixture()
@@ -117,16 +144,11 @@ def event_loop(request):
 
 
 @pytest_asyncio.fixture
-def app():
-    from app.main import create_app
+async def client():
+    from app.main import app
 
-    app = create_app()
-    yield app
-
-
-@pytest_asyncio.fixture
-async def client(app):
-    return TestClient(app)
+    async with TestClient(app) as client:
+        yield client
 
 
 @pytest_asyncio.fixture
@@ -173,7 +195,7 @@ async def version(db_session, dataset):
     db_session.add(new_version)
     await db_session.commit()
     await db_session.refresh(new_version)
-    yield new_version.to_dict()
+    yield new_version
     await db_session.delete(new_version)
     await db_session.commit()
 
@@ -205,4 +227,73 @@ async def dataset(db_session):
     await db_session.refresh(new_dataset)
     yield new_dataset
     await db_session.delete(new_dataset)
+    await db_session.commit()
+
+
+@pytest_asyncio.fixture
+async def schema_template(db_session, dataset):
+    from app.models.schema import DatasetSchemaTemplate
+
+    new_template = DatasetSchemaTemplate(
+        geid=str(uuid4()),
+        dataset_geid=str(dataset.id),
+        name='test_schema_template',
+        standard='default',
+        system_defined=True,
+        is_draft=True,
+        content={},
+        creator='admin',
+    )
+    db_session.add(new_template)
+    await db_session.commit()
+    await db_session.refresh(new_template)
+    yield new_template
+    await db_session.delete(new_template)
+    await db_session.commit()
+
+
+@pytest_asyncio.fixture
+async def schema(db_session, schema_template, dataset):
+    from app.models.schema import DatasetSchema
+
+    schema = DatasetSchema(
+        geid=str(uuid4()),
+        name='unittestdataset',
+        dataset_geid=str(dataset.id),
+        tpl_geid=str(schema_template.geid),
+        standard='default',
+        system_defined=True,
+        is_draft=False,
+        content={},
+        creator='admin',
+    )
+    db_session.add(schema)
+    await db_session.commit()
+    await db_session.refresh(schema)
+    yield schema
+    await db_session.delete(schema)
+    await db_session.commit()
+
+
+@pytest_asyncio.fixture
+async def essential_schema(db_session, schema_template, dataset):
+    from app.config import ConfigClass
+    from app.models.schema import DatasetSchema
+
+    schema = DatasetSchema(
+        geid=str(uuid4()),
+        name=ConfigClass.ESSENTIALS_NAME,
+        dataset_geid=str(dataset.id),
+        tpl_geid=str(schema_template.geid),
+        standard='default',
+        system_defined=True,
+        is_draft=False,
+        content={},
+        creator='admin',
+    )
+    db_session.add(schema)
+    await db_session.commit()
+    await db_session.refresh(schema)
+    yield schema
+    await db_session.delete(schema)
     await db_session.commit()
