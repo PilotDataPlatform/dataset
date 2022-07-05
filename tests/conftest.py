@@ -36,7 +36,7 @@ from urllib3 import HTTPResponse
 
 environ['CONFIG_CENTER_ENABLED'] = 'false'
 environ['env'] = 'test'
-
+environ['DEBUG'] = 'true'
 environ['QUEUE_SERVICE'] = 'http://QUEUE_SERVICE'
 environ['DATA_OPS_UTIL'] = 'http://DATA_OPS_UTIL'
 environ['CATALOGUING_SERVICE'] = 'http://CATALOGUING_SERVICE'

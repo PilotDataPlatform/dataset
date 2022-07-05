@@ -18,12 +18,11 @@ from typing import Dict
 from typing import List
 from uuid import UUID
 
-from aiokafka import AIOKafkaProducer
-from aiokafka.errors import KafkaError
 from common import LoggerFactory
 from fastavro import schema
 from fastavro import schemaless_writer
 
+from app.clients.kafka import get_kafka_client
 from app.config import ConfigClass
 from app.models.dataset import Dataset
 from app.models.schema import DatasetSchema
@@ -47,15 +46,8 @@ class ActivityLogService:
             msg = bio.getvalue()
         except ValueError as e:
             self.logger.exception('error during the AVRO validation', extra={'error_msg': str(e)})
-
-        try:
-            self.aioproducer = AIOKafkaProducer(bootstrap_servers=[ConfigClass.KAFKA_URL])
-            await self.aioproducer.start()
-            await self.aioproducer.send(self.topic, msg)
-        except KafkaError as ke:
-            self.logger.exception('error sending ActivityLog to Kafka: %s', ke)
-        finally:
-            await self.aioproducer.stop()
+        client = await get_kafka_client()
+        await client.send(self.topic, msg)
 
 
 class FileFolderActivityLogService(ActivityLogService):
