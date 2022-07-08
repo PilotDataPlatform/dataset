@@ -69,6 +69,7 @@ class PublishVersion(object):
             level1_nodes = await get_children_nodes(self.dataset.code, None)
             locked_node, err = await recursive_lock_publish(level1_nodes)
             if err:
+                logger.error('Error occured while calling recursive_lock_publish.')
                 raise err
             items = await MetadataClient.get_objects(self.dataset.code)
             await self.get_dataset_files(items)
