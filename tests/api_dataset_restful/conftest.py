@@ -44,7 +44,7 @@ async def schema_essential_template(db_session):
 async def bids_results(db_session):
     from app.models.bids import BIDSResult
 
-    dataset_geid = '5baeb6a1-559b-4483-aadf-ef60519584f3'
+    dataset_geid = '7b5b0948-958b-4eb5-afa9-3780b1c6b718'
 
     new_bid_result = BIDSResult(dataset_geid=dataset_geid, validate_output={})
     db_session.add(new_bid_result)
