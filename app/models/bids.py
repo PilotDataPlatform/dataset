@@ -29,7 +29,7 @@ class BIDSResult(DBModel):
     __tablename__ = 'bids_results'
     __table_args__ = {'schema': ConfigClass.RDS_SCHEMA_DEFAULT}
     id = Column(Integer, primary_key=True)
-    dataset_geid = Column(String())
+    dataset_geid = Column(String(), unique=True)
     created_time = Column(TIMESTAMP(timezone=True), default=datetime.utcnow, nullable=False)
     updated_time = Column(TIMESTAMP(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     validate_output = Column(JSON())
