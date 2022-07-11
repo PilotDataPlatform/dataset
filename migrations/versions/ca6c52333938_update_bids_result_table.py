@@ -23,4 +23,4 @@ def upgrade():
 
 
 def downgrade():
-    op.drop_table('bids_results', schema='dataset')
+    op.drop_constraint('dataset_geid', 'bids_results', schema='dataset')
