@@ -32,7 +32,7 @@ class DatasetSchemaTemplate(DBModel):
     __table_args__ = {'schema': ConfigClass.RDS_SCHEMA_DEFAULT}
     geid = Column(String(), primary_key=True)
     name = Column(String())
-    dataset_geid = Column(String())
+    dataset_geid = Column(String(), nullable=True)
     standard = Column(String())
     system_defined = Column(Boolean())
     is_draft = Column(Boolean())
