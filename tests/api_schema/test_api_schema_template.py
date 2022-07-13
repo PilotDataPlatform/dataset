@@ -55,10 +55,8 @@ async def test_schema_template_duplicate_should_return_code_403(client, schema_t
     assert res.json()['code'] == 403
 
 
-@pytest.mark.parametrize('dataset_id', [('mock'), ('default')])
-async def test_list_schema_template_by_dataset_id_should_return_200(dataset_id, client, schema_template):
-    if dataset_id == 'mock':
-        dataset_id = schema_template.dataset_geid
+async def test_list_schema_template_by_dataset_id_should_return_200(client, schema_template):
+    dataset_id = schema_template.dataset_geid
     payload = {}
     res = await client.post(f'/v1/dataset/{dataset_id}/schemaTPL/list', json=payload)
     assert res.status_code == 200
@@ -68,6 +66,18 @@ async def test_list_schema_template_by_dataset_id_should_return_200(dataset_id, 
         'system_defined': schema_template.system_defined,
         'standard': schema_template.standard,
     }
+
+
+async def test_list_schema_template_when_dataset_id_is_default_should_return_system_definied_templates(client):
+    dataset_id = 'default'
+    payload = {}
+    res = await client.post(f'/v1/dataset/{dataset_id}/schemaTPL/list', json=payload)
+    assert res.status_code == 200
+    templates = res.json()['result']
+    templates_name = [template['name'] for template in templates]
+    system_defined = {template['system_defined'] for template in templates}
+    assert templates_name == ['Distribution', 'Open_minds', 'Disease', 'Contributors', 'Subjects', 'Grant', 'Essential']
+    assert system_defined == {True}
 
 
 @pytest.mark.parametrize('dataset_id', [('mock'), ('default')])

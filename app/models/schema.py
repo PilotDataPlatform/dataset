@@ -32,7 +32,7 @@ class DatasetSchemaTemplate(DBModel):
     __table_args__ = {'schema': ConfigClass.RDS_SCHEMA_DEFAULT}
     geid = Column(String(), primary_key=True)
     name = Column(String())
-    dataset_geid = Column(String(), nullable=True)
+    dataset_geid = Column(String())
     standard = Column(String())
     system_defined = Column(Boolean())
     is_draft = Column(Boolean())
@@ -43,16 +43,6 @@ class DatasetSchemaTemplate(DBModel):
     )
     creator = Column(String())
     schemas = relationship('DatasetSchema', back_populates='schema_template')
-
-    def __init__(self, geid, name, dataset_geid, standard, system_defined, is_draft, content, creator):
-        self.geid = geid
-        self.name = name
-        self.dataset_geid = dataset_geid
-        self.standard = standard
-        self.system_defined = system_defined
-        self.is_draft = is_draft
-        self.content = content
-        self.creator = creator
 
     def to_dict(self):
         result = {}
@@ -94,17 +84,6 @@ class DatasetSchema(DBModel):
     )
     creator = Column(String())
     schema_template = relationship('DatasetSchemaTemplate', back_populates='schemas')
-
-    def __init__(self, geid, name, dataset_geid, tpl_geid, standard, system_defined, is_draft, content, creator):
-        self.geid = geid
-        self.dataset_geid = dataset_geid
-        self.tpl_geid = tpl_geid
-        self.standard = standard
-        self.system_defined = system_defined
-        self.is_draft = is_draft
-        self.content = content
-        self.creator = creator
-        self.name = name
 
     def to_dict(self):
         result = {}
