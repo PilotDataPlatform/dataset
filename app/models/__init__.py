@@ -14,9 +14,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from sqlalchemy import MetaData
-from sqlalchemy.ext.declarative import declarative_base
+from app.core.db import DBModel
 
-from app.config import ConfigClass
+from .bids import BIDSResult
+from .dataset import Dataset
+from .schema import DatasetSchema
+from .schema import DatasetSchemaTemplate
+from .version import DatasetVersion
 
-DBModel = declarative_base(metadata=MetaData(schema=ConfigClass.RDS_SCHEMA_DEFAULT))
+__all__ = ['DBModel', 'BIDSResult', 'Dataset', 'DatasetVersion', 'DatasetSchema', 'DatasetSchemaTemplate']
