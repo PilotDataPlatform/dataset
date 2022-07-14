@@ -15,7 +15,7 @@ Dataset management service for the Pilot Platform.
 
 2. Run docker compose
 
-       docker-compose --env-file .env up
+       docker-compose up
 
 ### Development
 
@@ -33,6 +33,10 @@ Dataset management service for the Pilot Platform.
 4. Run application.
 
        poetry run python run.py
+
+5. Generate migration (based on comparison of database to defined models).
+
+       docker compose run --rm alembic revision --autogenerate -m "Migration message"
 
 ### Running Tests
 
