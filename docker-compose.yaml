@@ -1,48 +1,22 @@
-version: "3"
+version: "3.8"
+
 services:
   app:
-    build: "."
+    build:
+      target: dataset-image
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
     ports:
-      - "5077:5077"
-    environment:
-      - CONFIG_CENTER_ENABLED
-      - VAULT_URL
-      - VAULT_CRT
-      - VAULT_TOKEN
-      - OPEN_TELEMETRY_ENABLED
-      - DATASET_FILE_FOLDER
-      - DATASET_SCHEMA_FOLDER
-      - DATASET_CODE_REGEX
-      - ROOT_PATH
-      - CORE_ZONE_LABEL
-      - GREEN_ZONE_LABEL
-      - MINIO_OPENID_CLIENT
-      - MINIO_ENDPOINT
-      - MINIO_HTTPS
-      - KEYCLOAK_URL
-      - QUEUE_SERVICE
-      - CATALOGUING_SERVICE
-      - ENTITYINFO_SERVICE
-      - ELASTIC_SEARCH_SERVICE
-      - UTILITY_SERVICE
-      - gm_queue_endpoint
-      - gm_username
-      - gm_password
-      - DATA_OPS_UTIL
-      - SEND_MESSAGE_URL
-      - RDS_HOST
-      - RDS_PORT
-      - RDS_DBNAME
-      - RDS_USER
-      - RDS_SCHEMA_DEFAULT
-      - OPS_DB_URI
-      - REDIS_HOST
-      - REDIS_PORT
-      - REDIS_DB
-      - DOWNLOAD_TOKEN_EXPIRE_AT
-      - MAX_PREVIEW_SIZE
-      - ESSENTIALS_NAME
-      - ESSENTIALS_TPL_NAME
+      - "127.0.0.1:5077:5077"
+    depends_on:
+      - postgres
+      - redis
+    env_file:
+      - '.env'
+
   redis:
     image: redis:6.2-alpine
     restart: always
@@ -51,6 +25,7 @@ services:
     command: redis-server --save 20 1 --loglevel warning
     volumes:
       - redis:/data
+
   postgres:
     image: postgres:14.1-alpine
     environment:
@@ -61,6 +36,26 @@ services:
       - 5432
     ports:
       - 5432:5432
+
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready --username $$POSTGRES_USER" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  alembic:
+    build:
+      target: alembic-image
+    env_file:
+      - '.env'
+    volumes:
+      - ./migrations/:/app/migrations/
+      - ./app/:/app/app/
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   redis:
     driver: local
+  postgres-data:

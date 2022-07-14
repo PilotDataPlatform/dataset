@@ -13,29 +13,56 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-FROM python:3.7-buster
+FROM python:3.9.11-buster AS production-environment
 
-ENV TZ=America/Toronto
+ENV PYTHONDONTWRITEBYTECODE=true \
+    PYTHONIOENCODING=UTF-8 \
+    POETRY_VERSION=1.1.13 \
+    POETRY_HOME="/opt/poetry" \
+    POETRY_VIRTUALENVS_CREATE=false \
+    MINIO_USERNAME=minioadmin \
+    MINIO_PASSWORD=minioadmin \
+    MINIO_URL=http://minio.minio:9000
 
-WORKDIR /usr/src/app
+ENV PATH="${POETRY_HOME}/bin:${PATH}"
 
-ENV TZ=America/Toronto
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
-    echo $TZ > /etc/timezone && \
-    apt-get update && \
-    apt-get install -y vim-tiny less && \
-    ln -s /usr/bin/vim.tiny /usr/bin/vim && \
-    rm -rf /var/lib/apt/lists/*
-RUN wget -O /usr/local/bin/mc https://dl.min.io/client/mc/release/linux-amd64/archive/mc.RELEASE.2021-07-27T06-46-19Z
-RUN chmod +x /usr/local/bin/mc
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y \
+        build-essential
+RUN curl -sSL https://install.python-poetry.org | python3 -
+
+WORKDIR /app
+
 COPY poetry.lock pyproject.toml ./
-RUN pip install --no-cache-dir poetry==1.1.12
-RUN poetry config virtualenvs.create false
-RUN poetry install --no-root --no-interaction
-COPY . ./
 
-ENV MINIO_USERNAME=minioadmin
-ENV MINIO_PASSWORD=minioadmin
-ENV MINIO_URL=http://minio.minio:9000
+RUN poetry install --no-dev --no-root --no-interaction
+
+
+FROM production-environment AS dataset-image
+
+COPY app ./app
+COPY run.py ./
+COPY gunicorn_starter.sh ./
+
+RUN wget -O /usr/local/bin/mc https://dl.min.io/client/mc/release/linux-amd64/archive/mc.RELEASE.2021-07-27T06-46-19Z
 RUN chmod +x gunicorn_starter.sh
-CMD ["sh", "-c", "mc alias set minio $MINIO_URL $MINIO_USERNAME $MINIO_PASSWORD && ./gunicorn_starter.sh"]
+RUN chmod +x /usr/local/bin/mc
+
+ENTRYPOINT ["sh", "-c", "mc alias set minio $MINIO_URL $MINIO_USERNAME $MINIO_PASSWORD && ./gunicorn_starter.sh"]
+
+
+FROM production-environment AS development-environment
+
+RUN poetry install --no-root --no-interaction
+
+
+FROM development-environment AS alembic-image
+
+ENV ALEMBIC_CONFIG=migrations/alembic.ini
+
+COPY app ./app
+COPY migrations ./migrations
+
+ENTRYPOINT ["python3", "-m", "alembic"]
+
+CMD ["upgrade", "head"]
