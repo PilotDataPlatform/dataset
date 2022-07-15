@@ -32,6 +32,7 @@ from sqlalchemy import update
 from sqlalchemy.future import select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
+from starlette.concurrency import run_in_threadpool
 
 from app.commons.service_connection.dataset_policy_template import (
     create_dataset_policy_template,
@@ -114,8 +115,8 @@ class SrvDatasetMgr:
             #       this error:
             #       mc: <ERROR> Unable to add new policy. Policy has invalid resource.
             mc = Minio_Client()
-            mc.client.make_bucket(code)
-            mc.client.set_bucket_encryption(code, SSEConfig(Rule.new_sse_s3_rule()))
+            await run_in_threadpool(mc.client.make_bucket, code)
+            await run_in_threadpool(mc.client.set_bucket_encryption, code, SSEConfig(Rule.new_sse_s3_rule()))
 
             self.logger.info('createing the policy')
             # also use the lazy loading to create the policy in minio

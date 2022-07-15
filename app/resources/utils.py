@@ -17,6 +17,7 @@ import json
 import os
 
 from common import LoggerFactory
+from starlette.concurrency import run_in_threadpool
 
 from app.clients import MetadataClient
 from app.commons.service_connection.minio_client import Minio_Client_
@@ -131,7 +132,7 @@ async def delete_node(target_node, access_token, refresh_token):
             minio_path = target_node.get('location').split('//')[-1]
             _, bucket, obj_path = tuple(minio_path.split('/', 2))
 
-            mc.delete_object(bucket, obj_path)
+            await run_in_threadpool(mc.delete_object, bucket, obj_path)
             logger.info('Minio %s/%s Delete Success' % (bucket, obj_path))
 
         except Exception as e:
@@ -178,7 +179,9 @@ async def create_file_node(
         minio_path = source_file.get('storage').get('location_uri').split('//')[-1]
         _, bucket, obj_path = tuple(minio_path.split('/', 2))
 
-        mc.copy_object(dataset.code, ConfigClass.DATASET_FILE_FOLDER + '/' + fuf_path, bucket, obj_path)
+        await run_in_threadpool(
+            mc.copy_object, dataset.code, ConfigClass.DATASET_FILE_FOLDER + '/' + fuf_path, bucket, obj_path
+        )
         logger.info('Minio Copy %s/%s Success' % (dataset.code, fuf_path))
     except Exception as e:
         logger.error('error when uploading: ' + str(e))
