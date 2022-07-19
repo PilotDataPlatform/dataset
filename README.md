@@ -1,49 +1,76 @@
 # dataset
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg?style=for-the-badge)](https://www.gnu.org/licenses/agpl-3.0)
-[![Python 3.7](https://img.shields.io/badge/python-3.7-green?style=for-the-badge)](https://www.python.org/)
+[![Python 3.9](https://img.shields.io/badge/python-3.9-brightgreen?style=for-the-badge)](https://www.python.org/)
 [![GitHub Workflow Status (branch)](https://img.shields.io/github/workflow/status/pilotdataplatform/dataset/ci/main?style=for-the-badge)](https://github.com/PilotDataPlatform/dataset/actions/workflows/ci.yml)
 [![codecov](https://img.shields.io/codecov/c/github/PilotDataPlatform/dataset?style=for-the-badge)](https://codecov.io/gh/PilotDataPlatform/dataset)
 
 Dataset management service for the Pilot Platform.
 
-### Start
+## Getting Started
 
-1. Install [Docker](https://www.docker.com/get-started/).
+### Prerequisites
 
-2. Add environment variables into `.env`. taking in consideration `.env.schema`
+This project is using:
+    1. [Poetry](https://python-poetry.org/docs/#installation) to handle the dependencies.
+    2. [Minio](https://min.io/) to handle the object storage.
+    3. [Redis](https://redis.io/) to handle cache.
+    4. [postgresql](https://www.postgresql.org/) as database.
 
-2. Run docker compose
+### Installation & Quick Start
 
-       docker-compose up
+1. Clone the project.
 
-### Development
-
-1. Install [Poetry](https://python-poetry.org/docs/#installation).
+       git clone git@github.com:PilotDataPlatform/dataset.git
 
 2. Install dependencies.
 
        poetry install
 
-3. Install [Pre Commit](https://pre-commit.com/#installation)
+4. Add environment variables into `.env`. taking in consideration `.env.schema`
 
-       pre-commit install
 
-3. Add environment variables into `.env`.
-4. Run application.
-
-       poetry run python run.py
-
-5. Generate migration (based on comparison of database to defined models).
-
-       docker compose run --rm alembic revision --autogenerate -m "Migration message"
-
-### Running Tests
-
-1. You will need to start a redis:
+5. Start project dependencies:
 
         docker-compose up -d redis
+        docker-compose up -d postgres
 
-2. Run tests
 
-        poetry run pytest
+6. Run any initial scripts, migrations or database seeders.
+
+       poetry run alembic upgrade head
+
+7. Run application.
+
+       poetry run python start.py
+
+
+8. Install [Docker](https://www.docker.com/get-started/).
+
+
+### Startup using Docker
+
+This project can also be started using [Docker](https://www.docker.com/get-started/).
+
+1. To build and start the service within the Docker container run.
+
+       docker compose up
+
+2. Migrations should run automatically on previous step. They can also be manually triggered:
+
+       docker compose run --rm alembic upgrade head
+
+## Resources
+
+* [Pilot Platform API Documentation](https://pilotdataplatform.github.io/api-docs/)
+* [Pilot Platform Helm Charts](https://github.com/PilotDataPlatform/helm-charts/)
+
+## Contribution
+
+You can contribute the project in following ways:
+
+* Report a bug
+* Suggest a feature
+* Open a pull request for fixing issues or adding functionality. Please consider
+  using [pre-commit](https://pre-commit.com) in this case.
+* For general guidelines how to contribute to the project, please take a look at the [contribution guides](CONTRIBUTING.md)
