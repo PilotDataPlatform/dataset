@@ -3,6 +3,7 @@ version: "3.8"
 services:
   app:
     build:
+      context: .
       target: dataset-image
     logging:
       driver: "json-file"
@@ -45,6 +46,7 @@ services:
 
   alembic:
     build:
+      context: .
       target: alembic-image
     env_file:
       - '.env'
