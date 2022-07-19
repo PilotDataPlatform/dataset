@@ -12,10 +12,14 @@ Dataset management service for the Pilot Platform.
 ### Prerequisites
 
 This project is using:
-    1. [Poetry](https://python-poetry.org/docs/#installation) to handle the dependencies.
-    2. [Minio](https://min.io/) to handle the object storage.
-    3. [Redis](https://redis.io/) to handle cache.
-    4. [postgresql](https://www.postgresql.org/) as database.
+1. [Poetry](https://python-poetry.org/docs/#installation) to handle the dependencies.
+
+2. [Minio](https://min.io/) to handle the object storage.
+
+3. [Redis](https://redis.io/) to handle cache.
+
+4. [postgresql](https://www.postgresql.org/) as database.
+
 
 ### Installation & Quick Start
 
@@ -62,7 +66,7 @@ This project can also be started using [Docker](https://www.docker.com/get-start
 
 ## Resources
 
-* [Pilot Platform API Documentation](https://pilotdataplatform.github.io/api-docs/)
+* [Pilot Platform API Documentation](https://pilotdataplatform.github.io/api-docs/#tag/V1-DATASET)
 * [Pilot Platform Helm Charts](https://github.com/PilotDataPlatform/helm-charts/)
 
 ## Contribution
