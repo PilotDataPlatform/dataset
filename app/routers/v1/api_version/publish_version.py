@@ -73,7 +73,7 @@ class PublishVersion(object):
                 raise err
             items = await MetadataClient.get_objects(self.dataset.code)
             await self.get_dataset_files(items)
-            self.download_dataset_files()
+            await self.download_dataset_files()
             await self.add_schemas(db)
             await run_in_threadpool(self.zip_files)
             minio_location = await self.upload_version()
@@ -123,14 +123,17 @@ class PublishVersion(object):
                 self.dataset_files.append(item)
         return self.dataset_files
 
-    def download_dataset_files(self):
+    async def download_dataset_files(self):
         """Download files from minio."""
         file_paths = []
         for file in self.dataset_files:
             location_data = parse_minio_location(file['storage']['location_uri'])
             try:
-                self.mc.client.fget_object(
-                    location_data['bucket'], location_data['path'], self.tmp_folder + '/' + location_data['path']
+                await run_in_threadpool(
+                    self.mc.client.fget_object,
+                    location_data['bucket'],
+                    location_data['path'],
+                    self.tmp_folder + '/' + location_data['path'],
                 )
                 file_paths.append(self.tmp_folder + '/' + location_data['path'])
             except Exception as e:
