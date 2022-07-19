@@ -14,6 +14,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from datetime import datetime
+from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -24,7 +25,7 @@ from pydantic import BaseModel
 
 class BaseActivityLogSchema(BaseModel):
     activity_time: datetime = datetime.utcnow()
-    changes: List[Dict[str, str]] = []
+    changes: List[Dict[str, Any]] = []
     activity_type: str
     user: str
     container_code: str

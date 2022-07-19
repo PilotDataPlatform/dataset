@@ -183,12 +183,18 @@ class Schema:
 
         schema = await self.db_add_operation(schema, db)
         api_response.result = schema.to_dict()
-        if data.activity:
-            detail = data.activity[0].get('detail', {})
-        else:
-            detail = []
         dataset = await self.SRV_DATASET.get_bygeid(db, schema.dataset_geid)
-        await self.ACTIVITY_LOG.send_schema_update_event(schema, dataset, data.username, [detail])
+
+        changes = []
+        if data.activity:
+            detail = data['activity'].get('detail', {})
+            for target in detail['targets']:
+                changes.append(
+                    {
+                        'property': target.lower(),
+                    }
+                )
+        await self.ACTIVITY_LOG.send_schema_update_event(schema, dataset, data.username, changes)
         if schema.name == 'essential.schema.json':
             await self.update_dataset_node(db, schema.dataset_geid, data.content)
         return api_response.json_response()
