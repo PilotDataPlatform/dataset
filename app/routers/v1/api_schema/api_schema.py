@@ -187,7 +187,7 @@ class Schema:
 
         changes = []
         if data.activity:
-            detail = data['activity'].get('detail', {})
+            detail = data.activity[0].get('detail')
             for target in detail['targets']:
                 changes.append(
                     {
