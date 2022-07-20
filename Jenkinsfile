@@ -24,6 +24,10 @@ pipeline {
       when {branch "develop"}
       steps {
         script {
+            sh '''#!/bin/bash
+                cd /usr/local/lib/python3.9/
+                sudo py3clean -v .
+               '''
             docker.withRegistry('https://ghcr.io', registryCredential) {
                 customImage = docker.build('$imagename:alembic-$commit', '--target alembic-image .')
                 customImage.push()
