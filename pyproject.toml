@@ -39,11 +39,11 @@ fastapi-pagination = "^0.9.3"
 async-lru = "^1.0.3"
 aiokafka = "^0.7.2"
 fastavro = "^1.5.2"
+requests = "^2.27.1"
 
 
 [tool.poetry.dev-dependencies]
 pytest-env = "0.6.2"
-requests = "^2.27.1"
 flake8 = "^4.0.1"
 pytest-httpx = "^0.20.0"
 pytest-asyncio = "^0.18.2"
