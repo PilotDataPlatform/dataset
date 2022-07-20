@@ -22,12 +22,13 @@ pipeline {
     stage('Cleanup python cache') {
       when {branch "develop"}
       steps{
-        sh "cd /usr/local/lib/python3.9 && sudo py3clean -v . && sudo pyclean -v . "
+        sh "sudo py3clean -v /usr/local/lib/python3.9/ && sudo pyclean -v /usr/local/lib/python3.9/ "
       }
     }
     stage('DEV build and push image') {
       when {branch "develop"}
       steps {
+        sh "sudo py3clean -v /usr/local/lib/python3.9/ && sudo pyclean -v /usr/local/lib/python3.9/ "  
         script {
             docker.withRegistry('https://ghcr.io', registryCredential) {
                 customImage = docker.build('$imagename:alembic-$commit', '--target alembic-image .')
@@ -110,10 +111,10 @@ pipeline {
       }
     }
   }
-  post {
-    failure {
-        slackSend color: '#FF0000', message: "Build Failed! - ${env.JOB_NAME} $commit  (<${env.BUILD_URL}|Open>)", channel: 'jenkins-dev-staging-monitor'
-    }
-  }
+#  post {
+#    failure {
+#        slackSend color: '#FF0000', message: "Build Failed! - ${env.JOB_NAME} $commit  (<${env.BUILD_URL}|Open>)", channel: 'jenkins-dev-staging-monitor'
+#    }
+#  }
 
 }
