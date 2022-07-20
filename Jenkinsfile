@@ -22,7 +22,7 @@ pipeline {
     stage('Cleanup python cache') {
       when {branch "develop"}
       steps{
-        sh "cd /usr/local/lib/python3.9 && sudo py3clean -v ."
+        sh "cd /usr/local/lib/python3.9 && sudo py3clean -v . && sudo pyclean -v . "
       }
     }
     stage('DEV build and push image') {
