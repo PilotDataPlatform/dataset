@@ -29,7 +29,8 @@ ENV PATH="${POETRY_HOME}/bin:${PATH}"
 RUN apt-get update \
     && apt-get install --no-install-recommends -y \
         build-essential
-RUN curl -sSL https://install.python-poetry.org | python3 -
+
+RUN pip install --no-cache-dir poetry
 
 WORKDIR /app
 
