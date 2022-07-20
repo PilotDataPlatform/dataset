@@ -53,7 +53,7 @@ class ActivityLogService:
 class FileFolderActivityLogService(ActivityLogService):
 
     logger = LoggerFactory('ActivityLogService').get_logger()
-    topic = 'items-activity-logs'
+    topic = 'metadata.items.activity'
     avro_schema_path = 'app/schemas/metadata.items.activity.avsc'
 
     async def send_on_import_event(
@@ -121,7 +121,7 @@ class DatasetActivityLogService(ActivityLogService):
 
     logger = LoggerFactory('ActivityLogService').get_logger()
     log_schema = DatasetActivityLogSchema
-    topic = 'datasets-activity-logs'
+    topic = 'dataset.activity'
     avro_schema_path = 'app/schemas/dataset.activity.avsc'
 
     async def send_dataset_on_create_event(self, dataset: Dataset):

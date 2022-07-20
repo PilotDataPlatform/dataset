@@ -91,7 +91,7 @@ def kafka_url():
 
 @pytest_asyncio.fixture(scope='session')
 async def kafka_dataset_consumer(kafka_url):
-    consumer = AIOKafkaConsumer('datasets-activity-logs', bootstrap_servers=kafka_url)
+    consumer = AIOKafkaConsumer('dataset.activity', bootstrap_servers=kafka_url)
     await consumer.start()
     yield consumer
     await consumer.stop()
@@ -99,7 +99,7 @@ async def kafka_dataset_consumer(kafka_url):
 
 @pytest_asyncio.fixture(scope='session')
 async def kafka_file_folder_consumer(kafka_url):
-    consumer = AIOKafkaConsumer('items-activity-logs', bootstrap_servers=kafka_url)
+    consumer = AIOKafkaConsumer('metadata.items.activity', bootstrap_servers=kafka_url)
     await consumer.start()
     yield consumer
     await consumer.stop()
