@@ -36,14 +36,6 @@ class DatasetVersion(DBModel):
     location = Column(String())
     notes = Column(String())
 
-    def __init__(self, dataset_code, dataset_geid, version, created_by, location, notes):
-        self.dataset_code = dataset_code
-        self.dataset_geid = dataset_geid
-        self.version = version
-        self.created_by = created_by
-        self.location = location
-        self.notes = notes
-
     def to_dict(self):
         result = {}
         for field in ['id', 'dataset_code', 'dataset_geid', 'version', 'created_by', 'created_at', 'location', 'notes']:

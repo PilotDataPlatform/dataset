@@ -1,10 +1,10 @@
 pipeline {
     agent { label 'small' }
+
     environment {
       imagename = "ghcr.io/pilotdataplatform/dataset"
       commit = sh(returnStdout: true, script: 'git describe --always').trim()
       registryCredential = 'pilot-ghcr'
-      dockerImage = ''
     }
 
     stages {
@@ -20,42 +20,28 @@ pipeline {
         }
     }
 
-    // stage('DEV unit test') {
-    //   when {branch "develop"}
-    //   steps{
-    //     withCredentials([
-    //       string(credentialsId:'VAULT_TOKEN', variable: 'VAULT_TOKEN'),
-    //       string(credentialsId:'VAULT_URL', variable: 'VAULT_URL'),
-    //       file(credentialsId:'VAULT_CRT', variable: 'VAULT_CRT')
-    //     ]) {
-    //       sh """
-    //       export REDIS_HOST=127.0.0.1
-    //       pip install --user poetry==1.1.12
-    //       ${HOME}/.local/bin/poetry config virtualenvs.in-project true
-    //       ${HOME}/.local/bin/poetry install --no-root --no-interaction
-    //       ${HOME}/.local/bin/poetry run pytest --verbose -c tests/pytest.ini
-    //       """
-    //     }
-    //   }
-    // }
-
     stage('DEV build and push image') {
       when {branch "develop"}
       steps {
         script {
             docker.withRegistry('https://ghcr.io', registryCredential) {
-                customImage = docker.build("$imagename:$commit", ".")
+                customImage = docker.build('$imagename:alembic-$commit', '--target alembic-image .')
                 customImage.push()
-          }
+            }
+            docker.withRegistry('https://ghcr.io', registryCredential) {
+                customImage = docker.build('$imagename:dataset-$commit', '--target dataset-image .')
+                customImage.push()
+            }
         }
       }
     }
 
-    stage('DEV remove image') {
-      when {branch "develop"}
-      steps{
-        sh "docker rmi $imagename:$commit"
-      }
+    stage('DEV: Remove image') {
+        when { branch 'develop' }
+        steps {
+            sh 'docker rmi $imagename:alembic-$commit'
+            sh 'docker rmi $imagename:dataset-$commit'
+        }
     }
 
     stage('DEV deploy') {
@@ -84,12 +70,16 @@ pipeline {
       when {branch "main"}
       steps {
         script {
+            docker.withRegistry('https://ghcr.io', registryCredential) {
+                customImage = docker.build('$imagename:alembic-$commit', '--target alembic-image .')
+                customImage.push()
+            }
             withCredentials([
                 usernamePassword(credentialsId:'minio', usernameVariable: 'MINIO_USERNAME', passwordVariable: 'MINIO_PASSWORD')
-          ]){
-            docker.withRegistry('https://ghcr.io', registryCredential) {
-                customImage = docker.build("$imagename:$commit", "--build-arg MINIO_USERNAME=$MINIO_USERNAME --build-arg MINIO_PASSWORD=$MINIO_PASSWORD .")
-                customImage.push()
+            ]){
+                docker.withRegistry('https://ghcr.io', registryCredential) {
+                    customImage = docker.build('$imagename:dataset-$commit', '--target dataset-image --build-arg MINIO_USERNAME=$MINIO_USERNAME --build-arg MINIO_PASSWORD=$MINIO_PASSWORD .')
+                    customImage.push()
             }
           }
         }
@@ -98,9 +88,10 @@ pipeline {
 
     stage('STAGING remove image') {
       when {branch "main"}
-      steps{
-        sh "docker rmi $imagename:$commit"
-      }
+        steps {
+            sh 'docker rmi $imagename:alembic-$commit'
+            sh 'docker rmi $imagename:dataset-$commit'
+        }
     }
 
     stage('STAGING deploy') {
