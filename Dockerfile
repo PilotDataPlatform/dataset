@@ -30,7 +30,7 @@ RUN apt-get update \
     && apt-get install --no-install-recommends -y \
         build-essential
 
-RUN pip install --no-cache-dir poetry
+RUN pip install --no-cache-dir poetry==1.1.13
 
 WORKDIR /app
 
