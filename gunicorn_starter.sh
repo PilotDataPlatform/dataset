@@ -14,13 +14,4 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-set -e
-
-if [ $RUN_MIGRATIONS_ON_BUILD == "true" ]
-then
-    export ALEMBIC_CONFIG=alembic.ini
-    pip install alembic
-    alembic upgrade head
-fi
-
 uvicorn run:app --host 0.0.0.0 --port 5081 --log-level debug
