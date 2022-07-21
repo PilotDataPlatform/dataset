@@ -53,8 +53,6 @@ environ['gm_password'] = 'gm_password'
 
 environ['OPEN_TELEMETRY_ENABLED'] = 'true'
 environ['CORE_ZONE_LABEL'] = 'Core'
-environ['GREEN_ZONE_LABEL'] = 'Greenroom'
-environ['MINIO_OPENID_CLIENT'] = 'MINIO_OPENID_CLIENT'
 environ['MINIO_ENDPOINT'] = 'MINIO_ENDPOINT'
 environ['MINIO_HTTPS'] = 'false'
 

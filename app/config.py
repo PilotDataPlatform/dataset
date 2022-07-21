@@ -41,46 +41,46 @@ class Settings(BaseSettings):
     host: str = '0.0.0.0'
     env: str = ''
     VERSION: str = '0.2.3'
-    namespace: str = ''
+    namespace: str = 'DATASET'
 
     DATASET_FILE_FOLDER: str = 'data'
-    DATASET_SCHEMA_FOLDER: str = 'schema'
 
     DATASET_CODE_REGEX: str = '^[a-z0-9]{3,32}$'
 
     # disk mounts
     ROOT_PATH: str
 
-    CORE_ZONE_LABEL: str
-    GREEN_ZONE_LABEL: str
+    CORE_ZONE_LABEL: str = 'core'
 
     # minio
-    MINIO_OPENID_CLIENT: str
     MINIO_ENDPOINT: str
     MINIO_HTTPS: bool = False
-    KEYCLOAK_URL: str
     MINIO_ACCESS_KEY: str
     MINIO_SECRET_KEY: str
+    KEYCLOAK_URL: str
     KEYCLOAK_MINIO_SECRET: str
 
+    # External services
     QUEUE_SERVICE: str
     CATALOGUING_SERVICE: str
     ENTITYINFO_SERVICE: str
     ELASTIC_SEARCH_SERVICE: str
-    gm_queue_endpoint: str
-    gm_username: str
-    gm_password: str
     DATA_OPS_UTIL: str
     SEND_MESSAGE_URL: str
     METADATA_SERVICE: str
     PROJECT_SERVICE: str
 
-    RDS_ECHO_SQL_QUERIES: bool = False
+    # RabbitMQ
+    gm_queue_endpoint: str
+    gm_username: str
+    gm_password: str
 
+    # Postgres
     OPSDB_UTILITY_HOST: str
     OPSDB_UTILITY_PORT: str
     OPSDB_UTILITY_USERNAME: str
     OPSDB_UTILITY_PASSWORD: str
+    RDS_ECHO_SQL_QUERIES: bool = False
 
     # Redis Service
     REDIS_HOST: str
@@ -133,10 +133,8 @@ class Settings(BaseSettings):
 
         self.QUEUE_SERVICE += '/v1/'
         self.CATALOGUING_SERVICE_V1 = self.CATALOGUING_SERVICE + '/v1/'
-        self.CATALOGUING_SERVICE_V2 = self.CATALOGUING_SERVICE + '/v2/'
         self.ENTITYINFO_SERVICE += '/v1/'
         self.ELASTIC_SEARCH_SERVICE += '/'
-
         self.DATA_UTILITY_SERVICE = self.DATA_OPS_UTIL + '/v1/'
         self.DATA_UTILITY_SERVICE_v2 = self.DATA_OPS_UTIL + '/v2/'
         self.SEND_MESSAGE_URL += '/v1/send_message'
