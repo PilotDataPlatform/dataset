@@ -31,11 +31,11 @@ pipeline {
         sh "sudo py3clean -v /usr/local/lib/python3.9/ && sudo pyclean -v /usr/local/lib/python3.9/ "  
         script {
             docker.withRegistry('https://ghcr.io', registryCredential) {
-                customImage = docker.build('$imagename:alembic-$commit', '--target alembic-image .')
+                customImage = docker.build('$imagename:alembic-$commit-CAC', '--target alembic-image .')
                 customImage.push()
             }
             docker.withRegistry('https://ghcr.io', registryCredential) {
-                customImage = docker.build('$imagename:dataset-$commit', '--target dataset-image .')
+                customImage = docker.build('$imagename:dataset-$commit-CAC', '--target dataset-image .')
                 customImage.push()
             }
         }
@@ -45,8 +45,8 @@ pipeline {
     stage('DEV: Remove image') {
         when { branch 'develop' }
         steps {
-            sh 'docker rmi $imagename:alembic-$commit'
-            sh 'docker rmi $imagename:dataset-$commit'
+            sh 'docker rmi $imagename:alembic-$commit-CAC'
+            sh 'docker rmi $imagename:dataset-$commit-CAC'
         }
     }
 
@@ -56,7 +56,7 @@ pipeline {
       build(job: "/VRE-IaC/UpdateAppVersion", parameters: [
         [$class: 'StringParameterValue', name: 'TF_TARGET_ENV', value: 'dev' ],
         [$class: 'StringParameterValue', name: 'TARGET_RELEASE', value: 'dataset' ],
-        [$class: 'StringParameterValue', name: 'NEW_APP_VERSION', value: "$commit" ]
+        [$class: 'StringParameterValue', name: 'NEW_APP_VERSION', value: "$commit-CAC" ]
     ])
       }
     }
