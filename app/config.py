@@ -63,7 +63,6 @@ class Settings(BaseSettings):
     # External services
     QUEUE_SERVICE: str
     CATALOGUING_SERVICE: str
-    ENTITYINFO_SERVICE: str
     ELASTIC_SEARCH_SERVICE: str
     DATA_OPS_UTIL: str
     SEND_MESSAGE_URL: str
@@ -81,6 +80,7 @@ class Settings(BaseSettings):
     OPSDB_UTILITY_USERNAME: str
     OPSDB_UTILITY_PASSWORD: str
     RDS_ECHO_SQL_QUERIES: bool = False
+    RDS_SCHEMA_DEFAULT: str = 'dataset'
 
     # Redis Service
     REDIS_HOST: str
@@ -131,15 +131,12 @@ class Settings(BaseSettings):
 
         self.MINIO_TMP_PATH = self.ROOT_PATH + '/tmp/'
 
-        self.QUEUE_SERVICE += '/v1/'
-        self.CATALOGUING_SERVICE_V1 = self.CATALOGUING_SERVICE + '/v1/'
-        self.ENTITYINFO_SERVICE += '/v1/'
-        self.ELASTIC_SEARCH_SERVICE += '/'
-        self.DATA_UTILITY_SERVICE = self.DATA_OPS_UTIL + '/v1/'
-        self.DATA_UTILITY_SERVICE_v2 = self.DATA_OPS_UTIL + '/v2/'
-        self.SEND_MESSAGE_URL += '/v1/send_message'
+        self.QUEUE_SERVICE += '/v1'
+        self.CATALOGUING_SERVICE += '/v1'
+        self.SEND_MESSAGE_URL += '/v1'
+        self.DATA_UTILITY_SERVICE_V1 = self.DATA_OPS_UTIL + '/v1'
+        self.DATA_UTILITY_SERVICE_v2 = self.DATA_OPS_UTIL + '/v2'
 
-        self.RDS_SCHEMA_DEFAULT = 'dataset'
         self.OPS_DB_URI = (
             f'postgresql+asyncpg://{self.OPSDB_UTILITY_USERNAME}:{self.OPSDB_UTILITY_PASSWORD}'
             f'@{self.OPSDB_UTILITY_HOST}:{self.OPSDB_UTILITY_PORT}'

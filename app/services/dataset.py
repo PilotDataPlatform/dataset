@@ -276,7 +276,7 @@ async def create_atlas_dataset(geid, operator):
             'labels': [],
         },
     }
-    url = ConfigClass.CATALOGUING_SERVICE_V1 + 'entity'
+    url = ConfigClass.CATALOGUING_SERVICE + '/entity'
     async with httpx.AsyncClient() as client:
         res = await client.post(url, json=atlas_post_form_json)
     return res

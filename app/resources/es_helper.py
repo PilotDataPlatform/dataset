@@ -22,7 +22,7 @@ __logger = LoggerFactory('es_helper').get_logger()
 
 
 def insert_one(es_type, es_index, data):
-    url = ConfigClass.ELASTIC_SEARCH_SERVICE + '{}/{}'.format(es_index, es_type)
+    url = ConfigClass.ELASTIC_SEARCH_SERVICE + '/{}/{}'.format(es_index, es_type)
 
     with httpx.Client() as client:
         res = client.post(url, json=data)
@@ -31,7 +31,7 @@ def insert_one(es_type, es_index, data):
 
 
 def insert_one_by_id(es_type, es_index, data, dataset_id):
-    url = ConfigClass.ELASTIC_SEARCH_SERVICE + '{}/{}/{}'.format(es_index, es_type, dataset_id)
+    url = ConfigClass.ELASTIC_SEARCH_SERVICE + '/{}/{}/{}'.format(es_index, es_type, dataset_id)
 
     with httpx.Client() as client:
         res = client.put(url, json=data)
@@ -40,7 +40,7 @@ def insert_one_by_id(es_type, es_index, data, dataset_id):
 
 
 def get_one_by_id(es_index, es_type, dataset_id):
-    url = ConfigClass.ELASTIC_SEARCH_SERVICE + '{}/{}/{}'.format(es_index, es_type, dataset_id)
+    url = ConfigClass.ELASTIC_SEARCH_SERVICE + '/{}/{}/{}'.format(es_index, es_type, dataset_id)
 
     with httpx.Client() as client:
         res = client.get(url)

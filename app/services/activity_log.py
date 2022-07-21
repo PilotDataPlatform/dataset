@@ -35,7 +35,7 @@ from app.schemas.activity_log import FileFolderActivityLogSchema
 class ActivityLogService:
 
     logger = LoggerFactory('ActivityLogService').get_logger()
-    queue_url = ConfigClass.QUEUE_SERVICE + 'broker/pub'
+    queue_url = ConfigClass.QUEUE_SERVICE + '/broker/pub'
 
     async def _message_send(self, data: Dict[str, Any] = None) -> dict:
         self.logger.info('Sending socket notification: ' + str(data))

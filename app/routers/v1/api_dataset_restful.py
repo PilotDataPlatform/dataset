@@ -242,7 +242,7 @@ class DatasetRestful:
             },
             'create_timestamp': time.time(),
         }
-        url = ConfigClass.SEND_MESSAGE_URL
+        url = ConfigClass.SEND_MESSAGE_URL + '/send_message'
         self.__logger.info('Sending Message To Queue: ' + str(payload))
         async with httpx.AsyncClient() as client:
             msg_res = await client.post(
