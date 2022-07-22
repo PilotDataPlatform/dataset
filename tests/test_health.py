@@ -15,6 +15,7 @@
 
 import pytest
 
+from app.clients.kafka import kafka_client
 from app.core.db import db_engine
 
 pytestmark = pytest.mark.asyncio
@@ -28,9 +29,10 @@ async def test_health_should_return_204_with_empty_response(client):
 
 @pytest.mark.parametrize('kafka_host,db_host', [('fake', 'fake'), ('fake', None), (None, 'fake')])
 async def test_health_should_return_503_when_kafka_or_db_fails(client, monkeypatch, kafka_host, db_host):
-    db_engine.instance = None
-
     from app.config import ConfigClass
+
+    db_engine.instance = None
+    kafka_client.aioproducer = None
 
     if db_host:
         monkeypatch.setattr(ConfigClass, 'OPS_DB_URI', db_host)
