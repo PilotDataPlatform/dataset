@@ -505,7 +505,7 @@ class APIImportData:
         if not payload:
             payload = {}
 
-        url = ConfigClass.QUEUE_SERVICE + 'broker/pub'
+        url = ConfigClass.QUEUE_SERVICE + '/broker/pub'
         post_json = {
             'event_type': 'DATASET_FILE_NOTIFICATION',
             'payload': {
@@ -543,7 +543,7 @@ class APIImportData:
         # also save to redis for display
         source_geid = source_file.get('id')
         job_id = action + '-' + source_geid + '-' + str(int(time.time()))
-        task_url = ConfigClass.DATA_UTILITY_SERVICE + 'tasks/'
+        task_url = ConfigClass.DATA_UTILITY_SERVICE_V1 + '/tasks/'
         post_json = {
             'session_id': session_id,
             'label': 'Dataset',
@@ -573,7 +573,7 @@ class APIImportData:
         await self.send_notification(session_id, source_file, action, status, dataset_geid, operator, task_id, payload)
 
         # also save to redis for display
-        task_url = ConfigClass.DATA_UTILITY_SERVICE + 'tasks/'
+        task_url = ConfigClass.DATA_UTILITY_SERVICE_V1 + '/tasks/'
         post_json = {
             'session_id': session_id,
             'label': 'Dataset',

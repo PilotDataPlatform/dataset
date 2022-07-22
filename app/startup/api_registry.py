@@ -15,6 +15,7 @@
 
 from fastapi import FastAPI
 
+from app.routers import api_health
 from app.routers import api_root
 from app.routers.v1 import api_dataset_folder
 from app.routers.v1 import api_dataset_list
@@ -27,6 +28,7 @@ from app.routers.v1.api_version import api_version
 
 
 def api_registry(app: FastAPI):
+    app.include_router(api_health.router)
     app.include_router(api_root.router, prefix='/v1')
     app.include_router(dataset_file.router, prefix='/v1')
     app.include_router(api_dataset_restful.router)

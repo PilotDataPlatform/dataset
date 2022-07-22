@@ -25,7 +25,7 @@ logger = LoggerFactory(__name__).get_logger()
 async def lock_resource(resource_key: str, operation: str) -> dict:
     # operation can be either read or write
     logger.info('Lock resource:', extra={'resource_key': resource_key})
-    url = ConfigClass.DATA_UTILITY_SERVICE_v2 + 'resource/lock/'
+    url = ConfigClass.DATA_UTILITY_SERVICE_v2 + '/resource/lock/'
     post_json = {'resource_key': resource_key, 'operation': operation}
     async with httpx.AsyncClient() as client:
         response = await client.post(url, json=post_json)
@@ -38,7 +38,7 @@ async def lock_resource(resource_key: str, operation: str) -> dict:
 async def unlock_resource(resource_key: str, operation: str) -> dict:
     # operation can be either read or write
     logger.info('Unlock resource:', extra={'resource_key': resource_key})
-    url = ConfigClass.DATA_UTILITY_SERVICE_v2 + 'resource/lock/'
+    url = ConfigClass.DATA_UTILITY_SERVICE_v2 + '/resource/lock/'
     post_json = {'resource_key': resource_key, 'operation': operation}
 
     async with httpx.AsyncClient() as client:
