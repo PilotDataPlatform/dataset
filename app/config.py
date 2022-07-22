@@ -62,7 +62,7 @@ class Settings(BaseSettings):
 
     # External services
     QUEUE_SERVICE: str
-    CATALOGUING_SERVICE: str
+    LINEAGE_SERVICE: str
     ELASTIC_SEARCH_SERVICE: str
     DATA_OPS_UTIL: str
     SEND_MESSAGE_URL: str
@@ -132,7 +132,7 @@ class Settings(BaseSettings):
         self.MINIO_TMP_PATH = self.ROOT_PATH + '/tmp/'
 
         self.QUEUE_SERVICE += '/v1'
-        self.CATALOGUING_SERVICE += '/v1'
+        self.LINEAGE_SERVICE += '/v1'
         self.SEND_MESSAGE_URL += '/v1'
         self.DATA_UTILITY_SERVICE_V1 = self.DATA_OPS_UTIL + '/v1'
         self.DATA_UTILITY_SERVICE_v2 = self.DATA_OPS_UTIL + '/v2'

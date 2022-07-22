@@ -41,16 +41,16 @@ class GetDBEngine:
 
         if not self.instance:
             try:
-                self.instance = create_async_engine(ConfigClass.OPS_DB_URI)
-            except SQLAlchemyError as exc:
-                logger.exception('Error DB connect', exc_info=exc)
+                self.instance = create_async_engine(ConfigClass.OPS_DB_URI, echo=ConfigClass.RDS_ECHO_SQL_QUERIES)
+            except SQLAlchemyError:
+                logger.exception('Error DB connect')
         return self.instance
 
 
 db_engine = GetDBEngine()
 
 
-async def get_db_session(engine=Depends(db_engine)) -> AsyncSession:
+async def get_db_session(engine: AsyncEngine = Depends(db_engine)) -> AsyncSession:
     db = AsyncSession(bind=engine, expire_on_commit=False)
     try:
         yield db
@@ -58,7 +58,7 @@ async def get_db_session(engine=Depends(db_engine)) -> AsyncSession:
         await db.close()
 
 
-async def is_db_connected(db=Depends(get_db_session)) -> bool:
+async def is_db_connected(db: AsyncSession = Depends(get_db_session)) -> bool:
     """Validates DB connection."""
 
     try:
@@ -66,10 +66,10 @@ async def is_db_connected(db=Depends(get_db_session)) -> bool:
         raw_connection = await connection.get_raw_connection()
         if not raw_connection.is_valid:
             return False
-    except SQLAlchemyError as exc:
-        logger.exception('DB connection failed, SQLAlchemyError', exc_info=exc)
+    except SQLAlchemyError:
+        logger.exception('DB connection failed, SQLAlchemyError')
         return False
-    except Exception as exc:
-        logger.exception('DB connection failed, unknown Exception', exc_info=exc)
+    except Exception:
+        logger.exception('DB connection failed, unknown Exception')
         return False
     return True

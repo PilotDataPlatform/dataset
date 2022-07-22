@@ -37,7 +37,7 @@ class KafkaProducerClient:
                 self.aioproducer = AIOKafkaProducer(bootstrap_servers=[ConfigClass.KAFKA_URL])
                 await self.aioproducer.start()
             except KafkaConnectionError as exc:
-                logger.exception('Kafka connection error', exc_info=exc)
+                logger.exception('Kafka connection error')
                 self.aioproducer = None
                 raise exc
 
@@ -60,8 +60,8 @@ async def is_kafka_connected() -> bool:
     try:
         await get_kafka_client()
         return True
-    except KafkaConnectionError as exc:
-        logger.exception('Kafka connection error', exc_info=exc)
+    except KafkaConnectionError:
+        logger.exception('Kafka connection error')
         return False
 
 

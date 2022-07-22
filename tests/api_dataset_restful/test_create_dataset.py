@@ -39,7 +39,7 @@ async def test_create_dataset_invalid_code_should_return_400(client, code, test_
 async def test_create_dataset_should_return_200(client, httpx_mock, db_session, mock_minio):
     httpx_mock.add_response(
         method='POST',
-        url='http://cataloguing_service/v1/entity',
+        url='http://lineage_service/v1/entity',
         json=[],
     )
 

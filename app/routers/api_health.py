@@ -27,10 +27,12 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-@router.get('/health')
-async def get_db_status(is_db_health=Depends(is_db_connected), is_kakfa_health=Depends(is_kafka_connected)) -> Response:
-    """Return response that represents status of the database."""
+@router.get('/health', summary='Healthcheck if all service dependencies are online.')
+async def get_db_status(
+    is_db_health: bool = Depends(is_db_connected), is_kafka_health: bool = Depends(is_kafka_connected)
+) -> Response:
+    """Return response that represents status of the database and kafka connections."""
 
-    if is_db_health and is_kakfa_health:
+    if is_db_health and is_kafka_health:
         return Response(status_code=204)
     return JSONResponse(status_code=503)
